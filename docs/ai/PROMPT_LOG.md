@@ -68,3 +68,29 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** commits `c0de752` (scheme), `5db62a4` (outlineSubtle), `21a2c0b` (docs), then this log entry. History re-authored to the configured identity.
 
 ---
+
+### 03. Domain and fake data for payment and security (Milestone 2) — 2026-10-15
+- **Tool / model:** Claude Code, claude-sonnet-5-5
+- **Goal:** a pure-Dart domain for both features, fakes behind the interfaces the native side will implement later, DI, and tests, so that the payment flow (M3) and the native modules (M4, M5) can be built without touching domain or presentation.
+- **Prompt (key part, verbatim):**
+  > Milestone 2 — domain + fake data for payment and security. PLAN ONLY, no code yet. … Their interfaces must let the real channel-based sources drop in later unchanged. … Wait for my approval.
+  >
+  > Approved, with two changes: 1. Result/Failure: drop "Failure extends Result<Never>" and the FeatureFailure extension point. Use sealed Result<T> = Success<T>(value) | Err<T>(Failure failure) … 2. Interface segregation: split SecurityRepository into SecurityStatusRepository … and SecureWindowController.
+- **Context given:** `AGENTS.md`, `testing.md`, `android-native.md`, `docs/platform_channels.md`.
+- **AI output (summary):** Plan first, then four green steps. `core`: `Result`/`Err`, an abstract `Failure` with generic failures, typed data-layer exceptions and one `failureFromError`, `Money` (minor units, never a double), `ReplayLatest`, the wire contract constants and a validating `WireReader`. Security: tri-state `Detection`, a `RootAssessment` that is detected with signals, clear or unknown, `SecurityPolicy` (fail-closed for an unverifiable root), two small interfaces over one platform data source. Payment: bills whose total is derived from the lines, a sealed `PaymentProgress` that mirrors the native service state, and `ConfirmPayment` as the only use case. Data sources are split into a bill backend (a fake for good) and the processing the foreground service will replace. A contract suite defines what any implementation of each platform source must do. 326 tests; both flavor APKs build.
+- **Assumptions & risks flagged by the agent:**
+  - The processing was split from the bill backend because only the processing is replaced by native code; one source would have forced the channel implementation to fetch bills too. This departs from the request, which described one fake.
+  - Fail-closed for an unverifiable root means iOS is blocked by design (documented in the README), and a rootable emulator image (userdebug, with `su`) could block payment on a grader's emulator once the native checks exist. Weak signals (test keys, debuggable) are allowed by default for that reason. To verify in the security-native milestone.
+  - A recording that starts during processing does not cancel the payment (the developer's decision): the payment is already authorized and the window is secured.
+  - The fakes are deterministic (fixed delays, counted transaction ids, injectable clock) but the real service will not be; the contract suite is what keeps them honest.
+- **Corrections made (AI suggestion → problem → correction):**
+  - **`Failure extends Result<Never>` plus a `non-sealed FeatureFailure` extension point** (the AI's plan) → relied on covariance, was hard to explain, and made switches exhaustive only at category level. The developer replaced it → `Err<T>(Failure)`, an abstract `Failure` in core and a `sealed` sub-hierarchy per feature, so a `switch` over a feature's failures is exhaustive.
+  - **One `SecurityRepository` for status and window protection** (the AI's plan) → a screen that only protects the window would depend on status reading. The developer asked for interface segregation → `SecurityStatusRepository` and `SecureWindowController`, one platform data source behind both.
+  - **`watchStatus` written as an `async*` generator** → cancelling an `async*` stream that is waiting on a quiet inner stream only takes effect at its next `yield`, so `cancel()` never completed and the native listener would have stayed registered until the next recording event. Found by a test that hung, not by review → rebuilt on a `StreamController` whose `onCancel` releases the inner subscription at once, and added a rule to `android-native.md`.
+  - **`ConfirmPayment` (domain) importing the security barrel** that now exports the DI providers → pure-Dart domain pulled Riverpod and the data layer into its import graph → added `security_domain.dart`, a pure-Dart barrel that `security.dart` re-exports.
+  - **Planned to use `fakeAsync` for time-based tests** → `flutter_test` does not export it, and `fake_async` is not in the approved stack table → used `testWidgets` with `tester.pump(duration)`. That exposed two fake-clock pitfalls that cost two hung test runs: awaiting a subscription `cancel()` inside `testWidgets` never completes, and a `Stream.multi` done event is not delivered under the fake clock. Documented in `test/helpers/fake_time.dart` and in `testing.md`, and added a per-file watchdog to find hangs quickly.
+  - **Contrived test helpers** (a copy-with extension on the entity, a `copyAmount` extension on a DTO) written instead of building the expected value directly → noticed while writing, removed, expected values are now plain constants.
+- **Developer review:** _(to be written by the developer)_
+- **Result:** commits `056a8ad` (core), `977790c` (security), `233b355` (payment), `5b20132` (channel contract draft and rules), then this log entry. Contract draft in `docs/platform_channels.md`.
+
+---
