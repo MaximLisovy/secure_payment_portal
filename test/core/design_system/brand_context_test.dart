@@ -58,5 +58,37 @@ void main() {
       expect(error, isA<StateError>());
       expect((error! as StateError).message, contains('BrandColors'));
     });
+
+    testWidgets(
+      'adaptiveDuration is the duration, or zero for reduced motion',
+      (tester) async {
+        const duration = Duration(milliseconds: 300);
+        late Duration normal;
+        late Duration reduced;
+
+        await tester.pumpWidget(
+          MediaQuery(
+            data: const MediaQueryData(),
+            child: Builder(
+              builder: (context) {
+                normal = context.adaptiveDuration(duration);
+                return MediaQuery(
+                  data: const MediaQueryData(disableAnimations: true),
+                  child: Builder(
+                    builder: (inner) {
+                      reduced = inner.adaptiveDuration(duration);
+                      return const SizedBox();
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+
+        expect(normal, duration);
+        expect(reduced, Duration.zero);
+      },
+    );
   });
 }

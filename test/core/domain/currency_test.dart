@@ -19,6 +19,14 @@ void main() {
       expect(Currency.jpy.minorUnitDigits, 0);
     });
 
+    test('has a symbol for every currency', () {
+      expect(Currency.usd.symbol, r'$');
+      expect(Currency.eur.symbol, '€');
+      expect(Currency.gbp.symbol, '£');
+      expect(Currency.jpy.symbol, '¥');
+      expect(Currency.known.map((c) => c.symbol), everyElement(isNotEmpty));
+    });
+
     test('has unique codes', () {
       final codes = Currency.known.map((c) => c.code).toList();
 

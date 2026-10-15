@@ -13,6 +13,10 @@ extension BrandThemeContext on BuildContext {
   BrandShape get brandShape => _require<BrandShape>(this);
   BrandDensity get brandDensity => _require<BrandDensity>(this);
   BrandMotion get brandMotion => _require<BrandMotion>(this);
+
+  /// [duration], or zero when the user asked for reduced motion.
+  Duration adaptiveDuration(Duration duration) =>
+      MediaQuery.disableAnimationsOf(this) ? Duration.zero : duration;
 }
 
 T _require<T extends ThemeExtension<T>>(BuildContext context) {
