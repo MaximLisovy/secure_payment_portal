@@ -1,5 +1,6 @@
 package com.hypertenant.secure_payment_portal
 
+import com.hypertenant.secure_payment_portal.payment.PaymentServicePlugin
 import com.hypertenant.secure_payment_portal.security.SecurityPlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -9,5 +10,6 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.plugins.add(SecurityPlugin())
+        flutterEngine.plugins.add(PaymentServicePlugin())
     }
 }

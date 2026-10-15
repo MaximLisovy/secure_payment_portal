@@ -41,6 +41,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The payment runs here. shortService alone: it is ignored if combined with another type.
+             Not exported: nothing outside the app can start or bind it. -->
+        <service
+            android:name=".payment.PaymentProcessingService"
+            android:exported="false"
+            android:foregroundServiceType="shortService" />
+
+        <!-- The notification's Cancel action, reached through an immutable PendingIntent.getBroadcast.
+             Not exported, no intent filter: only this app's own notification can send it. -->
+        <receiver
+            android:name=".payment.PaymentCancelReceiver"
+            android:exported="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

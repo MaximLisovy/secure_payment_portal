@@ -81,4 +81,60 @@ class ManifestGuardTest {
             names.toSet(),
         )
     }
+
+    private fun component(tag: String, name: String): Element? =
+        manifest.elements(tag).firstOrNull { manifest.androidAttr(it, "name") == name }
+
+    private fun hasIntentFilter(element: Element) = element.getElementsByTagName("intent-filter").length > 0
+
+    @Test
+    fun thePaymentServiceIsDeclaredNotExportedAndShortServiceAlone() {
+        val service = component("service", ".payment.PaymentProcessingService")
+
+        assertNotNull("without this the service cannot start", service)
+        assertEquals("false", manifest.androidAttr(service!!, "exported"))
+        // Alone: combined with another type the system ignores shortService and its rules.
+        assertEquals(
+            "a service without a type crashes on start from Android 14",
+            "shortService",
+            manifest.androidAttr(service, "foregroundServiceType"),
+        )
+        assertEquals(false, hasIntentFilter(service))
+    }
+
+    @Test
+    fun theCancelReceiverIsDeclaredNotExportedAndWithoutAnIntentFilter() {
+        val receiver = component("receiver", ".payment.PaymentCancelReceiver")
+
+        assertNotNull("without this the notification's Cancel does nothing", receiver)
+        assertEquals("false", manifest.androidAttr(receiver!!, "exported"))
+        assertEquals(false, hasIntentFilter(receiver))
+    }
+
+    @Test
+    fun nothingButTheLauncherActivityIsExported() {
+        val exported =
+            listOf("activity", "service", "receiver", "provider")
+                .flatMap { tag -> manifest.elements(tag).map { tag to it } }
+                .filter { (_, element) -> manifest.androidAttr(element, "exported") == "true" }
+                .map { (_, element) -> manifest.androidAttr(element, "name") }
+
+        assertEquals(listOf(".MainActivity"), exported)
+    }
+
+    // A typo in a relative component name only shows when the system tries to start it.
+    @Test
+    fun everyComponentNamedInTheManifestIsAClassOfTheApp() {
+        val names =
+            listOf("activity", "service", "receiver")
+                .flatMap { tag -> manifest.elements(tag) }
+                .mapNotNull { manifest.androidAttr(it, "name") }
+                .filter { it.startsWith(".") }
+
+        assertEquals(setOf(".MainActivity", ".payment.PaymentProcessingService", ".payment.PaymentCancelReceiver"), names.toSet())
+        for (name in names) {
+            val path = "src/main/kotlin/com/hypertenant/secure_payment_portal/" + name.removePrefix(".").replace('.', '/') + ".kt"
+            assertEquals("$name has no source at $path", true, File(path).exists())
+        }
+    }
 }
