@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Screen recording callback, API 35+ (WindowManager.addScreenRecordingCallback).
+         Below 35 the permission is not requested and the recording state is reported as unknown. -->
+    <uses-permission
+        android:name="android.permission.DETECT_SCREEN_RECORDING"
+        android:minSdkVersion="35" />
+
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
@@ -41,5 +47,19 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+
+        <!-- Package visibility (API 30+) for the root-manager check. The list must stay equal to
+             security/checks/RootManagerPackages.kt (a unit test compares them). No
+             QUERY_ALL_PACKAGES: it is restricted on Google Play. -->
+        <package android:name="com.topjohnwu.magisk" />
+        <package android:name="me.weishu.kernelsu" />
+        <package android:name="eu.chainfire.supersu" />
+        <package android:name="com.noshufou.android.su" />
+        <package android:name="com.koushikdutta.superuser" />
+        <package android:name="com.thirdparty.superuser" />
+        <package android:name="com.yellowes.su" />
+        <package android:name="com.kingouser.com" />
+        <package android:name="com.zachspong.temprootremovejb" />
+        <package android:name="com.ramdroid.appquarantine" />
     </queries>
 </manifest>

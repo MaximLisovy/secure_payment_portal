@@ -51,6 +51,16 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.all {
+            // A failing JVM test should say why in the Gradle output, not only in the report file.
+            it.testLogging {
+                events("failed")
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -62,4 +72,13 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // core-ktx 1.19 needs compileSdk 37 and AGP 9.1; 1.18 is the newest that fits compileSdk 36 / AGP 8.11.
+    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
