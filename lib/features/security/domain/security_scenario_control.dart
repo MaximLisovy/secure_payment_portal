@@ -26,9 +26,4 @@ abstract interface class SecurityScenarioControl {
   bool get recordingActive;
 
   void setRecordingActive({required bool active});
-
-  /// Whether turning on screen protection succeeds.
-  bool get windowProtectionWorks;
-
-  void setWindowProtectionWorks({required bool works});
 }

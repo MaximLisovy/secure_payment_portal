@@ -3,6 +3,31 @@
 abstract final class AppStrings {
   // Debug tooling.
   static const switchBrand = 'Switch brand';
+  static const simulatedBadge = 'SIMULATED';
+  static const simulatedBadgeHint =
+      'Some of this app is running on a simulation, not on real services.';
+  static const demoScenarios = 'Demo scenarios';
+  static const demoIntro =
+      'Debug builds only. Pick what is real and what is simulated, and play '
+      'situations the real device or backend would be hard to put in.';
+  static const demoSecuritySection = 'Device security';
+  static const demoPaymentSection = 'Payment processing';
+  static const demoBillSection = 'Bill backend';
+  static const demoSourceReal = 'Real';
+  static const demoSourceSimulated = 'Simulated';
+  static const demoDevice = 'Device';
+  static const demoRecording = 'Screen recording in progress';
+  static const demoPaymentEnds = 'Payment ends';
+  static const demoBackendOnline = 'Backend online';
+  static const demoRestart = 'Restart payment';
+
+  static const demoDeviceClean = 'Clean';
+  static const demoDeviceRooted = 'Rooted';
+  static const demoDeviceRootedWeak = 'Rooted (weak signs)';
+  static const demoDeviceRootUnverifiable = 'Cannot verify root';
+  static const demoPaymentSucceeds = 'Succeeds';
+  static const demoPaymentDeclined = 'Is declined';
+  static const demoPaymentFails = 'Fails while processing';
 
   // The payment screen.
   static const summaryTotal = 'Total';

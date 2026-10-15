@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
 import 'package:secure_payment_portal/app/debug/brand_switcher.dart';
+import 'package:secure_payment_portal/app/debug/demo_scenarios_button.dart';
+import 'package:secure_payment_portal/app/debug/simulation_badge.dart';
 import 'package:secure_payment_portal/features/payment/payment.dart';
 
 class App extends ConsumerWidget {
@@ -27,7 +29,11 @@ class App extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       home: PaymentConfirmationPage(
         title: title,
-        appBarActions: [if (!kReleaseMode) const BrandSwitcher()],
+        appBarActions: [
+          // In every build: a simulated app must never pass for a real one.
+          const SimulationBadge(),
+          if (!kReleaseMode) ...const [DemoScenariosButton(), BrandSwitcher()],
+        ],
       ),
     );
   }

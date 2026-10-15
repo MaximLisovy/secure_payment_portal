@@ -190,16 +190,12 @@ void main() {
     SecurityScenarioControl controlOf(FakeSecurityPlatformDataSource fake) =>
         fake;
 
-    test(
-      'starts as a clean device with no recording and working protection',
-      () {
-        final control = controlOf(FakeSecurityPlatformDataSource());
+    test('starts as a clean device with no recording', () {
+      final control = controlOf(FakeSecurityPlatformDataSource());
 
-        expect(control.deviceScenario, DeviceScenario.clean);
-        expect(control.recordingActive, isFalse);
-        expect(control.windowProtectionWorks, isTrue);
-      },
-    );
+      expect(control.deviceScenario, DeviceScenario.clean);
+      expect(control.recordingActive, isFalse);
+    });
 
     final expectedRoot = <DeviceScenario, (String, List<String>)>{
       DeviceScenario.clean: (DetectionWire.notDetected, []),
@@ -257,21 +253,6 @@ void main() {
         DetectionWire.notDetected,
       ]);
       await subscription.cancel();
-    });
-
-    test('screen protection can be made to fail and to work again', () async {
-      final fake = FakeSecurityPlatformDataSource();
-
-      controlOf(fake).setWindowProtectionWorks(works: false);
-      await expectLater(
-        fake.enableSecureWindow(),
-        throwsA(isA<PlatformCallException>()),
-      );
-      expect(controlOf(fake).windowProtectionWorks, isFalse);
-
-      controlOf(fake).setWindowProtectionWorks(works: true);
-      await fake.enableSecureWindow();
-      expect(fake.secureWindowCount, 1);
     });
   });
 }

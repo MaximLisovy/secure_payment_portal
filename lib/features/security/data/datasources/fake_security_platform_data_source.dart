@@ -44,7 +44,6 @@ final class FakeSecurityPlatformDataSource
 
   /// Whether `enableSecureWindow` can succeed. When false it fails the way a
   /// device without an Activity would, and the window stays unprotected.
-  @override
   bool get windowProtectionWorks => _windowProtectionWorks;
 
   SecurityStatusDto get status => _status;
@@ -62,7 +61,6 @@ final class FakeSecurityPlatformDataSource
     _recording.add(ScreenRecordingDto(screenRecording: wireValue));
   }
 
-  @override
   void setWindowProtectionWorks({required bool works}) =>
       _windowProtectionWorks = works;
 
