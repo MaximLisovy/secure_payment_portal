@@ -22,7 +22,7 @@ Backend: none. Payment APIs are simulated behind the same interfaces a real back
 | State management | `flutter_riverpod` 3.x without codegen: `Notifier`, `AsyncNotifier`, `Provider`, `StreamProvider`. Legacy `StateNotifier`, `StateProvider` and `ChangeNotifierProvider` are forbidden. |
 | DI | Riverpod providers (no `get_it`). Composition root = root `ProviderScope(overrides: …)` in `main.dart`. |
 | Equality / unions | Dart 3 `sealed` / `final` classes + `equatable` (no `freezed` unless asked) |
-| Errors | `Result<T>` sealed type (`Success` / `Failure`) from `lib/core/error/` |
+| Errors | `Result<T>` sealed type, `Success<T>(value)` or `Err<T>(Failure)`, from `lib/core/error/`. `Failure` is an abstract base in core with the generic failures; each feature declares its own `sealed` sub-hierarchy (`PaymentFailure`, `SecurityFailure`), so a `switch` is exhaustive per feature. |
 | Native bridge | `MethodChannel` for commands, `EventChannel` for streams |
 | Kotlin async | `kotlinx.coroutines` scoped to a lifecycle — never `GlobalScope` |
 | Lints | `flutter_lints` + strict analyzer modes and extra rules, already configured in `analysis_options.yaml` |
@@ -58,8 +58,9 @@ lib/
     utility/
   core/                     # feature-agnostic and brand-agnostic
     design_system/          # ThemeExtension tokens + primitive widgets that read them
-    error/                  # Result, Failure hierarchy
-    platform/               # channel names, error codes (mirror of Kotlin constants)
+    error/                  # Result, Failure base + generic failures, data-layer exceptions, failureFromError
+    async/                  # small stream helpers (ReplayLatest)
+    platform/               # channel names, keys, error codes (mirror of Kotlin constants), WireReader for payloads
     domain/                 # shared value objects (Money, Currency…), pure Dart
   features/
     payment/{domain,data,di,presentation}/
@@ -72,7 +73,7 @@ android/app/src/main/kotlin/<package>/
 Allowed imports:
 
 - `core` imports nothing from `app`, `brands` or `features`.
-- `features/x` may import `core` and the **public barrel** of another feature's domain (`features/security/security.dart`). It never imports another feature's `data` or `presentation`.
+- `features/x` may import `core` and the **public barrel** of another feature (`features/security/security.dart`: its domain and its `di/` providers, typed by domain interfaces). Another feature's `domain/` imports the pure-Dart `security_domain.dart` instead, so it never reaches Riverpod or `data/`. It never imports another feature's `data` or `presentation`.
 - `brands` may import `core` and the features' public config types. It never imports `app`: `app` imports `brands`, never the other way round.
 - Only a feature's own `di/` and `app/` import `data/` implementations. Only `app/` knows about flavors and concrete brands. Only `app/brand/brand_registry.dart` reads `appFlavor`.
 - Imports are always `package:secure_payment_portal/...` (enforced by `always_use_package_imports`).
@@ -110,7 +111,7 @@ Allowed imports:
 
 ### 3.4 Cross-cutting
 
-- **Errors:** a sealed `Failure` hierarchy with a user-safe message key. Expected errors are never thrown across layers.
+- **Errors:** `Failure` carries a user-safe message key, and expected errors are values (`Err`), never thrown across layers. Data sources throw typed `DataSourceException`s that stay inside the data layer: repositories catch them and map them with `failureFromError`. Streams never emit errors; an unreadable event becomes a state (`unknown`, `PaymentFailed`).
 - **Logging:** use a `Logger` abstraction. Never use `print`. Never log amounts tied to an identity, card data, tokens or device fingerprints.
 - **Strings:** user-facing text goes through one place (an l10n-ready `AppStrings`/ARB). Brand-specific copy belongs to the brand config.
 - **SOLID in practice:** depend on interfaces at boundaries, keep classes small with one reason to change, and add a brand or section by **adding** code, not by editing `switch` statements (Open/Closed).

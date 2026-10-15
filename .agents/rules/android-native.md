@@ -103,6 +103,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 - `features/<x>/data/datasources/<x>_platform_data_source.dart` receives a `MethodChannel`/`EventChannel` through its constructor, which makes it testable with `TestDefaultBinaryMessengerBinding`.
 - It catches `PlatformException` → typed `Failure`, and `MissingPluginException` (iOS, tests) → `unknown`/unsupported state. It never throws past the repository.
 - Event streams are exposed as domain streams (`Stream<ScreenRecordingState>`, `Stream<PaymentProgress>`), mapped once, and surfaced to the UI through `StreamProvider`s in the feature's `di/`. Presentation never imports `flutter/services.dart` for channels.
+- Do not build a repository's event stream with `async*` while it waits on a quiet inner stream: cancelling an `async*` stream only takes effect at its next `yield`, so the native listener stays registered until the next event. Use a `StreamController` whose `onCancel` cancels the inner subscription.
 - Riverpod 3 filters `StreamProvider` events with `==`. Make event entities `Equatable`, so that dropping identical consecutive states is intended rather than accidental.
 - Channel providers (`MethodChannel`/`EventChannel` instances) are plain `Provider`s, so tests can override them.
 

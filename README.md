@@ -30,3 +30,27 @@ flutter build apk --debug --flavor utility
 ```
 
 The APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`.
+
+## Platform support
+
+- **Android** is the supported platform. Root and screen recording detection, the secure window and the payment
+  foreground service are native Android code.
+- **iOS is out of scope.** It has no native implementation, so root detection always resolves as `unknown`.
+  The security policy is fail-closed for an unverifiable root, so payment confirmation is blocked there by design.
+  The app still compiles, and the channels degrade to "unsupported" instead of crashing.
+
+## Security policy
+
+Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `lib/features/security/domain/`).
+Defaults:
+
+| Device state | Decision |
+|---|---|
+| a strong root signal (su binary, Magisk, root manager) | blocked |
+| only weak root signals (test keys, debuggable build) | allowed |
+| root could not be verified | blocked (fail-closed) |
+| screen recording in progress | blocked; lifts when the recording ends |
+| screen recording state unknown (below Android 15) | allowed |
+
+Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these
+choices is a constructor flag on the policy.
