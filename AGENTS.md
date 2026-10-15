@@ -26,7 +26,7 @@ Backend: none. Payment APIs are simulated behind the same interfaces a real back
 | Native bridge | `MethodChannel` for commands, `EventChannel` for streams |
 | Kotlin async | `kotlinx.coroutines` scoped to a lifecycle — never `GlobalScope` |
 | Lints | `flutter_lints` + strict analyzer modes and extra rules, already configured in `analysis_options.yaml` |
-| Testing | `flutter_test`, `mocktail` (dev only), `ProviderContainer.test()` / `ProviderScope(overrides:)` |
+| Testing | `flutter_test`, `mocktail` (dev only), `fake_async` (dev only, for time-based tests of pure Dart), `ProviderContainer.test()` / `ProviderScope(overrides:)` |
 
 Never add a package that is not in this table without asking first: name it, give a one-line reason, and offer an alternative that needs no package.
 
