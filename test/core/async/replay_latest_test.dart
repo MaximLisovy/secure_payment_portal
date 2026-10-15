@@ -183,4 +183,170 @@ void main() {
       });
     });
   });
+
+  group('ReplayLatest.empty', () {
+    test('replays nothing until the upstream speaks', () async {
+      final source = ReplayLatest<int>.empty();
+      final seen = <int>[];
+
+      final subscription = source.stream.listen(seen.add);
+      await pumpEventQueue();
+      expect(seen, isEmpty);
+      expect(source.hasValue, isFalse);
+
+      source.add(1);
+      await pumpEventQueue();
+      expect(seen, [1]);
+      expect(source.hasValue, isTrue);
+      await subscription.cancel();
+    });
+
+    test('replays the latest value to a listener that joins after', () async {
+      final source = ReplayLatest<int>.empty()..add(5);
+      final seen = <int>[];
+
+      final subscription = source.stream.listen(seen.add);
+      await pumpEventQueue();
+
+      expect(seen, [5]);
+      await subscription.cancel();
+    });
+
+    test('has no latest value to read before the first add', () {
+      expect(() => ReplayLatest<int>.empty().latest, throwsStateError);
+      expect(ReplayLatest<int>(3).latest, 3);
+    });
+  });
+
+  group('ReplayLatest listener hooks', () {
+    late int opened;
+    late int closed;
+    late ReplayLatest<int> source;
+
+    ReplayLatest<int> create({bool forget = false}) => ReplayLatest<int>.empty(
+      onFirstListener: () => opened++,
+      onLastCancel: () => closed++,
+      forgetOnLastCancel: forget,
+    );
+
+    setUp(() {
+      opened = 0;
+      closed = 0;
+    });
+
+    test(
+      'open once for many listeners, and close when the last leaves',
+      () async {
+        source = create();
+        final a = source.stream.listen((_) {});
+        final b = source.stream.listen((_) {});
+        final c = source.stream.listen((_) {});
+        expect(opened, 1);
+
+        await a.cancel();
+        await b.cancel();
+        expect(closed, 0, reason: 'a listener is still there');
+
+        await c.cancel();
+        expect(closed, 1);
+        expect(opened, 1);
+      },
+    );
+
+    test('open again for the next listener after everyone left', () async {
+      source = create();
+      await (source.stream.listen((_) {})).cancel();
+
+      final again = source.stream.listen((_) {});
+
+      expect(opened, 2);
+      expect(closed, 1);
+      await again.cancel();
+    });
+
+    test('a listener that cancels twice closes only once', () async {
+      source = create();
+      final only = source.stream.listen((_) {});
+
+      await only.cancel();
+      await only.cancel();
+
+      expect(closed, 1);
+    });
+
+    test(
+      'the listener that opens the upstream gets what it emits at once',
+      () async {
+        late final ReplayLatest<int> shared;
+        shared = ReplayLatest<int>.empty(onFirstListener: () => shared.add(7));
+        final seen = <int>[];
+
+        final subscription = shared.stream.listen(seen.add);
+        await pumpEventQueue();
+
+        expect(seen, [7]);
+        await subscription.cancel();
+      },
+    );
+
+    test('keep the latest value for the next listener by default', () async {
+      source = create()..add(1);
+      await (source.stream.listen((_) {})).cancel();
+      final seen = <int>[];
+
+      final next = source.stream.listen(seen.add);
+      await pumpEventQueue();
+
+      expect(seen, [1]);
+      await next.cancel();
+    });
+
+    test('forget it when asked, so nobody is replayed a stale state', () async {
+      source = create(forget: true);
+      final first = source.stream.listen((_) {});
+      source.add(1);
+      await first.cancel();
+      expect(source.hasValue, isFalse);
+      final seen = <int>[];
+
+      final next = source.stream.listen(seen.add);
+      await pumpEventQueue();
+      expect(
+        seen,
+        isEmpty,
+        reason: 'the upstream has not spoken since it reopened',
+      );
+
+      source.add(2);
+      await pumpEventQueue();
+      expect(seen, [2]);
+      await next.cancel();
+    });
+
+    test('do not run when the source is closed', () async {
+      source = create();
+      var done = false;
+      source.stream.listen((_) {}, onDone: () => done = true);
+
+      await source.close();
+      await pumpEventQueue();
+
+      expect(done, isTrue);
+      expect(closed, 0);
+    });
+
+    test('cancelling completes under a fake clock, and the hook has run', () {
+      fakeAsync((async) {
+        source = create();
+        final subscription = source.stream.listen((_) {});
+        var cancelled = false;
+
+        unawaited(subscription.cancel().then((_) => cancelled = true));
+        async.flushMicrotasks();
+
+        expect(cancelled, isTrue);
+        expect(closed, 1);
+      });
+    });
+  });
 }
