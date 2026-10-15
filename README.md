@@ -12,6 +12,18 @@ Hyper-Tenant Secure Payment Portal: multi-brand payment confirmation module.
   - Raw Gradle calls (`./gradlew …`, e.g. Kotlin unit tests) do not read that setting. Prefix them for that command:
     `JAVA_HOME="<path to JDK 17–21>" ./gradlew …`.
 
+## Tests
+
+```bash
+flutter test                                  # Dart: domain, data, presentation, architecture rules
+(cd android && JAVA_HOME="<path to JDK 17–21>" ./gradlew testDebugUnitTest)   # Kotlin: JVM unit tests
+```
+
+The Kotlin tests need no device or emulator: the root checks, the reference-counted secure window, the recording
+monitor and the channel handlers run behind small ports. The logic is brand-agnostic and both flavors compile the same
+sources, so `testDebugUnitTest` runs it once. What no automated test covers is Dart talking to the real Kotlin plugin;
+that is checked on a device (see `docs/platform_channels.md`).
+
 ## Brands (flavors)
 
 One codebase, one Android flavor per brand. The flavor name is the brand id.
@@ -37,7 +49,9 @@ The APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`.
   foreground service are native Android code.
 - **iOS is out of scope.** It has no native implementation, so root detection always resolves as `unknown`.
   The security policy is fail-closed for an unverifiable root, so payment confirmation is blocked there by design.
-  The app still compiles, and the channels degrade to "unsupported" instead of crashing.
+  The app still compiles, and the channels degrade to "unsupported" instead of crashing. The same holds for desktop and
+  plain `flutter test`: the real security source is the default everywhere, and with no native side it refuses payment.
+  In a debug build, switch Device security to *Simulated* in the demo panel to get a working screen there.
 
 ## Security policy
 
@@ -64,8 +78,8 @@ Amounts are integer minor units in a `Money` value object, never `double`, and a
 
 ## Demo scenarios (debug builds)
 
-The Android side is built in later milestones; until then, and later whenever a device or backend is hard to put in a
-given state, every source with a platform side can run on a **simulation**. In a debug or profile build the tune icon in
+Whenever a device or backend is hard to put in a given state, every source with a platform side can run on a
+**simulation**. In a debug or profile build the tune icon in
 the app bar opens a panel where, per source (device security, payment processing), you pick *Real* or *Simulated*
 and, for a simulated one, play a situation:
 
@@ -77,5 +91,12 @@ and, for a simulated one, play a situation:
 A mode switch or a changed device restarts the payment flow so it takes effect at once. A **SIMULATED** badge sits in the
 app bar for as long as any source is simulated, **in every build mode**: a simulated build must not pass for a real one.
 
-Real is the default as soon as a source has a real implementation, and a release build cannot leave it. The real
-sources arrive with the native milestones, so a build before them runs fully simulated, and says so.
+Real is the default as soon as a source has a real implementation, and a release build cannot leave it. Device
+security has one (the Kotlin `SecurityPlugin`); payment processing does not yet (the foreground service is the next
+milestone), so a build still runs with simulated payments and says so with the badge. In Real mode the panel shows a
+read-only **Device reports** block: the root signals that fired, whether a recording is detected, whether the window is
+protected.
+
+The simulated device has no Android window, so in Simulated mode `FLAG_SECURE` is **not** applied and the screen can be
+screenshotted and recorded. That is by design, and what makes a demo recording possible; on Real the same screen is black
+in a screenshot, a recording and the recents list.

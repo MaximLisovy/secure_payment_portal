@@ -5,10 +5,21 @@ Single source of truth for the Dart ↔ Kotlin bridge. Keep it in sync with
 `android/app/src/main/kotlin/.../bridge/Channels.kt` (Kotlin).
 Update this file in the same change that alters the contract.
 
-**Status: draft v1, Dart side only.** The Dart constants, the DTO parsing and the
-contract test suites exist and are tested against fakes. The Kotlin side
-(`bridge/Channels.kt`, the plugins, the foreground service) is written in the
-native milestones and must match this document.
+**Status.**
+
+- **Security (`…/security`, `…/security/screen_recording`): final v1**, implemented in
+  Kotlin (`SecurityPlugin`) and in Dart (`ChannelSecurityPlatformDataSource`), and
+  checked on a Pixel_9 emulator (API 36) as listed under
+  [Verified on a device](#verified-on-a-device-security). One item there is still
+  **pending**: what the recording callback does while the window is secure.
+- **Payment (`…/payment`, `…/payment/progress`): draft v1.** The Dart constants, the
+  DTO parsing and the contract suite exist and run against the fake. The Kotlin
+  foreground service is written in the payment milestone and must match this
+  document.
+
+`bridge/Channels.kt` mirrors `lib/core/platform/channel_contract.dart` for both
+halves; a Dart test (`test/core/platform/channel_contract_sync_test.dart`) fails if
+they differ in a name, a key or a value.
 
 All names start with `com.hypertenant.secure_payment_portal` (written `…` below).
 They never depend on the `applicationId`, which differs per flavor.
@@ -43,7 +54,14 @@ Flat maps of primitives with explicit keys. Every payload carries `schemaVersion
 | `windowProtection` | string | `active` (the window is hidden from capture right now), `inactive` or `unknown`. Reported from the real window state, not from what the app asked for. |
 
 Root reason codes: `su_binary`, `magisk_artifacts`, `root_manager_package`,
-`which_su` (strong); `test_keys`, `debuggable_build` (weak). A code the app does
+`which_su` (strong); `test_keys`, `debuggable_build` (weak). `debuggable_build` means
+`Build.TYPE` is `userdebug` or `eng`; the `ro.debuggable` / `ro.secure` properties are
+not used because an app cannot read them (see the device notes below).
+
+`root` is `unknown` only when **every** check was inconclusive (none could run, or
+there were none); a check that throws or times out is inconclusive and does not
+affect the others. One flaky optional check therefore never makes a device
+unverifiable on its own. A code the app does
 not know is treated as a strong signal, never dropped, so Kotlin may add checks
 without a Dart release. A payload that contradicts itself (detected without a
 signal, signals without detected) is rejected, and the app then treats the
@@ -102,15 +120,45 @@ implementations must agree.
   it is `active` (fail-closed), so a device that cannot protect its window never
   pays.
 - **Threading.** Replies and event emissions happen on the platform main thread,
-  exactly once per call; blocking work runs off it.
+  exactly once per call; blocking work runs off it. The root checks run on
+  `Dispatchers.IO`, concurrently, each capped at 2 s; everything that touches the
+  `Window` stays on main.
 - **Listeners are released.** Register system callbacks in `onListen`, unregister
   them in `onCancel`, and tolerate `onListen` being called again.
+- **One native listener.** The Android `EventChannel` keeps a single active sink: a
+  second `listen` replaces the first (the embedding calls `onCancel(null)` on the
+  old one), and a `cancel` then cancels whichever sink is active. The Dart side
+  therefore opens exactly one native subscription however many Dart listeners
+  there are, closes it after the last, and replays the latest state to each
+  listener, never one from before it reopened.
+- **No Activity.** `enableSecureWindow` fails with `UNAVAILABLE` and counts
+  nothing; `getSecurityStatus` still answers, with `windowProtection: inactive` and
+  `screenRecording: unknown`.
+- **Config changes.** The enable count outlives the window: a re-created Activity
+  gets `FLAG_SECURE` again before anyone asks. The recording callback is released
+  with the Activity and registered again on the new one; nothing is emitted for the
+  gap, and after it only a real change is.
+- **Recording needs the platform.** From API 35 the state comes from
+  `WindowManager.addScreenRecordingCallback` (`DETECT_SCREEN_RECORDING`, requested
+  from API 35 only). Below 35 it is always `unknown`, never `notDetected`: there is
+  no official API, the API 34 screenshot callback detects screenshots, not
+  recordings, and a `DisplayManager` heuristic would also flag casting.
+- **Calls time out.** A call that is never answered fails on the Dart side as
+  `UNAVAILABLE` after 5 s, so a hang is an explicit failure, not an endless wait.
+- **Errors carry no detail.** An unexpected native exception is answered as
+  `INTERNAL` with a fixed message, never the exception's text, which could hold a
+  path.
+- **No native side.** On iOS, desktop and plain `flutter test` there is no handler:
+  calls fail as unsupported and the device reads as unverifiable. Flutter's own
+  `EventChannel` swallows the failed listen, so the recording stream stays silent.
 
 ## Dart side
 
 | Piece | File |
 |---|---|
 | Names, keys, codes (mirror of `Channels.kt`) | `lib/core/platform/channel_contract.dart` |
+| Security channel source (shared native listener, timeouts) | `features/security/data/datasources/channel_security_platform_data_source.dart` |
+| Native side of the security channels played in Dart, for the contract suite | `test/features/security/helpers/native_security_simulator.dart` |
 | Validating payload reader | `lib/core/platform/wire_reader.dart` |
 | Data-source contracts | `features/security/data/datasources/security_platform_data_source.dart`, `features/payment/data/datasources/payment_platform_data_source.dart` |
 | Wire DTOs (`fromMap`/`toMap`) | `features/*/data/dtos/` |
@@ -120,3 +168,46 @@ The channel-based data sources receive their `MethodChannel`/`EventChannel`
 through the constructor, catch `PlatformException` and `MissingPluginException`,
 and throw the typed `DataSourceException`s from `lib/core/error/`. Nothing above
 the data layer changes when they replace the fakes.
+
+## Verified on a device (security)
+
+Pixel_9 emulator, API 36 (`google_apis_playstore`, arm64, `user` build,
+`release-keys`), retail debug build, 2026-10-15. Screenshots and window state were
+read with `adb`; the app's own view comes from the debug log of `SecurityPlugin`.
+
+| Check | Result |
+|---|---|
+| Root signals the app reports | none: `root=notDetected signals=[] inconclusive=[]`, so all six checks ran and none fired |
+| `FLAG_SECURE` and screenshots | `adb exec-out screencap` of the payment screen is one flat black colour; the launcher, as a control, has 31,000+ colours. `dumpsys window` lists `SECURE` in the `MainActivity` window flags |
+| Recents thumbnail | the app's card in Overview is black |
+| `windowProtection` | `active` in the first status read after launch, so the wait for the window (settle before check) works |
+| Rotation and Activity re-creation ("Don't keep activities") | `FLAG_SECURE` still present, screenshot still black, no crash or "Reply already submitted" in the log |
+| `DETECT_SCREEN_RECORDING` | granted at install (a normal permission) |
+| Source swap Real → Simulated → Real | with the simulation, `SECURE` is **absent** and the screen can be captured, because the simulated source has no Android window; back on Real it is present again and the screenshot is black |
+| `adb shell screenrecord` | **not detected**: the recording readout stayed `notDetected` for the whole recording. It is not a MediaProjection capture, which is what the API 35 callback reports |
+| Screen record quick-settings tile (MediaProjection) | **pending**, see below |
+
+Notes from the device:
+
+- `getprop ro.debuggable` and `ro.secure` print nothing from the app's SELinux domain
+  (checked with `run-as`, a close but not identical domain), so a `getprop`-based
+  check could never run. The check reads `Build.TYPE` instead.
+- `which su` runs from the app and is conclusive (exit 1, nothing found).
+  `/data/adb` is not readable by an app, so the Magisk path check says little on a
+  modern Android; it is kept for older layouts.
+- Other emulator images were not available to check. From memory, not verified here:
+  a `google_apis` (non-Play) userdebug image has `test-keys` and `userdebug`, both
+  weak and allowed by default, and often ships `su`, which is strong and blocks.
+
+### Recording callback while the window is secure (pending)
+
+Whether `addScreenRecordingCallback` still reports the app as visible in a recording
+when the window carries `FLAG_SECURE` (the recording then shows black) is **not yet
+known**. It is checked with the Screen record tile, and the finding is written here
+as one of:
+
+- **verified**: the callback fires with `FLAG_SECURE` on, so the recording block
+  works as a second line; or
+- **defense in depth**: the callback never fires for a secure window; the block is
+  then redundant with `FLAG_SECURE`, which already blacks the recording out. The
+  detection is kept regardless.
