@@ -1,22 +1,10 @@
 package com.hypertenant.secure_payment_portal.security
 
+import com.hypertenant.secure_payment_portal.testing.FakeWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-
-private class FakeWindow : SecureWindowTarget {
-    var flag = false
-    val calls = mutableListOf<Boolean>()
-
-    override val isSecure: Boolean
-        get() = flag
-
-    override fun setSecure(secure: Boolean) {
-        calls += secure
-        flag = secure
-    }
-}
 
 class SecureWindowControllerTest {
     private val controller = SecureWindowController()

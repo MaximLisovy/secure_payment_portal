@@ -15,7 +15,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** The verdict of all checks: the state, and the reason codes of the signals that fired. */
-data class RootReport(val state: Detection, val signals: List<String>)
+data class RootReport(val state: Detection, val signals: List<String>) {
+    init {
+        // The wire contract: signals are present exactly when root is detected.
+        require((state == Detection.DETECTED) == signals.isNotEmpty()) {
+            "signals must be non-empty exactly when root is detected"
+        }
+    }
+}
 
 /**
  * Runs the checks together, off the main thread, and combines them.

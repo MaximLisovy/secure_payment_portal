@@ -1,39 +1,10 @@
 package com.hypertenant.secure_payment_portal.security
 
+import com.hypertenant.secure_payment_portal.testing.FakeRecordingSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-
-private class FakeSource(var state: Detection = Detection.NOT_DETECTED) : ScreenRecordingSource {
-    var starts = 0
-    var stops = 0
-    private var callback: ((Detection) -> Unit)? = null
-    val isRegistered: Boolean
-        get() = callback != null
-
-    override fun start(onChange: (Detection) -> Unit): Detection {
-        starts++
-        callback = onChange
-        return state
-    }
-
-    override fun stop() {
-        stops++
-        callback = null
-    }
-
-    /** The platform reporting a change. */
-    fun fire(next: Detection) {
-        state = next
-        callback?.invoke(next)
-    }
-
-    /** A late delivery of the callback that was registered before the last stop. */
-    fun fireStale(old: (Detection) -> Unit, next: Detection) = old(next)
-
-    fun captureCallback(): (Detection) -> Unit = callback!!
-}
 
 class ScreenRecordingMonitorTest {
     private val monitor = ScreenRecordingMonitor()
@@ -48,7 +19,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun aSnapshotReadsTheSourceAndLeavesNothingRegistered() {
-        val source = FakeSource(Detection.DETECTED)
+        val source = FakeRecordingSource(Detection.DETECTED)
         monitor.attach(source)
 
         assertEquals(Detection.DETECTED, monitor.snapshot())
@@ -60,7 +31,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun aSnapshotWhileListeningUsesTheTrackedStateWithoutRegisteringAgain() {
-        val source = FakeSource(Detection.NOT_DETECTED)
+        val source = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(source)
         listen()
 
@@ -72,7 +43,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun startingEmitsTheCurrentStateAtOnceAndRegistersOnce() {
-        val source = FakeSource(Detection.DETECTED)
+        val source = FakeRecordingSource(Detection.DETECTED)
         monitor.attach(source)
 
         listen()
@@ -83,7 +54,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun changesAreEmittedAndRepeatsAreNot() {
-        val source = FakeSource(Detection.NOT_DETECTED)
+        val source = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(source)
         listen()
 
@@ -102,26 +73,26 @@ class ScreenRecordingMonitorTest {
         listen()
         assertEquals(listOf(Detection.UNKNOWN), seen)
 
-        monitor.attach(FakeSource(Detection.DETECTED))
+        monitor.attach(FakeRecordingSource(Detection.DETECTED))
 
         assertEquals(listOf(Detection.UNKNOWN, Detection.DETECTED), seen)
     }
 
     @Test
     fun attachingEmitsNothingIfTheStateIsTheSameAsBefore() {
-        val first = FakeSource(Detection.NOT_DETECTED)
+        val first = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(first)
         listen()
 
         monitor.detach()
-        monitor.attach(FakeSource(Detection.NOT_DETECTED))
+        monitor.attach(FakeRecordingSource(Detection.NOT_DETECTED))
 
         assertEquals(listOf(Detection.NOT_DETECTED), seen)
     }
 
     @Test
     fun aConfigChangeGapEmitsNothing_andAChangeDuringItIsEmittedOnReattach() {
-        val first = FakeSource(Detection.NOT_DETECTED)
+        val first = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(first)
         listen()
 
@@ -129,13 +100,13 @@ class ScreenRecordingMonitorTest {
         assertFalse("the callback must be released with the Activity", first.isRegistered)
         assertEquals(listOf(Detection.NOT_DETECTED), seen)
 
-        monitor.attach(FakeSource(Detection.DETECTED))
+        monitor.attach(FakeRecordingSource(Detection.DETECTED))
         assertEquals(listOf(Detection.NOT_DETECTED, Detection.DETECTED), seen)
     }
 
     @Test
     fun stoppingUnregistersAndSilencesLateCallbacks() {
-        val source = FakeSource(Detection.NOT_DETECTED)
+        val source = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(source)
         listen()
         val late = source.captureCallback()
@@ -149,13 +120,13 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun aLateCallbackFromADetachedSourceIsIgnored() {
-        val old = FakeSource(Detection.NOT_DETECTED)
+        val old = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(old)
         listen()
         val late = old.captureCallback()
 
         monitor.detach()
-        monitor.attach(FakeSource(Detection.NOT_DETECTED))
+        monitor.attach(FakeRecordingSource(Detection.NOT_DETECTED))
         old.fireStale(late, Detection.DETECTED)
 
         assertEquals(listOf(Detection.NOT_DETECTED), seen)
@@ -163,7 +134,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun listeningAgainAfterStoppingRegistersAgainAndReplaysTheState() {
-        val source = FakeSource(Detection.DETECTED)
+        val source = FakeRecordingSource(Detection.DETECTED)
         monitor.attach(source)
         listen()
         monitor.stop()
@@ -177,7 +148,7 @@ class ScreenRecordingMonitorTest {
 
     @Test
     fun startingTwiceLeavesOneRegistrationAndTheNewListener() {
-        val source = FakeSource(Detection.NOT_DETECTED)
+        val source = FakeRecordingSource(Detection.NOT_DETECTED)
         monitor.attach(source)
         val first = mutableListOf<Detection>()
         monitor.start { first += it }

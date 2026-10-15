@@ -1,6 +1,7 @@
 package com.hypertenant.secure_payment_portal.bridge
 
-import io.flutter.plugin.common.MethodChannel
+import com.hypertenant.secure_payment_portal.testing.FakeMainThread
+import com.hypertenant.secure_payment_portal.testing.RecordingResult
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -8,41 +9,6 @@ import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-
-private class RecordingResult : MethodChannel.Result {
-    val replies = mutableListOf<String>()
-
-    @Synchronized
-    override fun success(result: Any?) {
-        replies += "success($result)"
-    }
-
-    @Synchronized
-    override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-        replies += "error($errorCode,$errorMessage,$errorDetails)"
-    }
-
-    @Synchronized
-    override fun notImplemented() {
-        replies += "notImplemented"
-    }
-}
-
-private class FakeMainThread(var onMain: Boolean) : MainThread {
-    val posted = mutableListOf<() -> Unit>()
-
-    override fun isCurrent() = onMain
-
-    override fun post(block: () -> Unit) {
-        posted += block
-    }
-
-    fun runPosted() {
-        val pending = posted.toList()
-        posted.clear()
-        pending.forEach { it() }
-    }
-}
 
 class SafeResultTest {
     private val delegate = RecordingResult()
