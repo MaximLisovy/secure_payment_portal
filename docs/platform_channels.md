@@ -17,7 +17,7 @@ They never depend on the `applicationId`, which differs per flavor.
 
 | Channel | Type | Method / event | Args | Returns / emits | Error codes | Min API notes |
 |---|---|---|---|---|---|---|
-| `…/security` | Method | `getSecurityStatus` | none | map: `schemaVersion`, `root`, `rootSignals`, `screenRecording` | `INTERNAL`, `UNAVAILABLE` | Root checks work on every supported API. Recording state is real on API 35+ and `unknown` below. |
+| `…/security` | Method | `getSecurityStatus` | none | map: `schemaVersion`, `root`, `rootSignals`, `screenRecording`, `windowProtection` | `INTERNAL`, `UNAVAILABLE` | Root checks work on every supported API. Recording state is real on API 35+ and `unknown` below. |
 | `…/security` | Method | `enableSecureWindow` | none | `null` | `UNAVAILABLE` (no Activity) | `FLAG_SECURE`, any API. Reference counted. |
 | `…/security` | Method | `disableSecureWindow` | none | `null` | `UNAVAILABLE` | Balances `enableSecureWindow`; an extra call is ignored. |
 | `…/security/screen_recording` | Event | recording changes | none | map: `schemaVersion`, `screenRecording` | — | API 35+ detection callback; below that it emits `unknown`. |
@@ -40,6 +40,7 @@ Flat maps of primitives with explicit keys. Every payload carries `schemaVersion
 | `root` | string | `detected`, `notDetected` or `unknown` |
 | `rootSignals` | list of string | reason codes that fired. **Non-empty exactly when `root` is `detected`.** |
 | `screenRecording` | string | `detected` (a recording is in progress), `notDetected` or `unknown` |
+| `windowProtection` | string | `active` (the window is hidden from capture right now), `inactive` or `unknown`. Reported from the real window state, not from what the app asked for. |
 
 Root reason codes: `su_binary`, `magisk_artifacts`, `root_manager_package`,
 `which_su` (strong); `test_keys`, `debuggable_build` (weak). A code the app does
@@ -94,7 +95,12 @@ implementations must agree.
 - **Cancel is idempotent.** With nothing running it is a no-op; otherwise the
   state becomes `cancelled`.
 - **Secure window is reference counted.** The flag is set on the first enable
-  and cleared when every enable has been balanced by a disable.
+  and cleared when every enable has been balanced by a disable. A failed enable
+  changes nothing.
+- **`windowProtection` tells the truth.** `getSecurityStatus` reports `active`
+  while the flag is set and `inactive` otherwise. The app blocks payment unless
+  it is `active` (fail-closed), so a device that cannot protect its window never
+  pays.
 - **Threading.** Replies and event emissions happen on the platform main thread,
   exactly once per call; blocking work runs off it.
 - **Listeners are released.** Register system callbacks in `onListen`, unregister

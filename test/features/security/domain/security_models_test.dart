@@ -64,6 +64,7 @@ void main() {
       const status = SecurityStatus(
         root: RootClear(),
         screenRecording: Detection.notDetected,
+        windowProtection: WindowProtection.active,
       );
 
       final changed = status.copyWith(screenRecording: Detection.detected);
@@ -82,12 +83,19 @@ void main() {
       expect(keys, everyElement(startsWith('security.blocked.')));
     });
 
-    test('only a recording can lift without restarting the app', () {
-      expect(SecurityBlockReason.screenRecording.isRecoverable, isTrue);
-      expect(SecurityBlockReason.recordingUnverifiable.isRecoverable, isTrue);
-      expect(SecurityBlockReason.rootDetected.isRecoverable, isFalse);
-      expect(SecurityBlockReason.rootUnverifiable.isRecoverable, isFalse);
-    });
+    test(
+      'only a recording or screen protection can lift without restarting the app',
+      () {
+        expect(SecurityBlockReason.screenRecording.isRecoverable, isTrue);
+        expect(
+          SecurityBlockReason.screenProtectionUnavailable.isRecoverable,
+          isTrue,
+        );
+        expect(SecurityBlockReason.recordingUnverifiable.isRecoverable, isTrue);
+        expect(SecurityBlockReason.rootDetected.isRecoverable, isFalse);
+        expect(SecurityBlockReason.rootUnverifiable.isRecoverable, isFalse);
+      },
+    );
   });
 
   group('SecurityBlockedFailure', () {

@@ -13,10 +13,12 @@ SecurityStatusDto _dto({
   String root = DetectionWire.notDetected,
   List<String> signals = const [],
   String recording = DetectionWire.notDetected,
+  String window = WindowProtectionWire.active,
 }) => SecurityStatusDto(
   root: root,
   rootSignals: signals,
   screenRecording: recording,
+  windowProtection: window,
 );
 
 Matcher get _malformed => throwsA(isA<MalformedPayloadException>());
@@ -43,7 +45,11 @@ void main() {
 
     test('maps an unverifiable root and recording without guessing', () {
       final status = SecurityStatusMapper.toEntity(
-        _dto(root: DetectionWire.unknown, recording: DetectionWire.unknown),
+        _dto(
+          root: DetectionWire.unknown,
+          recording: DetectionWire.unknown,
+          window: WindowProtectionWire.unknown,
+        ),
       );
 
       expect(status, SecurityStatus.unknown);
@@ -55,6 +61,26 @@ void main() {
       );
 
       expect(status.screenRecording, Detection.detected);
+    });
+
+    test('maps every window protection value', () {
+      for (final (wire, expected) in [
+        (WindowProtectionWire.active, WindowProtection.active),
+        (WindowProtectionWire.inactive, WindowProtection.inactive),
+        (WindowProtectionWire.unknown, WindowProtection.unknown),
+      ]) {
+        expect(
+          SecurityStatusMapper.toEntity(_dto(window: wire)).windowProtection,
+          expected,
+        );
+      }
+    });
+
+    test('rejects a window protection value it does not know', () {
+      expect(
+        () => SecurityStatusMapper.toEntity(_dto(window: 'maybe')),
+        _malformed,
+      );
     });
 
     test('rejects a root that contradicts its signals', () {

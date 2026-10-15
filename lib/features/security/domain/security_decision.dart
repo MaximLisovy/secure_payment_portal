@@ -3,6 +3,10 @@ import 'package:equatable/equatable.dart';
 enum SecurityBlockReason {
   rootDetected('security.blocked.root_detected', isRecoverable: false),
   rootUnverifiable('security.blocked.root_unverifiable', isRecoverable: false),
+  screenProtectionUnavailable(
+    'security.blocked.screen_protection_unavailable',
+    isRecoverable: true,
+  ),
   screenRecording('security.blocked.screen_recording', isRecoverable: true),
   recordingUnverifiable(
     'security.blocked.recording_unverifiable',

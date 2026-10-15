@@ -14,11 +14,13 @@ Map<Object?, Object?> _statusMap({
   Object? root = DetectionWire.notDetected,
   Object? signals = const <Object?>[],
   Object? recording = DetectionWire.notDetected,
+  Object? window = WindowProtectionWire.active,
 }) => <Object?, Object?>{
   ChannelContract.keySchemaVersion: version,
   SecurityChannel.keyRoot: root,
   SecurityChannel.keyRootSignals: signals,
   SecurityChannel.keyScreenRecording: recording,
+  SecurityChannel.keyWindowProtection: window,
 };
 
 void main() {
@@ -69,6 +71,14 @@ void main() {
       expect(() => SecurityStatusDto.fromMap(_statusMap(root: 1)), _malformed);
       expect(
         () => SecurityStatusDto.fromMap(_statusMap(recording: null)),
+        _malformed,
+      );
+      expect(
+        () => SecurityStatusDto.fromMap(_statusMap(window: null)),
+        _malformed,
+      );
+      expect(
+        () => SecurityStatusDto.fromMap(_statusMap(window: 1)),
         _malformed,
       );
       expect(

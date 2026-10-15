@@ -14,9 +14,19 @@ const _recording = SecurityBlocked(SecurityBlockReason.screenRecording);
 const _recordingUnverifiable = SecurityBlocked(
   SecurityBlockReason.recordingUnverifiable,
 );
+const _protectionUnavailable = SecurityBlocked(
+  SecurityBlockReason.screenProtectionUnavailable,
+);
 
-SecurityStatus _status(RootAssessment root, Detection recording) =>
-    SecurityStatus(root: root, screenRecording: recording);
+SecurityStatus _status(
+  RootAssessment root,
+  Detection recording, [
+  WindowProtection window = WindowProtection.active,
+]) => SecurityStatus(
+  root: root,
+  screenRecording: recording,
+  windowProtection: window,
+);
 
 void main() {
   group('SecurityPolicy defaults', () {
@@ -100,6 +110,65 @@ void main() {
       });
     }
 
+    test(
+      'a window that is not protected blocks, whatever the recording says',
+      () {
+        for (final window in [
+          WindowProtection.inactive,
+          WindowProtection.unknown,
+        ]) {
+          for (final recording in Detection.values) {
+            expect(
+              policy.evaluate(_status(const RootClear(), recording, window)),
+              _protectionUnavailable,
+              reason: '$window with recording $recording',
+            );
+          }
+        }
+      },
+    );
+
+    test(
+      'root is judged before window protection, protection before recording',
+      () {
+        expect(
+          policy.evaluate(
+            _status(strongRoot, Detection.detected, WindowProtection.inactive),
+          ),
+          _rootDetected,
+        );
+        expect(
+          policy.evaluate(
+            _status(
+              const RootUnknown(),
+              Detection.notDetected,
+              WindowProtection.inactive,
+            ),
+          ),
+          _rootUnverifiable,
+        );
+        expect(
+          policy.evaluate(
+            _status(
+              const RootClear(),
+              Detection.detected,
+              WindowProtection.inactive,
+            ),
+          ),
+          _protectionUnavailable,
+        );
+      },
+    );
+
+    test('weak root signals do not hide an unprotected window', () {
+      expect(
+        policy.evaluate(
+          _status(weakRoot, Detection.notDetected, WindowProtection.inactive),
+        ),
+        _protectionUnavailable,
+      );
+    });
+
     test('a status nobody could read is blocked (fail-closed)', () {
       expect(policy.evaluate(SecurityStatus.unknown), _rootUnverifiable);
     });
@@ -145,6 +214,31 @@ void main() {
         _recordingUnverifiable,
       );
       expect(policy.evaluate(cleanStatus), _allowed);
+    });
+
+    test('can allow an unprotected window, and recording is still judged', () {
+      const policy = SecurityPolicy(blockOnUnprotectedWindow: false);
+
+      expect(
+        policy.evaluate(
+          _status(
+            const RootClear(),
+            Detection.notDetected,
+            WindowProtection.inactive,
+          ),
+        ),
+        _allowed,
+      );
+      expect(
+        policy.evaluate(
+          _status(
+            const RootClear(),
+            Detection.detected,
+            WindowProtection.unknown,
+          ),
+        ),
+        _recording,
+      );
     });
 
     test('a detected recording blocks whatever the configuration says', () {

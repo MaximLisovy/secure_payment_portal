@@ -18,11 +18,14 @@ final class FakeSecurityPlatformDataSource
          ScreenRecordingDto(screenRecording: status.screenRecording),
        );
 
-  /// Root checks clean and no screen recording.
+  /// Root checks clean and no screen recording. Window protection is not part
+  /// of the script: like a real device, the fake reports it from the secure
+  /// window calls it has received (see [getSecurityStatus]).
   static const SecurityStatusDto cleanDevice = SecurityStatusDto(
     root: DetectionWire.notDetected,
     rootSignals: [],
     screenRecording: DetectionWire.notDetected,
+    windowProtection: WindowProtectionWire.inactive,
   );
 
   /// How long `getSecurityStatus` takes. Lets a UI show a scan in progress.
@@ -31,10 +34,17 @@ final class FakeSecurityPlatformDataSource
   SecurityStatusDto _status;
   final ReplayLatest<ScreenRecordingDto> _recording;
   DataSourceException? _failure;
+  bool _windowProtectionWorks = true;
   int _secureWindowCount = 0;
 
   /// How many `enableSecureWindow` calls are still unbalanced.
   int get secureWindowCount => _secureWindowCount;
+
+  /// Whether `enableSecureWindow` can succeed. When false it fails the way a
+  /// device without an Activity would, and the window stays unprotected.
+  bool get windowProtectionWorks => _windowProtectionWorks;
+
+  SecurityStatusDto get status => _status;
 
   /// Makes every call throw [failure], or work again when null.
   void failWith(DataSourceException? failure) => _failure = failure;
@@ -49,11 +59,19 @@ final class FakeSecurityPlatformDataSource
     _recording.add(ScreenRecordingDto(screenRecording: wireValue));
   }
 
+  void setWindowProtectionWorks(bool works) => _windowProtectionWorks = works;
+
+  /// The scripted root and recording facts, plus the window protection this fake
+  /// has actually applied: `active` while an enable is unbalanced.
   @override
   Future<SecurityStatusDto> getSecurityStatus() async {
     await _wait();
     _throwIfFailing();
-    return _status;
+    return _status.copyWith(
+      windowProtection: _secureWindowCount > 0
+          ? WindowProtectionWire.active
+          : WindowProtectionWire.inactive,
+    );
   }
 
   @override
@@ -62,6 +80,9 @@ final class FakeSecurityPlatformDataSource
   @override
   Future<void> enableSecureWindow() async {
     _throwIfFailing();
+    if (!_windowProtectionWorks) {
+      throw const PlatformCallException(ChannelErrorCodes.unavailable);
+    }
     _secureWindowCount++;
   }
 

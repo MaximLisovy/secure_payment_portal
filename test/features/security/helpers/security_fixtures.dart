@@ -8,17 +8,20 @@ const cleanDto = SecurityStatusDto(
   root: DetectionWire.notDetected,
   rootSignals: [],
   screenRecording: DetectionWire.notDetected,
+  windowProtection: WindowProtectionWire.active,
 );
 
 const rootedDto = SecurityStatusDto(
   root: DetectionWire.detected,
   rootSignals: [RootReasonCodes.suBinary],
   screenRecording: DetectionWire.notDetected,
+  windowProtection: WindowProtectionWire.active,
 );
 
 const cleanStatus = SecurityStatus(
   root: RootClear(),
   screenRecording: Detection.notDetected,
+  windowProtection: WindowProtection.active,
 );
 
 const strongRoot = RootDetected({RootSignal.suBinary});

@@ -20,6 +20,7 @@ class _MockPayments extends Mock implements PaymentRepository {}
 const _recording = SecurityStatus(
   root: RootClear(),
   screenRecording: Detection.detected,
+  windowProtection: WindowProtection.active,
 );
 
 void main() {
@@ -82,6 +83,7 @@ void main() {
         const SecurityStatus(
           root: weakRoot,
           screenRecording: Detection.notDetected,
+          windowProtection: WindowProtection.active,
         ),
       );
 
@@ -95,6 +97,7 @@ void main() {
           const SecurityStatus(
             root: RootClear(),
             screenRecording: Detection.unknown,
+            windowProtection: WindowProtection.active,
           ),
         );
 
@@ -110,6 +113,7 @@ void main() {
         const SecurityStatus(
           root: strongRoot,
           screenRecording: Detection.notDetected,
+          windowProtection: WindowProtection.active,
         ),
         SecurityBlockReason.rootDetected,
       ),
@@ -123,6 +127,7 @@ void main() {
         const SecurityStatus(
           root: RootUnknown(),
           screenRecording: Detection.notDetected,
+          windowProtection: WindowProtection.active,
         ),
         SecurityBlockReason.rootUnverifiable,
       ),
@@ -163,18 +168,47 @@ void main() {
       ).thenAnswer((_) async => const Err<SecurityStatus>(NetworkFailure()));
 
       final result = await confirm(
-        const SecurityPolicy(blockOnUnknownRoot: false),
+        const SecurityPolicy(
+          blockOnUnknownRoot: false,
+          blockOnUnprotectedWindow: false,
+        ),
       )(sampleDetails);
 
       expect(result, Success.unit);
       verify(() => payments.startPayment(sampleDetails)).called(1);
     });
 
+    test(
+      'a window that is not protected blocks, and never starts processing',
+      () async {
+        deviceReads(
+          const SecurityStatus(
+            root: RootClear(),
+            screenRecording: Detection.notDetected,
+            windowProtection: WindowProtection.inactive,
+          ),
+        );
+
+        final result = await confirm()(sampleDetails);
+
+        expect(
+          result,
+          Err<void>(
+            SecurityBlockedFailure(
+              SecurityBlockReason.screenProtectionUnavailable,
+            ),
+          ),
+        );
+        verifyNever(() => payments.startPayment(any()));
+      },
+    );
+
     test('a stricter policy can block an unverifiable recording', () async {
       deviceReads(
         const SecurityStatus(
           root: RootClear(),
           screenRecording: Detection.unknown,
+          windowProtection: WindowProtection.active,
         ),
       );
 

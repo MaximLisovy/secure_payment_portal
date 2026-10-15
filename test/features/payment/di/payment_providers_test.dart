@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,11 +49,18 @@ ProviderContainer _container({
 ({List<PaymentProgress> seen, Result<void> confirmed}) _pay(
   FakeAsync async,
   ProviderContainer container,
-  String billId,
-) {
+  String billId, {
+  bool protectWindow = true,
+}) {
   final payments = container.read(paymentRepositoryProvider);
   final seen = <PaymentProgress>[];
   payments.watchProgress().listen(seen.add);
+
+  // What `SecureScreen` does when the payment page is shown.
+  if (protectWindow) {
+    unawaited(container.read(secureWindowControllerProvider).enable());
+    async.flushMicrotasks();
+  }
 
   final loaded = FutureProbe(payments.getPaymentDetails(billId));
   async.flushMicrotasks();
@@ -115,6 +124,25 @@ void main() {
       expect(paid.seen, [
         const PaymentIdle(),
       ], reason: 'processing must never have started');
+    });
+  });
+
+  test('an unprotected window never reaches the payment platform', () {
+    fakeAsync((async) {
+      final container = _container();
+
+      final paid = _pay(
+        async,
+        container,
+        FakeBills.retailOrderId,
+        protectWindow: false,
+      );
+
+      expect(
+        paid.confirmed.failureOrNull,
+        SecurityBlockedFailure(SecurityBlockReason.screenProtectionUnavailable),
+      );
+      expect(paid.seen, [const PaymentIdle()]);
     });
   });
 

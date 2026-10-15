@@ -33,6 +33,13 @@ abstract final class DetectionWire {
   static const String unknown = 'unknown';
 }
 
+/// Wire values of whether the app window is currently hidden from capture.
+abstract final class WindowProtectionWire {
+  static const String active = 'active';
+  static const String inactive = 'inactive';
+  static const String unknown = 'unknown';
+}
+
 /// Reason codes of the independent root heuristics (`rootSignals`).
 abstract final class RootReasonCodes {
   static const String suBinary = 'su_binary';
@@ -58,6 +65,7 @@ abstract final class SecurityChannel {
   static const String keyRoot = 'root';
   static const String keyRootSignals = 'rootSignals';
   static const String keyScreenRecording = 'screenRecording';
+  static const String keyWindowProtection = 'windowProtection';
 }
 
 abstract final class PaymentChannel {

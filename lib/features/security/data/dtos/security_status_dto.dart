@@ -9,6 +9,7 @@ final class SecurityStatusDto extends Equatable {
     required this.root,
     required this.rootSignals,
     required this.screenRecording,
+    required this.windowProtection,
   });
 
   /// Throws `MalformedPayloadException` if [raw] is not the documented shape.
@@ -19,6 +20,9 @@ final class SecurityStatusDto extends Equatable {
       root: reader.requireString(SecurityChannel.keyRoot),
       rootSignals: reader.requireStringList(SecurityChannel.keyRootSignals),
       screenRecording: reader.requireString(SecurityChannel.keyScreenRecording),
+      windowProtection: reader.requireString(
+        SecurityChannel.keyWindowProtection,
+      ),
     );
   }
 
@@ -31,25 +35,36 @@ final class SecurityStatusDto extends Equatable {
   /// A [DetectionWire] value.
   final String screenRecording;
 
+  /// A [WindowProtectionWire] value: whether the window is hidden from capture.
+  final String windowProtection;
+
   Map<String, Object?> toMap() => {
     ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
     SecurityChannel.keyRoot: root,
     SecurityChannel.keyRootSignals: rootSignals,
     SecurityChannel.keyScreenRecording: screenRecording,
+    SecurityChannel.keyWindowProtection: windowProtection,
   };
 
   SecurityStatusDto copyWith({
     String? root,
     List<String>? rootSignals,
     String? screenRecording,
+    String? windowProtection,
   }) {
     return SecurityStatusDto(
       root: root ?? this.root,
       rootSignals: rootSignals ?? this.rootSignals,
       screenRecording: screenRecording ?? this.screenRecording,
+      windowProtection: windowProtection ?? this.windowProtection,
     );
   }
 
   @override
-  List<Object?> get props => [root, rootSignals, screenRecording];
+  List<Object?> get props => [
+    root,
+    rootSignals,
+    screenRecording,
+    windowProtection,
+  ];
 }

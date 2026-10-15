@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/mappers/security_status_mapper.dart';
 
@@ -35,6 +36,21 @@ void securityPlatformDataSourceContract(
         final b = await source.watchScreenRecording().first;
 
         expect(b, a);
+      },
+    );
+
+    test(
+      'reports the window as protected while an enable is unbalanced',
+      () async {
+        final source = create();
+        Future<String> protection() async =>
+            (await source.getSecurityStatus()).windowProtection;
+
+        await source.enableSecureWindow();
+        expect(await protection(), WindowProtectionWire.active);
+
+        await source.disableSecureWindow();
+        expect(await protection(), WindowProtectionWire.inactive);
       },
     );
 

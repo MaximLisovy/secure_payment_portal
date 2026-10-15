@@ -13,7 +13,19 @@ abstract final class SecurityStatusMapper {
     return SecurityStatus(
       root: _rootFrom(dto.root, dto.rootSignals),
       screenRecording: detectionFromWire(dto.screenRecording),
+      windowProtection: windowProtectionFromWire(dto.windowProtection),
     );
+  }
+
+  static WindowProtection windowProtectionFromWire(String wire) {
+    return switch (wire) {
+      WindowProtectionWire.active => WindowProtection.active,
+      WindowProtectionWire.inactive => WindowProtection.inactive,
+      WindowProtectionWire.unknown => WindowProtection.unknown,
+      _ => throw const MalformedPayloadException(
+        'unknown window protection value in a security payload',
+      ),
+    };
   }
 
   static Detection detectionFromWire(String wire) {

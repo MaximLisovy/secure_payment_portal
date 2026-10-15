@@ -69,6 +69,7 @@ void main() {
           root: DetectionWire.detected,
           rootSignals: [],
           screenRecording: DetectionWire.notDetected,
+          windowProtection: WindowProtectionWire.active,
         ),
       );
 
