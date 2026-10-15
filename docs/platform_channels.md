@@ -7,11 +7,13 @@ Update this file in the same change that alters the contract.
 
 **Status.**
 
-- **Security (`…/security`, `…/security/screen_recording`): final v1**, implemented in
-  Kotlin (`SecurityPlugin`) and in Dart (`ChannelSecurityPlatformDataSource`), and
-  checked on a Pixel_9 emulator (API 36) as listed under
-  [Verified on a device](#verified-on-a-device-security). One item there is still
-  **pending**: what the recording callback does while the window is secure.
+- **Security (`…/security`, `…/security/screen_recording`): draft v1, implemented.**
+  Kotlin (`SecurityPlugin`) and Dart (`ChannelSecurityPlatformDataSource`) both
+  exist and were checked on a Pixel_9 emulator (API 36), as listed under
+  [Verified on a device](#verified-on-a-device-security). It stays **draft** until
+  one manual check is done and written down: what the recording callback does
+  while the window is secure (**pending manual verification**, below). It becomes
+  final then, in a small docs commit.
 - **Payment (`…/payment`, `…/payment/progress`): draft v1.** The Dart constants, the
   DTO parsing and the contract suite exist and run against the fake. The Kotlin
   foreground service is written in the payment milestone and must match this
@@ -186,7 +188,7 @@ read with `adb`; the app's own view comes from the debug log of `SecurityPlugin`
 | Source swap Real → Simulated → Real | `SECURE` stays present and the screenshot stays black in both modes: the window always goes through the real source, the simulation only replaces readings. (An earlier build, where the simulation owned a window of its own, left the window unprotected in Simulated mode; that was changed.) |
 | Simulated scenario "screen protection unavailable" | the page shows "Screen protection could not be turned on, so payment is paused" with "Check again", while `SECURE` stays present and the screenshot stays black |
 | `adb shell screenrecord` | **not detected**: the recording readout stayed `notDetected` for the whole recording. It is not a MediaProjection capture, which is what the API 35 callback reports |
-| Screen record quick-settings tile (MediaProjection) | **pending**, see below |
+| Screen record quick-settings tile (MediaProjection) | **pending manual verification**, see below |
 
 Notes from the device:
 
@@ -200,12 +202,13 @@ Notes from the device:
   a `google_apis` (non-Play) userdebug image has `test-keys` and `userdebug`, both
   weak and allowed by default, and often ships `su`, which is strong and blocks.
 
-### Recording callback while the window is secure (pending)
+### Recording callback while the window is secure (pending manual verification)
 
 Whether `addScreenRecordingCallback` still reports the app as visible in a recording
 when the window carries `FLAG_SECURE` (the recording then shows black) is **not yet
-known**. It is checked with the Screen record tile, and the finding is written here
-as one of:
+known**: the check is a manual one with the Screen record quick-settings tile, to be
+done by the developer. Until it is, the detection stays as implemented and nothing
+below is claimed. The finding will be written here as one of:
 
 - **verified**: the callback fires with `FLAG_SECURE` on, so the recording block
   works as a second line; or
