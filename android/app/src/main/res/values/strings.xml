@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The payment notification. Generic on purpose: no amount, no merchant, nothing a lock screen
+         should not show. The app name comes from the flavor's app_name. -->
+    <string name="payment_channel_name">Payment progress</string>
+    <string name="payment_channel_description">Shows that a payment is being processed.</string>
+    <string name="payment_notification_processing">Processing your payment</string>
+    <string name="payment_notification_complete">Payment complete</string>
+    <string name="payment_notification_failed">Payment failed</string>
+    <string name="payment_notification_cancel">Cancel</string>
+</resources>

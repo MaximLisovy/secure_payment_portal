@@ -5,6 +5,16 @@
         android:name="android.permission.DETECT_SCREEN_RECORDING"
         android:minSdkVersion="35" />
 
+    <!-- The payment runs in a foreground service. FOREGROUND_SERVICE is a normal permission (API 28).
+         The service type, shortService, needs no type-specific permission. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Runtime permission for the payment notification (API 33+). Denying it never stops the payment:
+         the service still runs and Dart still receives its progress. -->
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS"
+        android:minSdkVersion="33" />
+
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
