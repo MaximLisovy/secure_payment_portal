@@ -152,6 +152,47 @@ void main() {
     },
   );
 
+  testWidgets('the sources are locked while a payment runs, and free after', (
+    tester,
+  ) async {
+    await _pumpApp(tester, withRealSources: true);
+    SegmentedButton<SourceMode> picker(int index) =>
+        tester.widget(find.byType(SegmentedButton<SourceMode>).at(index));
+    Future<void> closePanel() async {
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // Pay, and look at the panel part-way through the payment.
+    await tester.tap(find.widgetWithText(FilledButton, 'Pay \$109.39'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_text(AppStrings.processingTitle), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    for (final index in [0, 1]) {
+      expect(picker(index).onSelectionChanged, isNull, reason: 'picker $index');
+    }
+    expect(_text(AppStrings.demoSourcesLocked), findsOneWidget);
+
+    // Let the payment end; the receipt shows and the pickers come back.
+    // The stand-in real source takes 4.4 s: ten steps of 400 ms, then the end.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(milliseconds: 400));
+    for (final index in [0, 1]) {
+      expect(
+        picker(index).onSelectionChanged,
+        isNotNull,
+        reason: 'picker $index',
+      );
+    }
+    expect(_text(AppStrings.demoSourcesLocked), findsNothing);
+
+    await closePanel();
+    await tester.pumpWidget(const SizedBox());
+  });
+
   group('starting on real sources', () {
     testWidgets(
       'there is no SIMULATED badge, and the real device is protected',

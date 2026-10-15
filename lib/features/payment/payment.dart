@@ -12,4 +12,6 @@ export 'package:secure_payment_portal/features/payment/presentation/config/payme
 export 'package:secure_payment_portal/features/payment/presentation/config/payment_section_spec.dart';
 export 'package:secure_payment_portal/features/payment/presentation/pages/payment_confirmation_page.dart';
 export 'package:secure_payment_portal/features/payment/presentation/sections/payment_section_registry.dart';
+export 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart'
+    show paymentInProgressProvider;
 export 'package:secure_payment_portal/features/payment/presentation/state/restart_payment_flow.dart';

@@ -20,3 +20,15 @@ final paymentFlowProvider =
     NotifierProvider.autoDispose<PaymentFlowNotifier, PaymentFlowState>(
       PaymentFlowNotifier.new,
     );
+
+/// Whether a payment is being started or processed. For a host that must not
+/// swap a source from under it: a payment belongs to the source that started it,
+/// and a new source would not know about it.
+final paymentInProgressProvider = Provider.autoDispose<bool>(
+  (ref) => ref.watch(
+    paymentFlowProvider.select(
+      (state) =>
+          state is PaymentFlowConfirming || state is PaymentFlowProcessing,
+    ),
+  ),
+);

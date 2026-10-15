@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/debug/demo_scenarios_panel.dart';
@@ -54,6 +55,15 @@ Future<_Sources> _pumpPanel(
   );
   return sources;
 }
+
+List<Override> _realOverrides() => [
+  realSecurityPlatformDataSourceProvider.overrideWithValue(
+    FakeSecurityPlatformDataSource(),
+  ),
+  realPaymentPlatformDataSourceProvider.overrideWithValue(
+    FakePaymentPlatformDataSource(),
+  ),
+];
 
 Finder _modePicker(int index) =>
     find.byType(SegmentedButton<SourceMode>).at(index);
@@ -140,20 +150,86 @@ void main() {
     });
   });
 
-  group('with real sources wired', () {
-    List<Override> realOverrides() => [
-      realSecurityPlatformDataSourceProvider.overrideWithValue(
-        FakeSecurityPlatformDataSource(),
-      ),
-      realPaymentPlatformDataSourceProvider.overrideWithValue(
-        FakePaymentPlatformDataSource(),
-      ),
-    ];
+  group('while a payment is in progress', () {
+    testWidgets('neither source can be switched, and it says why', (
+      tester,
+    ) async {
+      await _pumpPanel(
+        tester,
+        extra: [
+          paymentInProgressProvider.overrideWithValue(true),
+          ..._realOverrides(),
+        ],
+      );
 
+      for (final index in [0, 1]) {
+        expect(_picker(tester, index).onSelectionChanged, isNull);
+        expect(_picker(tester, index).selected, {SourceMode.real});
+      }
+      expect(find.text(AppStrings.demoSourcesLocked), findsOneWidget);
+    });
+
+    testWidgets('a tap on the other mode changes nothing', (tester) async {
+      await _pumpPanel(
+        tester,
+        extra: [
+          paymentInProgressProvider.overrideWithValue(true),
+          ..._realOverrides(),
+        ],
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(DemoScenariosPanel)),
+      );
+
+      await tester.tap(
+        find.descendant(
+          of: _modePicker(1),
+          matching: find.text(AppStrings.demoSourceSimulated),
+        ),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+
+      expect(container.read(paymentSourceModeProvider), SourceMode.real);
+    });
+
+    testWidgets('scenarios of a simulated source stay available', (
+      tester,
+    ) async {
+      final sources = await _pumpPanel(
+        tester,
+        extra: [paymentInProgressProvider.overrideWithValue(true)],
+      );
+
+      await tester.tap(find.text(AppStrings.demoPaymentDeclined));
+      await tester.pump();
+
+      expect(sources.payments.scenario, PaymentScenario.declined);
+    });
+  });
+
+  testWidgets('with no payment running the sources can be switched', (
+    tester,
+  ) async {
+    await _pumpPanel(
+      tester,
+      extra: [
+        paymentInProgressProvider.overrideWithValue(false),
+        ..._realOverrides(),
+      ],
+    );
+
+    for (final index in [0, 1]) {
+      expect(_picker(tester, index).onSelectionChanged, isNotNull);
+    }
+    expect(find.text(AppStrings.demoSourcesLocked), findsNothing);
+  });
+
+  group('with real sources wired', () {
     testWidgets('they are the default and no scenario can be played on them', (
       tester,
     ) async {
-      await _pumpPanel(tester, extra: realOverrides());
+      await _pumpPanel(tester, extra: _realOverrides());
 
       for (final index in [0, 1]) {
         expect(_picker(tester, index).selected, {SourceMode.real});
@@ -168,7 +244,7 @@ void main() {
     testWidgets('switching a source to Simulated reveals its scenarios', (
       tester,
     ) async {
-      final sources = await _pumpPanel(tester, extra: realOverrides());
+      final sources = await _pumpPanel(tester, extra: _realOverrides());
 
       await tester.tap(
         find.descendant(

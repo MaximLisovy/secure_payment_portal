@@ -10,6 +10,8 @@ abstract final class AppStrings {
   static const demoIntro =
       'Debug builds only. Pick what is real and what is simulated, and play '
       'situations the real device or backend would be hard to put in.';
+  static const demoSourcesLocked =
+      'Sources cannot be switched while a payment is in progress.';
   static const demoSecuritySection = 'Device security';
   static const demoPaymentSection = 'Payment processing';
   static const demoBillSection = 'Bill backend';

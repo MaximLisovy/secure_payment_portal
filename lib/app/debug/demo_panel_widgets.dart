@@ -37,10 +37,13 @@ class DemoModePicker extends StatelessWidget {
 
   final SourceMode mode;
   final bool realAvailable;
-  final ValueChanged<SourceMode> onSelected;
+
+  /// Null locks the picker.
+  final ValueChanged<SourceMode>? onSelected;
 
   @override
   Widget build(BuildContext context) {
+    final callback = onSelected;
     return SegmentedButton<SourceMode>(
       showSelectedIcon: false,
       segments: [
@@ -55,7 +58,9 @@ class DemoModePicker extends StatelessWidget {
         ),
       ],
       selected: {mode},
-      onSelectionChanged: (selection) => onSelected(selection.single),
+      onSelectionChanged: callback == null
+          ? null
+          : (selection) => callback(selection.single),
     );
   }
 }

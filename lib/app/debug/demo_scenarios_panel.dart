@@ -43,6 +43,8 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
     final backend = ref.watch(billBackendControlProvider);
     final securityMode = ref.watch(securitySourceModeProvider);
     final paymentMode = ref.watch(paymentSourceModeProvider);
+    // A payment belongs to the source that started it: no swapping underneath.
+    final paying = ref.watch(paymentInProgressProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -58,6 +60,15 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
             Text(AppStrings.demoScenarios, style: text.titleLarge),
             SizedBox(height: density.spaceXs),
             Text(AppStrings.demoIntro, style: text.bodyMedium),
+            if (paying) ...[
+              SizedBox(height: density.spaceSm),
+              Text(
+                AppStrings.demoSourcesLocked,
+                style: text.bodyMedium?.copyWith(
+                  color: context.brandColors.onSurfaceMuted,
+                ),
+              ),
+            ],
             DemoSection(
               title: AppStrings.demoSecuritySection,
               children: [
@@ -66,11 +77,13 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                   realAvailable: ref
                       .read(securitySourceModeProvider.notifier)
                       .realAvailable,
-                  onSelected: (mode) => _apply(
-                    () => ref
-                        .read(securitySourceModeProvider.notifier)
-                        .select(mode),
-                  ),
+                  onSelected: paying
+                      ? null
+                      : (mode) => _apply(
+                          () => ref
+                              .read(securitySourceModeProvider.notifier)
+                              .select(mode),
+                        ),
                 ),
                 if (security != null) ...[
                   DemoChoice<DeviceScenario>(
@@ -102,11 +115,13 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                   realAvailable: ref
                       .read(paymentSourceModeProvider.notifier)
                       .realAvailable,
-                  onSelected: (mode) => _apply(
-                    () => ref
-                        .read(paymentSourceModeProvider.notifier)
-                        .select(mode),
-                  ),
+                  onSelected: paying
+                      ? null
+                      : (mode) => _apply(
+                          () => ref
+                              .read(paymentSourceModeProvider.notifier)
+                              .select(mode),
+                        ),
                 ),
                 if (payment != null)
                   // Applies to the next payment: no restart.
