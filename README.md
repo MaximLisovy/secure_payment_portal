@@ -69,6 +69,17 @@ Defaults:
 Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these
 choices is a constructor flag on the policy.
 
+## Manual QA and the demo video
+
+What needs a person is collected in [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md), one checklist grouped by milestone, to be
+run once on a physical phone with a profile build. Findings that depend on it are marked *pending manual verification*
+until then.
+
+**The demo video is recorded from the emulator window with macOS screen capture** (Cmd+Shift+5, record the emulator
+window), not from inside Android. `FLAG_SECURE` blacks out every capture made by Android itself (`adb screenrecord`, the
+Screen record tile, `scrcpy`, the screenshot button) on every build mode, simulated included; macOS captures the window
+from outside the guest, so the payment screen shows.
+
 ## Money and dates
 
 Amounts are integer minor units in a `Money` value object, never `double`, and are formatted by `MoneyFormatter`
