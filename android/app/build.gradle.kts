@@ -53,6 +53,10 @@ android {
 
     testOptions {
         unitTests.all {
+            // Some tests read the manifest from source (src/test/.../manifest). Declared as an input
+            // so editing it re-runs them; otherwise Gradle reports the task up to date and a broken
+            // manifest would pass on a stale result.
+            it.inputs.file("src/main/AndroidManifest.xml").withPropertyName("appManifest")
             // A failing JVM test should say why in the Gradle output, not only in the report file.
             it.testLogging {
                 events("failed")
