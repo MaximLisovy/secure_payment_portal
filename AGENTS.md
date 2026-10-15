@@ -52,6 +52,7 @@ lib/
   app/                      # composition root: App widget, root ProviderScope overrides, routing
     brand/                  # BrandRegistry (the only reader of appFlavor), initial/active brand providers, themeProvider
     di/                     # root overrides: brand → feature config providers
+    debug/                  # debug tooling: brand switcher, demo scenarios panel, SIMULATED badge
   brands/                   # the BrandConfig contract + one folder per tenant: pure configuration, no logic
     brand_config.dart       # BrandConfig: what a brand must declare
     retail/
@@ -60,10 +61,13 @@ lib/
     design_system/          # ThemeExtension tokens + primitive widgets that read them
     error/                  # Result, Failure base + generic failures, data-layer exceptions, failureFromError
     async/                  # small stream helpers (ReplayLatest)
+    format/                 # MoneyFormatter, DateTimeFormatter (no intl; not locale-aware)
+    strings/                # AppStrings: every user-facing text, and the message for each failure key
+    simulation/             # SourceMode: real or simulated, per controllable source
     platform/               # channel names, keys, error codes (mirror of Kotlin constants), WireReader for payloads
     domain/                 # shared value objects (Money, Currency…), pure Dart
   features/
-    payment/{domain,data,di,presentation}/
+    payment/{domain,data,di,presentation}/    # presentation/{config,sections,state,views,pages}/
     security/{domain,data,di,presentation}/
 android/app/src/main/kotlin/<package>/
   MainActivity.kt           # wiring only
@@ -73,8 +77,8 @@ android/app/src/main/kotlin/<package>/
 Allowed imports:
 
 - `core` imports nothing from `app`, `brands` or `features`.
-- `features/x` may import `core` and the **public barrel** of another feature (`features/security/security.dart`: its domain and its `di/` providers, typed by domain interfaces). Another feature's `domain/` imports the pure-Dart `security_domain.dart` instead, so it never reaches Riverpod or `data/`. It never imports another feature's `data` or `presentation`.
-- `brands` may import `core` and the features' public config types. It never imports `app`: `app` imports `brands`, never the other way round.
+- `features/x` may import `core` and the **public barrel** of another feature (`features/security/security.dart`: its domain, its `di/` providers typed by domain interfaces, and the `SecureScreen` widget). Another feature's `domain/` imports the pure-Dart `security_domain.dart` instead, so it never reaches Riverpod or `data/`. It never imports another feature's `data` or `presentation`.
+- `brands` may import `core` and the features' public config types (`features/payment/payment.dart`: the config types, the page, the section registry and the simulation controls; `presentation/config/` holds the types a brand declares). It never imports `app`: `app` imports `brands`, never the other way round.
 - Only a feature's own `di/` and `app/` import `data/` implementations. Only `app/` knows about flavors and concrete brands. Only `app/brand/brand_registry.dart` reads `appFlavor`.
 - Imports are always `package:secure_payment_portal/...` (enforced by `always_use_package_imports`).
 
@@ -110,6 +114,8 @@ Allowed imports:
 - Domain and data classes never see `Ref`. They get dependencies through constructors, and providers only wire them.
 
 ### 3.4 Cross-cutting
+
+- **Simulated sources:** a source with a platform side (security, payment processing) has a *real* slot (`realXDataSourceProvider`, null until its native milestone), a *simulated* slot (the fake) and a `SourceMode` provider. Real is the default once it exists; only a non-release build may switch. The fake implements a small **control interface** that lives in domain (`SecurityScenarioControl`, `PaymentScenarioControl`, `BillBackendControl`), and `di/` exposes it as a provider that is **null when a real source runs**. Debug tooling depends on those interfaces and the mode providers only: no `is Fake…`, no `Fake…` import outside `features/*/data` and `di/` (`test/architecture/layering_test.dart` checks it). A SIMULATED badge shows in every build while any source is simulated.
 
 - **Errors:** `Failure` carries a user-safe message key, and expected errors are values (`Err`), never thrown across layers. Data sources throw typed `DataSourceException`s that stay inside the data layer: repositories catch them and map them with `failureFromError`. Streams never emit errors; an unreadable event becomes a state (`unknown`, `PaymentFailed`).
 - **Logging:** use a `Logger` abstraction. Never use `print`. Never log amounts tied to an identity, card data, tokens or device fingerprints.

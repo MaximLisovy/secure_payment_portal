@@ -66,10 +66,11 @@ Every extension must:
 The Promo Banner (Retail) and the Bill Breakdown (Utility) are **not** `if (brand == retail)`. They are also not a growing set of `bool showX` flags.
 
 - The payment feature owns `PaymentScreenConfig` with an ordered `List<PaymentSectionSpec>`, plus any section-specific data such as promo copy.
-- The payment presentation layer owns a `PaymentSectionRegistry`: `Map<PaymentSectionType, Widget Function(BuildContext, PaymentSectionSpec)>`.
-- The payment page renders `config.sections.map(registry.build)`. It has no knowledge of brands.
-- A brand declares its layout, for example `[summary, promoBanner, payButton]` vs `[summary, billBreakdown, payButton]`.
-- A new section type = a new widget + one registry entry. A new brand reuses existing sections or adds its own the same way.
+- The payment presentation layer owns a `PaymentSectionRegistry`, an immutable map **keyed by the spec's type** (`registry.adding<BillBreakdownSpec>((context, spec) => …)`). `PaymentSectionSpec` is an open class, not a sealed one or an enum, so a new section type is a new subclass and needs no `switch` to edit. A spec nobody registered fails loudly (`StateError` naming it); it is never skipped.
+- A section builder returns a **sliver**, so the page lays every section out in one lazy `CustomScrollView` (the Bill Breakdown is a `SliverFixedExtentList` with the brand's `rowHeight`). Wrap box content in a `SliverToBoxAdapter`.
+- The payment page renders `config.sections` through the registry. It has no knowledge of brands.
+- A brand declares its layout, for example `[summary, promoBanner]` vs `[summary, billBreakdown]`. The pay action is **not** a section: it is pinned below the scroll view on every brand, so it is always in reach.
+- A new section type = a new spec subclass + a widget + one `.adding` entry in `PaymentSectionRegistry.standard()` (+ an export in `payment.dart` for the spec). A new brand that reuses existing sections touches nothing in `features/`.
 
 Each feature **declares** its own config provider and `app/` **overrides** it. A feature never imports `lib/brands/` or `BrandConfig`.
 
@@ -102,7 +103,7 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 3. Gradle `productFlavors` entry (`dimension`, `applicationIdSuffix`, `app_name` resValue); `src/<id>/res` icons once the polish milestone adds them. The flavor name must equal the brand id.
 4. Once `BrandAssets` exists: `assets/brands/<id>/` + `pubspec.yaml` asset entry.
 5. Nothing in `features/` or `core/` changes. If something has to, the abstraction is leaking: stop and propose a fix to the abstraction first.
-6. The "all brands render" widget test picks the new brand up automatically through the registry.
+6. The "all brands" tests pick the new brand up automatically through the registry: the real payment page renders its bill, every section it declares has a widget, rows have its row height, and a payment goes through to the receipt.
 
 ## 5. Red flags (refuse or fix)
 

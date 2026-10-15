@@ -54,3 +54,28 @@ Defaults:
 
 Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these
 choices is a constructor flag on the policy.
+
+## Money and dates
+
+Amounts are integer minor units in a `Money` value object, never `double`, and are formatted by `MoneyFormatter`
+(`$1,234.50`, `-$10.80`, `¥1,200`). Receipts show UTC time (`2026-10-15 12:00 UTC`). Neither uses the `intl` package, so
+**neither is locale-aware**: the grouping, symbol position and date order are fixed. Locale-aware formatting is a
+`MoneyFormatter` swap away once `intl` is wanted.
+
+## Demo scenarios (debug builds)
+
+The Android side is built in later milestones; until then, and later whenever a device or backend is hard to put in a
+given state, every source with a platform side can run on a **simulation**. In a debug or profile build the tune icon in
+the app bar opens a panel where, per source (device security, payment processing), you pick *Real* or *Simulated*
+and, for a simulated one, play a situation:
+
+- a clean, rooted, weakly-rooted or unverifiable device;
+- a screen recording that starts and stops while the screen is open;
+- a payment that succeeds, is declined, or fails while processing;
+- a bill backend that goes offline (the bill backend is simulated by design: there is no backend).
+
+A mode switch or a changed device restarts the payment flow so it takes effect at once. A **SIMULATED** badge sits in the
+app bar for as long as any source is simulated, **in every build mode**: a simulated build must not pass for a real one.
+
+Real is the default as soon as a source has a real implementation, and a release build cannot leave it. The real
+sources arrive with the native milestones, so a build before them runs fully simulated, and says so.
