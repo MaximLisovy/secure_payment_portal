@@ -42,6 +42,15 @@ object WindowProtectionWire {
     const val UNKNOWN = "unknown"
 }
 
+/** Wire values of the reply to `requestNotificationPermission`. */
+object NotificationPermissionWire {
+    const val GRANTED = "granted"
+    const val DENIED = "denied"
+
+    /** Below API 33 there is no permission to ask for. */
+    const val NOT_REQUIRED = "notRequired"
+}
+
 /** Reason codes of the independent root heuristics (`rootSignals`). */
 object RootReasonCodes {
     const val SU_BINARY = "su_binary"
@@ -81,6 +90,12 @@ object PaymentChannel {
 
     const val START_PAYMENT = "startPayment"
     const val CANCEL_PAYMENT = "cancelPayment"
+
+    /**
+     * Asks for the notification permission (a runtime permission from API 33) and replies with a
+     * [NotificationPermissionWire] value. Never fails.
+     */
+    const val REQUEST_NOTIFICATION_PERMISSION = "requestNotificationPermission"
 
     const val KEY_PAYMENT_ID = "paymentId"
     const val KEY_AMOUNT_MINOR = "amountMinor"

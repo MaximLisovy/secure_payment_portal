@@ -40,6 +40,15 @@ abstract final class WindowProtectionWire {
   static const String unknown = 'unknown';
 }
 
+/// Wire values of the reply to `requestNotificationPermission`.
+abstract final class NotificationPermissionWire {
+  static const String granted = 'granted';
+  static const String denied = 'denied';
+
+  /// Below API 33 there is no permission to ask for.
+  static const String notRequired = 'notRequired';
+}
+
 /// Reason codes of the independent root heuristics (`rootSignals`).
 abstract final class RootReasonCodes {
   static const String suBinary = 'su_binary';
@@ -79,6 +88,11 @@ abstract final class PaymentChannel {
 
   static const String startPayment = 'startPayment';
   static const String cancelPayment = 'cancelPayment';
+
+  /// Asks for the notification permission (a runtime permission from API 33)
+  /// and replies with a [NotificationPermissionWire] value. Never fails.
+  static const String requestNotificationPermission =
+      'requestNotificationPermission';
 
   static const String keyPaymentId = 'paymentId';
   static const String keyAmountMinor = 'amountMinor';

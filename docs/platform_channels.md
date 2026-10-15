@@ -36,6 +36,7 @@ They never depend on the `applicationId`, which differs per flavor.
 | `…/security/screen_recording` | Event | recording changes | none | map: `schemaVersion`, `screenRecording` | — | API 35+ detection callback; below that it emits `unknown`. |
 | `…/payment` | Method | `startPayment` | map: `schemaVersion`, `paymentId`, `amountMinor`, `currency` | `null` once processing was **accepted** | `ALREADY_RUNNING`, `START_NOT_ALLOWED`, `INVALID_ARGS` | Foreground service started from a user action while the app is visible. |
 | `…/payment` | Method | `cancelPayment` | none | `null` | `INTERNAL` | With nothing running it does nothing. |
+| `…/payment` | Method | `requestNotificationPermission` | none | string: `granted`, `denied` or `notRequired` | — (never fails) | Runtime permission from API 33; `notRequired` below. Called by the Dart data source before `startPayment`. |
 | `…/payment/progress` | Event | payment progress | none | map: `schemaVersion`, `state`, plus the fields of that state | — | Fed by the service's process-wide state. |
 
 Unknown method → `notImplemented`. Bad arguments → `INVALID_ARGS`. The engine never crashes.
@@ -84,6 +85,14 @@ status as unknown.
 
 No user-facing text and no merchant data crosses the channel. The notification
 text is native resources (flavor `app_name` via `resValue`).
+
+### `requestNotificationPermission` reply
+
+A string: `granted`, `denied`, or `notRequired` (below API 33). It never fails: with no Activity to
+show the prompt, or if anything goes wrong, the answer is `denied`. **Denial never stops a
+payment**: the foreground service runs without its notification being shown, and Dart still
+receives the progress. The Dart data source calls it before every `startPayment` and ignores the
+answer; the system decides whether a prompt appears (it stops showing one after repeated denials).
 
 ### Payment progress event
 
