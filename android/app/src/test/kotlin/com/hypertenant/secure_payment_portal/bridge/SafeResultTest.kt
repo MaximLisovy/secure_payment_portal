@@ -1,6 +1,7 @@
 package com.hypertenant.secure_payment_portal.bridge
 
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -45,7 +46,8 @@ private class FakeMainThread(var onMain: Boolean) : MainThread {
 
 class SafeResultTest {
     private val delegate = RecordingResult()
-    private val duplicates = mutableListOf<String>()
+    // Written from several threads in one test, so it must be thread-safe.
+    private val duplicates = CopyOnWriteArrayList<String>()
 
     private fun safe(mainThread: MainThread) =
         SafeResult(delegate, mainThread) { duplicates += it }
