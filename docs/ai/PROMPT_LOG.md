@@ -94,3 +94,20 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** commits `056a8ad` (core), `977790c` (security), `233b355` (payment), `5b20132` (channel contract draft and rules), then this log entry. Contract draft in `docs/platform_channels.md`.
 
 ---
+
+### 04. Time-based tests move to fake_async — 2026-10-15
+- **Tool / model:** Claude Code, claude-sonnet-5-5
+- **Goal:** replace the widget-test workarounds around fake time with the proper fake clock, and delete the notes that explained them.
+- **Prompt (key part, verbatim):**
+  > fake_async: yes, add it as a dev dependency (it's already in pubspec.lock via flutter_test) and add it to the stack table. Move the pure-Dart time-based tests to fakeAsync, keep testWidgets for widget tests only, and remove the workarounds and pitfalls from testing.md that no longer apply. Commit separately.
+- **Context given:** `AGENTS.md` (stack table), `testing.md`, the M2 test suite.
+- **AI output (summary):** Three commits: the direct dev dependency and the stack table row; a rewrite of `ReplayLatest`; and the migration of the fakes, the platform contract suite and the default-wiring tests to `fakeAsync`, with `FutureProbe` and `expectNoPendingTimers` helpers. 329 tests.
+- **Assumptions & risks flagged by the agent:**
+  - `fakeAsync` cannot `await`, so tests start work with `unawaited(...)`, advance time, and read outcomes through a probe. Slightly less natural to read than a widget test, but it no longer needs a widget binding.
+- **Corrections made (AI suggestion → problem → correction):**
+  - **The M2 workaround.** When `flutter_test` did not export `fakeAsync`, I avoided the unapproved dependency, built on `testWidgets`, and documented two "pitfalls" plus a `settle` helper in `testing.md` → the developer approved the dependency when asked. I should have asked at the time instead of working around it for a milestone.
+  - **Assuming the pitfalls would vanish with `fakeAsync`.** I expected `cancel()` and stream completion to behave under `fakeAsync`; a probe showed they did not, so they were never a `testWidgets` quirk → the cause was in `ReplayLatest`: a `Stream.multi`, and nested forwarding, lose the done event under a fake clock, and a `cancel()` whose `onCancel` returns nothing completes on the root zone, which a fake clock never runs. Rebuilt it from per-listener controllers with their own `onCancel` futures, and added a regression group. The pitfall notes could then be deleted instead of carried forward.
+- **Developer review:** _(to be written by the developer)_
+- **Result:** commits `414531e` (dependency), `2aaff65` (`ReplayLatest`), `3fedec3` (migration), then this log entry.
+
+---
