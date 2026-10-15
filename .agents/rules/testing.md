@@ -35,10 +35,7 @@ android/app/src/test/kotlin/…    JVM tests for pure Kotlin logic (RootDetector
 
 - Arrange-Act-Assert, one behaviour per test, and descriptive names: `'emits [Processing, Success] when service completes'`.
 - Use `mocktail` for interfaces. Prefer hand-written fakes for simple data sources, such as a fake payment API with configurable delay and outcome.
-- No real timers or delays. Use `tester.pump(duration)` inside `testWidgets` (`fakeAsync` lives in the `fake_async` package, which `flutter_test` does not export and which is not in the stack table). No flaky `Future.delayed` waits.
-  - Inside `testWidgets`, never `await` a stream subscription's `cancel()` or a controller's `close()`: it never completes without a pump. Use `settle(tester, future)` from `test/helpers/fake_time.dart`.
-  - A `Stream.multi` done event (what `ReplayLatest` returns) is not delivered under the fake clock. Assert "this stream completes" in a plain `test`.
-  - Awaiting a future that finishes on microtasks only is fine in `testWidgets`.
+- No real timers or delays. In pure-Dart tests (fakes, repositories, notifiers, anything with a timer) use `fakeAsync` from `package:fake_async`: start the work with `unawaited(...)`, advance with `async.elapse(duration)` and `async.flushMicrotasks()`, and read a future's outcome with `FutureProbe` (`await` is not available inside it). Assert `expectNoPendingTimers(async)` where a timer could leak. Both helpers are in `test/helpers/fake_async_helpers.dart`. Use `testWidgets` and `tester.pump(duration)` only for widget tests. No flaky `Future.delayed` waits.
 - Never test private implementation details. Test through public APIs and the states they emit.
 - Widget tests wrap the subject in a helper, `pumpApp(widget, brand: …, overrides: …)`. It builds a `ProviderScope` with the brand override, the feature-config overrides and the test fakes, plus `ThemeData` + extensions. Don't repeat setup in every test.
 - Override at the provider boundary: data sources and repositories in `di/`. Don't mock Riverpod itself.

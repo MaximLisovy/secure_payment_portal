@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
@@ -56,22 +57,24 @@ void main() {
       );
     });
 
-    testWidgets('takes exactly the configured latency', (tester) async {
-      final source = FakePaymentRemoteDataSource(
-        latency: const Duration(seconds: 2),
-      );
-      var done = false;
-      unawaited(
-        source
-            .fetchPaymentDetails(FakeBills.retailOrderId)
-            .then((_) => done = true),
-      );
+    test('takes exactly the configured latency', () {
+      fakeAsync((async) {
+        final source = FakePaymentRemoteDataSource(
+          latency: const Duration(seconds: 2),
+        );
+        var done = false;
+        unawaited(
+          source
+              .fetchPaymentDetails(FakeBills.retailOrderId)
+              .then((_) => done = true),
+        );
 
-      await tester.pump(const Duration(seconds: 1));
-      expect(done, isFalse);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isFalse);
 
-      await tester.pump(const Duration(seconds: 1));
-      expect(done, isTrue);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isTrue);
+      });
     });
 
     test('the demo bills are keyed by their own ids', () {

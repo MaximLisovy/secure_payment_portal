@@ -1,19 +1,23 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/domain/currency.dart';
 import 'package:secure_payment_portal/core/domain/money.dart';
+import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
-import '../../../helpers/fake_time.dart';
+
+import '../../../helpers/fake_async_helpers.dart';
 
 const _step = Duration(milliseconds: 100);
 
@@ -38,73 +42,80 @@ ProviderContainer _container({
   );
 }
 
+/// Loads [billId] and confirms it, inside `fakeAsync`. Returns what the
+/// progress stream reported and how the confirm ended.
+({List<PaymentProgress> seen, Result<void> confirmed}) _pay(
+  FakeAsync async,
+  ProviderContainer container,
+  String billId,
+) {
+  final payments = container.read(paymentRepositoryProvider);
+  final seen = <PaymentProgress>[];
+  payments.watchProgress().listen(seen.add);
+
+  final loaded = FutureProbe(payments.getPaymentDetails(billId));
+  async.flushMicrotasks();
+  final PaymentDetails details = loaded.value.fold(
+    (bill) => bill,
+    (failure) => fail('the demo bill did not load: ${failure.messageKey}'),
+  );
+
+  final confirm = FutureProbe(container.read(confirmPaymentProvider)(details));
+  async.elapse(_step * 3);
+  return (seen: seen, confirmed: confirm.value);
+}
+
 void main() {
-  testWidgets(
+  test(
     'confirming through the default wiring runs a payment to its receipt',
-    (tester) async {
-      final container = _container();
-      final payments = container.read(paymentRepositoryProvider);
-      final seen = <PaymentProgress>[];
-      final subscription = payments.watchProgress().listen(seen.add);
-      final details = (await payments.getPaymentDetails(
-        FakeBills.retailOrderId,
-      )).valueOrNull;
+    () {
+      fakeAsync((async) {
+        final container = _container();
 
-      final result = await container.read(confirmPaymentProvider)(details!);
-      await tester.pump(_step * 3);
+        final paid = _pay(async, container, FakeBills.retailOrderId);
 
-      expect(result.isSuccess, isTrue);
-      expect(seen.first, const PaymentIdle());
-      expect(seen.last, isA<PaymentSucceeded>());
-      expect(
-        (seen.last as PaymentSucceeded).result.amount,
-        const Money.minor(10939, Currency.usd),
-      );
-      await settle(tester, subscription.cancel());
+        expect(paid.confirmed.isSuccess, isTrue);
+        expect(paid.seen.first, const PaymentIdle());
+        expect(paid.seen.last, isA<PaymentSucceeded>());
+        expect(
+          (paid.seen.last as PaymentSucceeded).result.amount,
+          const Money.minor(10939, Currency.usd),
+        );
+        expectNoPendingTimers(async);
+      });
     },
   );
 
-  testWidgets('a declined script surfaces as a typed failure', (tester) async {
-    final container = _container(outcome: FakePaymentOutcome.declined);
-    final payments = container.read(paymentRepositoryProvider);
-    final seen = <PaymentProgress>[];
-    final subscription = payments.watchProgress().listen(seen.add);
-    final details = (await payments.getPaymentDetails(
-      FakeBills.utilityBillId,
-    )).valueOrNull;
+  test('a declined script surfaces as a typed failure', () {
+    fakeAsync((async) {
+      final container = _container(outcome: FakePaymentOutcome.declined);
 
-    await container.read(confirmPaymentProvider)(details!);
-    await tester.pump(_step * 3);
+      final paid = _pay(async, container, FakeBills.utilityBillId);
 
-    expect(seen.last, const PaymentFailed(PaymentDeclinedFailure()));
-    await settle(tester, subscription.cancel());
+      expect(paid.seen.last, const PaymentFailed(PaymentDeclinedFailure()));
+    });
   });
 
-  testWidgets('a rooted device never reaches the payment platform', (
-    tester,
-  ) async {
-    final container = _container(
-      device: FakeSecurityPlatformDataSource()
-        ..setRoot(DetectionWire.detected, signals: [RootReasonCodes.suBinary]),
-    );
-    final payments = container.read(paymentRepositoryProvider);
-    final seen = <PaymentProgress>[];
-    final subscription = payments.watchProgress().listen(seen.add);
-    final details = (await payments.getPaymentDetails(
-      FakeBills.retailOrderId,
-    )).valueOrNull;
+  test('a rooted device never reaches the payment platform', () {
+    fakeAsync((async) {
+      final container = _container(
+        device: FakeSecurityPlatformDataSource()
+          ..setRoot(
+            DetectionWire.detected,
+            signals: [RootReasonCodes.suBinary],
+          ),
+      );
 
-    final result = await container.read(confirmPaymentProvider)(details!);
-    await tester.pump(_step * 3);
+      final paid = _pay(async, container, FakeBills.retailOrderId);
 
-    expect(
-      result.failureOrNull,
-      SecurityBlockedFailure(SecurityBlockReason.rootDetected),
-    );
-    expect(seen, [
-      const PaymentIdle(),
-    ], reason: 'processing must never have started');
-    await settle(tester, subscription.cancel());
+      expect(
+        paid.confirmed.failureOrNull,
+        SecurityBlockedFailure(SecurityBlockReason.rootDetected),
+      );
+      expect(paid.seen, [
+        const PaymentIdle(),
+      ], reason: 'processing must never have started');
+    });
   });
 
   test('by default the bill backend is a fake with a loading delay', () {

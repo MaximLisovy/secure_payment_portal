@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
@@ -104,20 +105,20 @@ void main() {
       expect(source.secureWindowCount, 0);
     });
 
-    testWidgets('getSecurityStatus takes exactly the configured latency', (
-      tester,
-    ) async {
-      final source = FakeSecurityPlatformDataSource(
-        latency: const Duration(seconds: 2),
-      );
-      var done = false;
-      unawaited(source.getSecurityStatus().then((_) => done = true));
+    test('getSecurityStatus takes exactly the configured latency', () {
+      fakeAsync((async) {
+        final source = FakeSecurityPlatformDataSource(
+          latency: const Duration(seconds: 2),
+        );
+        var done = false;
+        unawaited(source.getSecurityStatus().then((_) => done = true));
 
-      await tester.pump(const Duration(seconds: 1));
-      expect(done, isFalse);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isFalse);
 
-      await tester.pump(const Duration(seconds: 1));
-      expect(done, isTrue);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isTrue);
+      });
     });
 
     test('dispose completes the recording stream', () async {
