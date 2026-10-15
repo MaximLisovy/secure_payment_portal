@@ -83,7 +83,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.DETECTED, listOf("files")), report)
+        assertEquals(RootReport(Detection.DETECTED, listOf("files"), listOf("which")), report)
     }
 
     @Test
@@ -95,7 +95,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.UNKNOWN, emptyList()), report)
+        assertEquals(RootReport(Detection.UNKNOWN, emptyList(), listOf("a", "b")), report)
     }
 
     @Test
@@ -112,7 +112,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.DETECTED, listOf("files")), report)
+        assertEquals(RootReport(Detection.DETECTED, listOf("files"), listOf("boom")), report)
         assertEquals(listOf("boom:IllegalStateException"), failures)
     }
 
@@ -136,7 +136,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList()), report)
+        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList(), listOf("hangs")), report)
         assertEquals(2_000L, testScheduler.currentTime)
     }
 
@@ -192,7 +192,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList()), report)
+        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList(), listOf("inner")), report)
         assertEquals(listOf("inner:TimeoutCancellationException"), failures)
     }
 }

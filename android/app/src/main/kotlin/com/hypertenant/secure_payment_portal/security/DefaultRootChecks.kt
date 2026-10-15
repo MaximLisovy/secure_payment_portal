@@ -9,7 +9,6 @@ import com.hypertenant.secure_payment_portal.security.checks.SuBinaryCheck
 import com.hypertenant.secure_payment_portal.security.checks.TestKeysCheck
 import com.hypertenant.secure_payment_portal.security.checks.WhichSuCheck
 import com.hypertenant.secure_payment_portal.security.probes.AndroidBuildInfo
-import com.hypertenant.secure_payment_portal.security.probes.CommandSystemProperties
 import com.hypertenant.secure_payment_portal.security.probes.JavaFileProbe
 import com.hypertenant.secure_payment_portal.security.probes.PackageManagerProbe
 import com.hypertenant.secure_payment_portal.security.probes.ProcessCommandRunner
@@ -17,13 +16,13 @@ import com.hypertenant.secure_payment_portal.security.probes.ProcessCommandRunne
 /** The checks this app runs, wired to the real device. */
 fun defaultRootChecks(context: Context): List<RootCheck> {
     val files = JavaFileProbe()
-    val runner = ProcessCommandRunner()
+    val build = AndroidBuildInfo()
     return listOf(
         SuBinaryCheck(files),
         MagiskArtifactsCheck(files),
         RootManagerPackageCheck(PackageManagerProbe(context.packageManager)),
-        WhichSuCheck(runner),
-        TestKeysCheck(AndroidBuildInfo()),
-        DebuggableBuildCheck(CommandSystemProperties(runner)),
+        WhichSuCheck(ProcessCommandRunner()),
+        TestKeysCheck(build),
+        DebuggableBuildCheck(build),
     )
 }

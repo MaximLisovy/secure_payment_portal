@@ -4,7 +4,6 @@ import com.hypertenant.secure_payment_portal.bridge.RootReasonCodes
 import com.hypertenant.secure_payment_portal.security.probes.BuildInfo
 import com.hypertenant.secure_payment_portal.security.probes.CommandResult
 import com.hypertenant.secure_payment_portal.security.probes.CommandRunner
-import com.hypertenant.secure_payment_portal.security.probes.SystemProperties
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -60,89 +59,66 @@ class WhichSuCheckTest {
     }
 }
 
-class TestKeysCheckTest {
-    private fun tags(value: String?) = object : BuildInfo {
-        override val tags = value
+private fun buildInfo(tags: String? = null, type: String? = null) =
+    object : BuildInfo {
+        override val tags = tags
+        override val type = type
     }
 
+class TestKeysCheckTest {
     @Test
     fun reportsTheTestKeysCode() {
-        assertEquals(RootReasonCodes.TEST_KEYS, TestKeysCheck(tags(null)).code)
+        assertEquals(RootReasonCodes.TEST_KEYS, TestKeysCheck(buildInfo()).code)
     }
 
     @Test
     fun isClearForReleaseKeys() = runTest {
-        assertEquals(CheckOutcome.Clear, TestKeysCheck(tags("release-keys")).run())
+        assertEquals(CheckOutcome.Clear, TestKeysCheck(buildInfo(tags = "release-keys")).run())
     }
 
     @Test
     fun firesForTestKeysAlone() = runTest {
-        assertEquals(CheckOutcome.Fired, TestKeysCheck(tags("test-keys")).run())
+        assertEquals(CheckOutcome.Fired, TestKeysCheck(buildInfo(tags = "test-keys")).run())
     }
 
     @Test
     fun firesWhenTestKeysIsOneOfSeveralTags() = runTest {
-        assertEquals(CheckOutcome.Fired, TestKeysCheck(tags("dev-keys,test-keys")).run())
+        assertEquals(
+            CheckOutcome.Fired,
+            TestKeysCheck(buildInfo(tags = "dev-keys,test-keys")).run(),
+        )
     }
 
     @Test
     fun isInconclusiveWhenTheTagsCannotBeRead() = runTest {
-        assertEquals(CheckOutcome.Inconclusive, TestKeysCheck(tags(null)).run())
+        assertEquals(CheckOutcome.Inconclusive, TestKeysCheck(buildInfo()).run())
     }
 }
 
 class DebuggableBuildCheckTest {
-    private fun props(vararg values: Pair<String, String?>) = object : SystemProperties {
-        private val map = mapOf(*values)
-
-        override suspend fun get(name: String): String? = map[name]
-    }
-
     @Test
     fun reportsTheDebuggableBuildCode() {
-        assertEquals(RootReasonCodes.DEBUGGABLE_BUILD, DebuggableBuildCheck(props()).code)
+        assertEquals(RootReasonCodes.DEBUGGABLE_BUILD, DebuggableBuildCheck(buildInfo()).code)
     }
 
     @Test
     fun isClearForAProductionBuild() = runTest {
-        val production = props("ro.debuggable" to "0", "ro.secure" to "1")
-
-        assertEquals(CheckOutcome.Clear, DebuggableBuildCheck(production).run())
+        assertEquals(CheckOutcome.Clear, DebuggableBuildCheck(buildInfo(type = "user")).run())
     }
 
     @Test
-    fun firesWhenTheSystemIsDebuggable() = runTest {
-        val debuggable = props("ro.debuggable" to "1", "ro.secure" to "1")
-
-        assertEquals(CheckOutcome.Fired, DebuggableBuildCheck(debuggable).run())
+    fun firesForUserdebugAndEng() = runTest {
+        assertEquals(CheckOutcome.Fired, DebuggableBuildCheck(buildInfo(type = "userdebug")).run())
+        assertEquals(CheckOutcome.Fired, DebuggableBuildCheck(buildInfo(type = "eng")).run())
     }
 
     @Test
-    fun firesWhenTheSystemIsNotSecure() = runTest {
-        val insecure = props("ro.debuggable" to "0", "ro.secure" to "0")
-
-        assertEquals(CheckOutcome.Fired, DebuggableBuildCheck(insecure).run())
+    fun anUnknownTypeIsNotClaimedToBeDebuggable() = runTest {
+        assertEquals(CheckOutcome.Clear, DebuggableBuildCheck(buildInfo(type = "custom")).run())
     }
 
     @Test
-    fun isInconclusiveWhenNeitherPropertyCanBeRead() = runTest {
-        assertEquals(CheckOutcome.Inconclusive, DebuggableBuildCheck(props()).run())
-    }
-
-    @Test
-    fun oneReadableBenignPropertyIsEnoughForAClearResult() = runTest {
-        assertEquals(
-            CheckOutcome.Clear,
-            DebuggableBuildCheck(props("ro.debuggable" to "0")).run(),
-        )
-        assertEquals(CheckOutcome.Clear, DebuggableBuildCheck(props("ro.secure" to "1")).run())
-    }
-
-    @Test
-    fun aFiringPropertyWinsEvenIfTheOtherCannotBeRead() = runTest {
-        assertEquals(
-            CheckOutcome.Fired,
-            DebuggableBuildCheck(props("ro.debuggable" to "1")).run(),
-        )
+    fun isInconclusiveWhenTheTypeCannotBeRead() = runTest {
+        assertEquals(CheckOutcome.Inconclusive, DebuggableBuildCheck(buildInfo()).run())
     }
 }

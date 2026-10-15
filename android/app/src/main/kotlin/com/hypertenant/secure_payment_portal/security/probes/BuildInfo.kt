@@ -6,8 +6,12 @@ import android.os.Build
 interface BuildInfo {
     /** `Build.TAGS`, e.g. `release-keys` or `test-keys`. */
     val tags: String?
+
+    /** `Build.TYPE`: `user`, `userdebug` or `eng`. */
+    val type: String?
 }
 
 class AndroidBuildInfo : BuildInfo {
     override val tags: String? = Build.TAGS
+    override val type: String? = Build.TYPE
 }

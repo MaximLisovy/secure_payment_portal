@@ -14,8 +14,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** The verdict of all checks: the state, and the reason codes of the signals that fired. */
-data class RootReport(val state: Detection, val signals: List<String>) {
+/**
+ * The verdict of all checks: the state, and the reason codes of the signals that fired.
+ * [inconclusive] names the checks that could not run; it is for diagnosis (the debug log) and is
+ * not sent over the channel.
+ */
+data class RootReport(
+    val state: Detection,
+    val signals: List<String>,
+    val inconclusive: List<String> = emptyList(),
+) {
     init {
         // The wire contract: signals are present exactly when root is detected.
         require((state == Detection.DETECTED) == signals.isNotEmpty()) {
@@ -59,7 +67,13 @@ class RootDetector(
                 outcomes.any { it == CheckOutcome.Clear } -> Detection.NOT_DETECTED
                 else -> Detection.UNKNOWN
             }
-        return RootReport(state, fired.map { (check, _) -> check.code })
+        val inconclusive =
+            checks.zip(outcomes).filter { (_, outcome) -> outcome == CheckOutcome.Inconclusive }
+        return RootReport(
+            state,
+            fired.map { (check, _) -> check.code },
+            inconclusive.map { (check, _) -> check.code },
+        )
     }
 
     private suspend fun runOne(check: RootCheck): CheckOutcome =

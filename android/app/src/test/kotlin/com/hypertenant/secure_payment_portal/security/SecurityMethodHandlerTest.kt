@@ -215,7 +215,7 @@ class SecurityMethodHandlerTest {
 
         assertEquals(
             listOf(
-                "status root=detected signals=[su_binary] recording=unknown window=inactive"
+                "status root=detected signals=[su_binary] inconclusive=[] recording=unknown window=inactive"
             ),
             logged,
         )

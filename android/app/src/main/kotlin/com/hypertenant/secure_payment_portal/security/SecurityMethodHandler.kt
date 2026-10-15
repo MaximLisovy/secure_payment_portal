@@ -54,6 +54,7 @@ class SecurityMethodHandler(
                 val window = windowController.protection()
                 log?.invoke(
                     "status root=${root.state.wire} signals=${root.signals} " +
+                        "inconclusive=${root.inconclusive} " +
                         "recording=${recording.wire} window=${window.wire}"
                 )
                 result.success(SecurityStatusPayload.status(root, recording, window))
