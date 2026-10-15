@@ -26,7 +26,7 @@ abstract final class ColorSchemeBuilder {
       onSurface: colors.onSurface,
       onSurfaceVariant: colors.onSurfaceMuted,
       outline: colors.outline,
-      outlineVariant: colors.outline,
+      outlineVariant: colors.outlineSubtle,
       surfaceContainerLowest: colors.surface,
       surfaceContainerLow: colors.surfaceElevated,
       surfaceContainer: colors.surfaceElevated,

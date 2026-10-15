@@ -24,6 +24,7 @@ const utilityBrand = BrandConfig(
       onSurface: Color(0xFF0F172A),
       onSurfaceMuted: Color(0xFF475569),
       outline: Color(0xFF738299),
+      outlineSubtle: Color(0xFF94A3B8),
       success: Color(0xFF15803D),
       danger: Color(0xFFB91C1C),
       onDanger: Color(0xFFFFFFFF),

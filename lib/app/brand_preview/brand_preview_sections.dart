@@ -91,7 +91,9 @@ class _Swatch extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: shape.borderRadiusSm,
-            border: Border.fromBorderSide(shape.borderSide(colors.outline)),
+            border: Border.fromBorderSide(
+              shape.borderSide(colors.outlineSubtle),
+            ),
           ),
           child: SizedBox(
             width: density.rowHeight,
@@ -162,7 +164,7 @@ class _RadiusSample extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: radius,
-        border: Border.fromBorderSide(shape.borderSide(colors.outline)),
+        border: Border.fromBorderSide(shape.borderSide(colors.outlineSubtle)),
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(

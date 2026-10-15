@@ -62,6 +62,22 @@ void main() {
       );
     });
 
+    // The decorative role is exempt from the table, so it must not leak into a
+    // control: using it for the input border has to fail the table.
+    test('catches the soft decorative outline used for a control', () {
+      final retail = retailBrand.tokens;
+      final soft = BrandTokens(
+        colors: retail.colors.copyWith(outline: retail.colors.outlineSubtle),
+        shape: retail.shape,
+        density: retail.density,
+        motion: retail.motion,
+      );
+
+      final flagged = contrastFailures(_themeOf(soft)).map((f) => f.pair);
+
+      expect(flagged, contains('input border'));
+    });
+
     test('fails loudly when a component theme leaves a color unset', () {
       expect(() => contrastFailures(ThemeData()), throwsStateError);
     });

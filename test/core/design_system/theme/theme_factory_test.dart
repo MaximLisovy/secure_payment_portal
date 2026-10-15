@@ -39,6 +39,7 @@ void main() {
         expect(scheme.surface, tokens.colors.surface);
         expect(scheme.onSurface, tokens.colors.onSurface);
         expect(scheme.outline, tokens.colors.outline);
+        expect(scheme.outlineVariant, tokens.colors.outlineSubtle);
         expect(theme.scaffoldBackgroundColor, tokens.colors.canvas);
       });
 
@@ -109,9 +110,21 @@ void main() {
           card.shape,
           RoundedRectangleBorder(
             borderRadius: tokens.shape.borderRadiusLg,
-            side: tokens.shape.borderSide(tokens.colors.outline),
+            side: tokens.shape.borderSide(tokens.colors.outlineSubtle),
           ),
         );
+      });
+
+      test('decorative edges use outlineSubtle, control edges use outline', () {
+        final c = tokens.colors;
+        final input = theme.inputDecorationTheme;
+
+        // Decorative: card border (checked above), divider, progress track.
+        expect(theme.dividerTheme.color, c.outlineSubtle);
+        expect(theme.progressIndicatorTheme.linearTrackColor, c.outlineSubtle);
+        // Controls: input borders and the outlined button keep the 3:1 role.
+        expect(input.enabledBorder?.borderSide.color, c.outline);
+        expect(input.border?.borderSide.color, c.outline);
       });
 
       test('list tile and input decoration come from density tokens', () {

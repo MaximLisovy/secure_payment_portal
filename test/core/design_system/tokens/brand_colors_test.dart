@@ -45,6 +45,14 @@ void main() {
           0.5,
         ),
       );
+      expect(
+        mid.outlineSubtle,
+        Color.lerp(
+          sampleColorsA.outlineSubtle,
+          sampleColorsB.outlineSubtle,
+          0.5,
+        ),
+      );
       expect(mid.brandPrimary, isNot(sampleColorsA.brandPrimary));
       expect(mid.brandPrimary, isNot(sampleColorsB.brandPrimary));
       expect(mid.brandGradient, isNot(sampleColorsA.brandGradient));

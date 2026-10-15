@@ -32,7 +32,8 @@ abstract final class ComponentThemes {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: t.shape.borderRadiusLg,
-        side: t.shape.borderSide(t.colors.outline),
+        // Decorative edge: the soft role, exempt from the 3:1 rule.
+        side: t.shape.borderSide(t.colors.outlineSubtle),
       ),
     );
   }
@@ -124,7 +125,7 @@ abstract final class ComponentThemes {
 
   static DividerThemeData divider(BrandTokens t) {
     return DividerThemeData(
-      color: t.colors.outline,
+      color: t.colors.outlineSubtle,
       thickness: t.shape.borderWidth,
       space: t.density.spaceMd,
     );
@@ -133,7 +134,7 @@ abstract final class ComponentThemes {
   static ProgressIndicatorThemeData progressIndicator(BrandTokens t) {
     return ProgressIndicatorThemeData(
       color: t.colors.brandOnSurface,
-      linearTrackColor: t.colors.outline,
+      linearTrackColor: t.colors.outlineSubtle,
       linearMinHeight: t.density.spaceSm,
     );
   }

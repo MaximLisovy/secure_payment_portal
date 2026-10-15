@@ -27,6 +27,7 @@ const retailBrand = BrandConfig(
       onSurface: Color(0xFF2B1A0A),
       onSurfaceMuted: Color(0xFF7A6652),
       outline: Color(0xFF94806A),
+      outlineSubtle: Color(0xFFEBD9C3),
       success: Color(0xFF2E7D32),
       danger: Color(0xFFC62828),
       onDanger: Color(0xFFFFFFFF),

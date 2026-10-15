@@ -81,8 +81,11 @@ Color _outlinedSide(ThemeData t) => _need(
 /// Every foreground/background pair that `ComponentThemes` and `ThemeFactory`
 /// actually put on screen. Add a row here whenever a component color is added.
 ///
-/// Deliberately not listed (WCAG exempts them): disabled states, decorative
-/// edges (card border, divider, progress track) and logos.
+/// Deliberately not listed, because WCAG 1.4.11 exempts them: disabled states,
+/// logos, and purely decorative edges, which use the soft `outlineSubtle` role
+/// (card border, divider, progress track). The control edges that must be seen
+/// (input border, outlined button) use `outline` and are listed. If a control
+/// ever picks up `outlineSubtle`, its row here fails.
 final List<ContrastPair> componentContrastPairs = [
   // --- Text: 4.5:1 ---
   ContrastPair(

@@ -16,6 +16,7 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
     required this.onSurface,
     required this.onSurfaceMuted,
     required this.outline,
+    required this.outlineSubtle,
     required this.success,
     required this.danger,
     required this.onDanger,
@@ -41,7 +42,15 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
   final Color surfaceElevated;
   final Color onSurface;
   final Color onSurfaceMuted;
+
+  /// Edges that identify a control (input border, outlined button, unselected
+  /// switch or checkbox): held to 3:1 against every neutral surface.
   final Color outline;
+
+  /// Purely decorative edges: card border, divider, progress track. WCAG 1.4.11
+  /// exempts decoration from the 3:1 rule, so this role may be soft and is
+  /// deliberately absent from the contrast table. Never use it for a control.
+  final Color outlineSubtle;
   final Color success;
   final Color danger;
   final Color onDanger;
@@ -63,6 +72,7 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
     Color? onSurface,
     Color? onSurfaceMuted,
     Color? outline,
+    Color? outlineSubtle,
     Color? success,
     Color? danger,
     Color? onDanger,
@@ -81,6 +91,7 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
       onSurface: onSurface ?? this.onSurface,
       onSurfaceMuted: onSurfaceMuted ?? this.onSurfaceMuted,
       outline: outline ?? this.outline,
+      outlineSubtle: outlineSubtle ?? this.outlineSubtle,
       success: success ?? this.success,
       danger: danger ?? this.danger,
       onDanger: onDanger ?? this.onDanger,
@@ -104,6 +115,7 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
       onSurface: lerpColor(onSurface, other.onSurface, t),
       onSurfaceMuted: lerpColor(onSurfaceMuted, other.onSurfaceMuted, t),
       outline: lerpColor(outline, other.outline, t),
+      outlineSubtle: lerpColor(outlineSubtle, other.outlineSubtle, t),
       success: lerpColor(success, other.success, t),
       danger: lerpColor(danger, other.danger, t),
       onDanger: lerpColor(onDanger, other.onDanger, t),
@@ -125,6 +137,7 @@ class BrandColors extends ThemeExtension<BrandColors> with Equatable {
     onSurface,
     onSurfaceMuted,
     outline,
+    outlineSubtle,
     success,
     danger,
     onDanger,
