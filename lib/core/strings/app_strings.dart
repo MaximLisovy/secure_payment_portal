@@ -5,6 +5,7 @@ abstract final class AppStrings {
   static const previewColors = 'Color roles';
   static const previewShape = 'Shape';
   static const previewControls = 'Controls';
+  static const previewDefaults = 'Material defaults';
   static const previewRows = 'Rows';
   static const previewMotion = 'Motion';
 

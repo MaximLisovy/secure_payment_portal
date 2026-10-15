@@ -4,11 +4,11 @@ import 'package:secure_payment_portal/core/design_system/tokens/brand_tokens.dar
 /// Material component themes whose every value comes from [BrandTokens], so
 /// plain Material widgets are on-brand without per-widget styling.
 ///
-/// Colors are always set explicitly (never left to Material's "primary"
-/// default), because the foreground and fill roles differ: fills use
-/// `brandPrimary`, foregrounds on a surface use `brandOnSurface`. The contrast
-/// table in `test/helpers/component_contrast_table.dart` reads these values, so
-/// any color added here needs a row there.
+/// Fills use the vivid `brandPrimary` and are always set explicitly here, because
+/// `ColorScheme.primary` is the accessible `brandOnSurface`. Foregrounds are also
+/// set explicitly even though the scheme would supply the same color, so the
+/// contrast table in `test/helpers/component_contrast_table.dart` reads real
+/// values. Any color added here needs a row there.
 abstract final class ComponentThemes {
   static AppBarThemeData appBar(BrandTokens t) {
     return AppBarThemeData(

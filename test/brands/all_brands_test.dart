@@ -21,6 +21,7 @@ void main() {
           AppStrings.previewColors,
           AppStrings.previewShape,
           AppStrings.previewControls,
+          AppStrings.previewDefaults,
           AppStrings.previewRows,
           AppStrings.previewMotion,
         ]) {

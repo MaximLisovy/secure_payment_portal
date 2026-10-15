@@ -45,7 +45,10 @@ void main() {
       final theme = container.read(themeProvider);
 
       expect(theme.extension<BrandColors>(), retailBrand.tokens.colors);
-      expect(theme.colorScheme.primary, retailBrand.tokens.colors.brandPrimary);
+      expect(
+        theme.colorScheme.primary,
+        retailBrand.tokens.colors.brandOnSurface,
+      );
     });
 
     test('emits a new theme when the brand changes', () async {

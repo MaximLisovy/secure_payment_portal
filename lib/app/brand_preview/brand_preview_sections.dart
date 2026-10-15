@@ -214,6 +214,45 @@ class ControlsSection extends StatelessWidget {
   }
 }
 
+/// Plain Material widgets with no brand styling: they must still read well,
+/// because `ColorScheme.primary` is the accessible brand foreground.
+class DefaultsSection extends StatefulWidget {
+  const DefaultsSection({super.key});
+
+  @override
+  State<DefaultsSection> createState() => _DefaultsSectionState();
+}
+
+class _DefaultsSectionState extends State<DefaultsSection> {
+  bool _checked = true;
+  double _level = 0.6;
+
+  @override
+  Widget build(BuildContext context) {
+    return PreviewSection(
+      title: AppStrings.previewDefaults,
+      child: Row(
+        children: [
+          Switch(
+            value: _checked,
+            onChanged: (value) => setState(() => _checked = value),
+          ),
+          Checkbox(
+            value: _checked,
+            onChanged: (value) => setState(() => _checked = value ?? false),
+          ),
+          Expanded(
+            child: Slider(
+              value: _level,
+              onChanged: (value) => setState(() => _level = value),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class RowsSection extends StatelessWidget {
   const RowsSection({super.key});
 

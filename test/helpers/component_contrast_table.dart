@@ -216,6 +216,43 @@ final List<ContrastPair> componentContrastPairs = [
     foreground: (t) =>
         _need(t.textSelectionTheme.cursorColor, 'textSelectionTheme cursor'),
   ),
+
+  // --- ColorScheme defaults, read by every widget nobody themed (switch,
+  // checkbox, radio, slider, chips, badges...). Not set by ComponentThemes, so
+  // these rows are what keeps those widgets readable. ---
+  ContrastPair(
+    name: 'default primary (switch, checkbox, slider, focus)',
+    kind: ContrastKind.text,
+    foreground: (t) => t.colorScheme.primary,
+  ),
+  ContrastPair(
+    name: 'label on default primary fill (switch thumb, checkbox mark)',
+    kind: ContrastKind.text,
+    foreground: (t) => t.colorScheme.onPrimary,
+    backgrounds: {'primary fill': (t) => t.colorScheme.primary},
+  ),
+  ContrastPair(
+    name: 'default muted text (onSurfaceVariant)',
+    kind: ContrastKind.text,
+    foreground: (t) => t.colorScheme.onSurfaceVariant,
+  ),
+  ContrastPair(
+    name: 'default outline (unselected switch, checkbox, radio)',
+    kind: ContrastKind.ui,
+    foreground: (t) => t.colorScheme.outline,
+  ),
+  ContrastPair(
+    name: 'label on accent fill (chip, badge)',
+    kind: ContrastKind.text,
+    foreground: (t) => t.colorScheme.onSecondary,
+    backgrounds: {'accent fill': (t) => t.colorScheme.secondary},
+  ),
+  ContrastPair(
+    name: 'label on error fill',
+    kind: ContrastKind.text,
+    foreground: (t) => t.colorScheme.onError,
+    backgrounds: {'error fill': (t) => t.colorScheme.error},
+  ),
 ];
 
 /// Every pair of [componentContrastPairs] that is below its minimum on [theme].

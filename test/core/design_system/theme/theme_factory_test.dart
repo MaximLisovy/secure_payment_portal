@@ -29,8 +29,11 @@ void main() {
       test('color scheme roles come from the color tokens', () {
         final scheme = theme.colorScheme;
 
-        expect(scheme.primary, tokens.colors.brandPrimary);
-        expect(scheme.onPrimary, tokens.colors.onBrandPrimary);
+        // `primary` is the accessible foreground (what unthemed widgets read),
+        // never the vivid fill.
+        expect(scheme.primary, tokens.colors.brandOnSurface);
+        expect(scheme.primary, isNot(tokens.colors.brandPrimary));
+        expect(scheme.onPrimary, tokens.colors.surface);
         expect(scheme.secondary, tokens.colors.brandAccent);
         expect(scheme.error, tokens.colors.danger);
         expect(scheme.surface, tokens.colors.surface);
@@ -136,7 +139,7 @@ void main() {
     final dark = ThemeFactory.build(sampleTokensA, brightness: Brightness.dark);
 
     expect(dark.colorScheme.brightness, Brightness.dark);
-    expect(dark.colorScheme.primary, sampleTokensA.colors.brandPrimary);
+    expect(dark.colorScheme.primary, sampleTokensA.colors.brandOnSurface);
   });
 
   test('ThemeData.lerp interpolates the registered extensions', () {

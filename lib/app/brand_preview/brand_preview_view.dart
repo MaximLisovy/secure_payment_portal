@@ -17,6 +17,7 @@ class BrandPreviewView extends StatelessWidget {
           ColorRolesSection(),
           ShapeSection(),
           ControlsSection(),
+          DefaultsSection(),
           RowsSection(),
           MotionSection(),
         ],

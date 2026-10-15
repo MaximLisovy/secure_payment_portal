@@ -56,6 +56,8 @@ void main() {
           'list tile icon',
           'progress indicator',
           'text cursor and selection handles',
+          // Widgets nobody themed read ColorScheme.primary.
+          'default primary (switch, checkbox, slider, focus)',
         ]),
       );
     });
