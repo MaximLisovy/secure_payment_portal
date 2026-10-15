@@ -1,0 +1,262 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:secure_payment_portal/core/domain/currency.dart';
+import 'package:secure_payment_portal/core/domain/money.dart';
+import 'package:secure_payment_portal/core/error/failure.dart';
+import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/features/payment/domain/confirm_payment.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
+import 'package:secure_payment_portal/features/security/security_domain.dart';
+
+import '../../security/helpers/security_fixtures.dart';
+import '../helpers/payment_fixtures.dart';
+
+class _MockSecurity extends Mock implements SecurityStatusRepository {}
+
+class _MockPayments extends Mock implements PaymentRepository {}
+
+const _recording = SecurityStatus(
+  root: RootClear(),
+  screenRecording: Detection.detected,
+);
+
+void main() {
+  late _MockSecurity security;
+  late _MockPayments payments;
+
+  setUpAll(() => registerFallbackValue(sampleDetails));
+
+  setUp(() {
+    security = _MockSecurity();
+    payments = _MockPayments();
+    when(
+      () => payments.startPayment(any()),
+    ).thenAnswer((_) async => Success.unit);
+  });
+
+  void deviceReads(SecurityStatus status) => when(
+    () => security.getStatus(),
+  ).thenAnswer((_) async => Success<SecurityStatus>(status));
+
+  ConfirmPayment confirm([SecurityPolicy policy = const SecurityPolicy()]) =>
+      ConfirmPayment(security: security, payments: payments, policy: policy);
+
+  group('when the device is fine', () {
+    test('checks the device first, then starts processing', () async {
+      deviceReads(cleanStatus);
+
+      final result = await confirm()(sampleDetails);
+
+      expect(result, Success.unit);
+      verifyInOrder([
+        () => security.getStatus(),
+        () => payments.startPayment(sampleDetails),
+      ]);
+    });
+
+    test('re-reads the status on every confirm, never a cached one', () async {
+      deviceReads(cleanStatus);
+      final useCase = confirm();
+
+      await useCase(sampleDetails);
+      await useCase(sampleDetails);
+
+      verify(() => security.getStatus()).called(2);
+    });
+
+    test(
+      'only reads the status once; it does not subscribe to a stream',
+      () async {
+        deviceReads(cleanStatus);
+
+        await confirm()(sampleDetails);
+
+        verifyNever(() => security.watchStatus());
+      },
+    );
+
+    test('weak root signals alone do not stop a payment by default', () async {
+      deviceReads(
+        const SecurityStatus(
+          root: weakRoot,
+          screenRecording: Detection.notDetected,
+        ),
+      );
+
+      expect(await confirm()(sampleDetails), Success.unit);
+    });
+
+    test(
+      'an unverifiable recording state does not stop it by default',
+      () async {
+        deviceReads(
+          const SecurityStatus(
+            root: RootClear(),
+            screenRecording: Detection.unknown,
+          ),
+        );
+
+        expect(await confirm()(sampleDetails), Success.unit);
+      },
+    );
+  });
+
+  group('when the policy blocks', () {
+    final blocked = <(String, SecurityStatus, SecurityBlockReason)>[
+      (
+        'a strong root signal',
+        const SecurityStatus(
+          root: strongRoot,
+          screenRecording: Detection.notDetected,
+        ),
+        SecurityBlockReason.rootDetected,
+      ),
+      (
+        'a recording in progress',
+        _recording,
+        SecurityBlockReason.screenRecording,
+      ),
+      (
+        'a root that cannot be verified',
+        const SecurityStatus(
+          root: RootUnknown(),
+          screenRecording: Detection.notDetected,
+        ),
+        SecurityBlockReason.rootUnverifiable,
+      ),
+    ];
+    for (final (name, status, reason) in blocked) {
+      test('$name fails with $reason and never starts processing', () async {
+        deviceReads(status);
+
+        final result = await confirm()(sampleDetails);
+
+        expect(result, Err<void>(SecurityBlockedFailure(reason)));
+        verifyNever(() => payments.startPayment(any()));
+      });
+    }
+
+    test(
+      'a status that cannot be read is treated as unknown, fail-closed',
+      () async {
+        when(
+          () => security.getStatus(),
+        ).thenAnswer((_) async => const Err<SecurityStatus>(NetworkFailure()));
+
+        final result = await confirm()(sampleDetails);
+
+        expect(
+          result,
+          Err<void>(
+            SecurityBlockedFailure(SecurityBlockReason.rootUnverifiable),
+          ),
+        );
+        verifyNever(() => payments.startPayment(any()));
+      },
+    );
+
+    test('the policy, not the use case, decides what unknown means', () async {
+      when(
+        () => security.getStatus(),
+      ).thenAnswer((_) async => const Err<SecurityStatus>(NetworkFailure()));
+
+      final result = await confirm(
+        const SecurityPolicy(blockOnUnknownRoot: false),
+      )(sampleDetails);
+
+      expect(result, Success.unit);
+      verify(() => payments.startPayment(sampleDetails)).called(1);
+    });
+
+    test('a stricter policy can block an unverifiable recording', () async {
+      deviceReads(
+        const SecurityStatus(
+          root: RootClear(),
+          screenRecording: Detection.unknown,
+        ),
+      );
+
+      final result = await confirm(
+        const SecurityPolicy(blockOnUnknownRecording: true),
+      )(sampleDetails);
+
+      expect(
+        result,
+        Err<void>(
+          SecurityBlockedFailure(SecurityBlockReason.recordingUnverifiable),
+        ),
+      );
+    });
+  });
+
+  group('when there is nothing valid to pay', () {
+    final invalid = <(String, PaymentDetails)>[
+      ('no lines', detailsWith(const [])),
+      (
+        'a zero total',
+        detailsWith([usdItem(500), usdItem(-500, LineItemKind.discount)]),
+      ),
+      (
+        'a negative total',
+        detailsWith([usdItem(100), usdItem(-900, LineItemKind.discount)]),
+      ),
+      (
+        'a line in another currency',
+        detailsWith([
+          usdItem(1000),
+          const BillLineItem(
+            label: 'euro line',
+            amount: Money.minor(1000, Currency.eur),
+            kind: LineItemKind.charge,
+          ),
+        ]),
+      ),
+    ];
+    for (final (name, details) in invalid) {
+      test(
+        '$name fails with InvalidPaymentFailure and touches nothing',
+        () async {
+          final result = await confirm()(details);
+
+          expect(result, const Err<void>(InvalidPaymentFailure()));
+          verifyNever(() => security.getStatus());
+          verifyNever(() => payments.startPayment(any()));
+        },
+      );
+    }
+  });
+
+  group('when starting fails', () {
+    test(
+      'a second confirm while one runs reports PaymentInProgressFailure',
+      () async {
+        deviceReads(cleanStatus);
+        when(
+          () => payments.startPayment(any()),
+        ).thenAnswer((_) async => const Err<void>(PaymentInProgressFailure()));
+
+        expect(
+          await confirm()(sampleDetails),
+          const Err<void>(PaymentInProgressFailure()),
+        );
+      },
+    );
+
+    test(
+      'any other failure from the repository is passed through unchanged',
+      () async {
+        deviceReads(cleanStatus);
+        when(() => payments.startPayment(any())).thenAnswer(
+          (_) async => const Err<void>(PlatformFailure('START_NOT_ALLOWED')),
+        );
+
+        expect(
+          await confirm()(sampleDetails),
+          const Err<void>(PlatformFailure('START_NOT_ALLOWED')),
+        );
+      },
+    );
+  });
+}

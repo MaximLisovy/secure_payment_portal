@@ -55,6 +55,13 @@ final class WireReader {
     throw _bad(key, 'an int or absent');
   }
 
+  /// A list whose elements are read one by one (e.g. with a nested [WireReader]).
+  List<Object?> requireList(String key) {
+    final value = _map[key];
+    if (value is List<Object?>) return value;
+    throw _bad(key, 'a list');
+  }
+
   List<String> requireStringList(String key) {
     final value = _map[key];
     if (value is List<Object?> && value.every((item) => item is String)) {

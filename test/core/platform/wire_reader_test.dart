@@ -80,6 +80,20 @@ void main() {
       expect(() => reader.requireStringList('absent'), _malformed());
     });
 
+    test('reads a list of any elements, to be read one by one', () {
+      final reader = WireReader(<Object?, Object?>{
+        'items': <Object?>[
+          <Object?, Object?>{'a': 1},
+          'x',
+        ],
+        'notList': 'a',
+      }, what: 'p');
+
+      expect(reader.requireList('items'), hasLength(2));
+      expect(() => reader.requireList('notList'), _malformed());
+      expect(() => reader.requireList('absent'), _malformed());
+    });
+
     test('accepts the supported schema version only', () {
       WireReader(<Object?, Object?>{
         ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
