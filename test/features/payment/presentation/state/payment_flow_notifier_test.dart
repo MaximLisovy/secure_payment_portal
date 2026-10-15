@@ -8,13 +8,13 @@ import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_request_dto.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_result.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
@@ -152,7 +152,7 @@ void main() {
   group('a payment that does not go through', () {
     test('a decline ends in a typed failure', () {
       fakeAsync((async) {
-        final h = FlowHarness.create(outcome: FakePaymentOutcome.declined);
+        final h = FlowHarness.create(outcome: PaymentScenario.declined);
         h.protectWindow(async);
         h.begin(async);
 
@@ -168,7 +168,7 @@ void main() {
     test('a failure while processing ends in a typed failure', () {
       fakeAsync((async) {
         final h = FlowHarness.create(
-          outcome: FakePaymentOutcome.processingFailure,
+          outcome: PaymentScenario.processingFailure,
         );
         h.protectWindow(async);
         h.begin(async);
@@ -184,7 +184,7 @@ void main() {
 
     test('retry after a failure checks the device again and is ready', () {
       fakeAsync((async) {
-        final h = FlowHarness.create(outcome: FakePaymentOutcome.declined);
+        final h = FlowHarness.create(outcome: PaymentScenario.declined);
         h.protectWindow(async);
         h.begin(async);
         h.confirm(async, harnessStep * (harnessSteps + 1));
@@ -319,7 +319,7 @@ void main() {
     test('a window that cannot be protected blocks, and recovers on retry', () {
       fakeAsync((async) {
         final device = FakeSecurityPlatformDataSource()
-          ..setWindowProtectionWorks(false);
+          ..setWindowProtectionWorks(works: false);
         final h = FlowHarness.create(security: device);
         h.protectWindow(async);
 
@@ -329,7 +329,7 @@ void main() {
           _blocked(SecurityBlockReason.screenProtectionUnavailable),
         );
 
-        device.setWindowProtectionWorks(true);
+        device.setWindowProtectionWorks(works: true);
         unawaited(h.flow.retry());
         async.flushMicrotasks();
 
@@ -571,9 +571,7 @@ void main() {
 
     test('a failed or cancelled run left over is ignored', () {
       fakeAsync((async) {
-        final declined = FlowHarness.create(
-          outcome: FakePaymentOutcome.declined,
-        );
+        final declined = FlowHarness.create(outcome: PaymentScenario.declined);
         declined.protectWindow(async);
         _payDirectly(declined, async);
 

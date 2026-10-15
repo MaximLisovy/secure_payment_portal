@@ -2,13 +2,15 @@ import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
+import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 
 enum FakeRemoteOutcome { success, networkError }
 
 /// A bill backend with a fixed catalog and a fixed latency: no randomness, so
 /// the same call always gives the same result. [outcome] can be changed to play
 /// a failing network.
-final class FakePaymentRemoteDataSource implements PaymentRemoteDataSource {
+final class FakePaymentRemoteDataSource
+    implements PaymentRemoteDataSource, BillBackendControl {
   FakePaymentRemoteDataSource({
     this.bills = FakeBills.all,
     this.latency = Duration.zero,
@@ -18,6 +20,16 @@ final class FakePaymentRemoteDataSource implements PaymentRemoteDataSource {
   final Map<String, PaymentDetailsDto> bills;
   final Duration latency;
   FakeRemoteOutcome outcome;
+
+  @override
+  bool get online => outcome == FakeRemoteOutcome.success;
+
+  @override
+  void setOnline({required bool online}) {
+    outcome = online
+        ? FakeRemoteOutcome.success
+        : FakeRemoteOutcome.networkError;
+  }
 
   @override
   Future<PaymentDetailsDto> fetchPaymentDetails(String paymentId) async {

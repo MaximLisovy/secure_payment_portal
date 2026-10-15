@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
+import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 
 import '../security_platform_data_source_contract.dart';
 
@@ -41,7 +42,7 @@ void main() {
 
     test('can play a device that cannot protect its window', () async {
       final source = FakeSecurityPlatformDataSource()
-        ..setWindowProtectionWorks(false);
+        ..setWindowProtectionWorks(works: false);
 
       await expectLater(
         source.enableSecureWindow(),
@@ -60,7 +61,7 @@ void main() {
         WindowProtectionWire.inactive,
       );
 
-      source.setWindowProtectionWorks(true);
+      source.setWindowProtectionWorks(works: true);
       await source.enableSecureWindow();
       expect(source.windowProtectionWorks, isTrue);
       expect(source.secureWindowCount, 1);
@@ -181,6 +182,96 @@ void main() {
 
       expect(done, isTrue);
       await subscription.cancel();
+    });
+  });
+
+  // The demo panel reaches the fake only through this interface.
+  group('as a SecurityScenarioControl', () {
+    SecurityScenarioControl controlOf(FakeSecurityPlatformDataSource fake) =>
+        fake;
+
+    test(
+      'starts as a clean device with no recording and working protection',
+      () {
+        final control = controlOf(FakeSecurityPlatformDataSource());
+
+        expect(control.deviceScenario, DeviceScenario.clean);
+        expect(control.recordingActive, isFalse);
+        expect(control.windowProtectionWorks, isTrue);
+      },
+    );
+
+    final expectedRoot = <DeviceScenario, (String, List<String>)>{
+      DeviceScenario.clean: (DetectionWire.notDetected, []),
+      DeviceScenario.rooted: (
+        DetectionWire.detected,
+        [RootReasonCodes.suBinary, RootReasonCodes.magiskArtifacts],
+      ),
+      DeviceScenario.rootedWeakOnly: (
+        DetectionWire.detected,
+        [RootReasonCodes.testKeys],
+      ),
+      DeviceScenario.rootUnverifiable: (DetectionWire.unknown, []),
+    };
+    for (final MapEntry(key: scenario, value: (root, signals))
+        in expectedRoot.entries) {
+      test('${scenario.name} is what the status reports', () async {
+        final fake = FakeSecurityPlatformDataSource();
+
+        controlOf(fake).setDeviceScenario(scenario);
+        final status = await fake.getSecurityStatus();
+
+        expect(controlOf(fake).deviceScenario, scenario);
+        expect(status.root, root);
+        expect(status.rootSignals, signals);
+      });
+    }
+
+    test('every scenario is covered by the table above', () {
+      expect(expectedRoot.keys, unorderedEquals(DeviceScenario.values));
+    });
+
+    test('a recording starts and stops, and listeners hear it', () async {
+      final fake = FakeSecurityPlatformDataSource();
+      final seen = <String>[];
+      final subscription = fake.watchScreenRecording().listen(
+        (dto) => seen.add(dto.screenRecording),
+      );
+      await pumpEventQueue();
+
+      controlOf(fake).setRecordingActive(active: true);
+      await pumpEventQueue();
+      expect(controlOf(fake).recordingActive, isTrue);
+      expect(
+        (await fake.getSecurityStatus()).screenRecording,
+        DetectionWire.detected,
+      );
+
+      controlOf(fake).setRecordingActive(active: false);
+      await pumpEventQueue();
+      expect(controlOf(fake).recordingActive, isFalse);
+
+      expect(seen, [
+        DetectionWire.notDetected,
+        DetectionWire.detected,
+        DetectionWire.notDetected,
+      ]);
+      await subscription.cancel();
+    });
+
+    test('screen protection can be made to fail and to work again', () async {
+      final fake = FakeSecurityPlatformDataSource();
+
+      controlOf(fake).setWindowProtectionWorks(works: false);
+      await expectLater(
+        fake.enableSecureWindow(),
+        throwsA(isA<PlatformCallException>()),
+      );
+      expect(controlOf(fake).windowProtectionWorks, isFalse);
+
+      controlOf(fake).setWindowProtectionWorks(works: true);
+      await fake.enableSecureWindow();
+      expect(fake.secureWindowCount, 1);
     });
   });
 }

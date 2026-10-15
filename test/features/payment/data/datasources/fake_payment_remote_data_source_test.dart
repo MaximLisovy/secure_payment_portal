@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
+import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 
 void main() {
   group('FakePaymentRemoteDataSource', () {
@@ -81,6 +82,28 @@ void main() {
       for (final entry in FakeBills.all.entries) {
         expect(entry.value.id, entry.key);
       }
+    });
+  });
+
+  group('as a BillBackendControl', () {
+    test('goes offline and comes back', () async {
+      final source = FakePaymentRemoteDataSource();
+      final BillBackendControl control = source;
+      expect(control.online, isTrue);
+
+      control.setOnline(online: false);
+      expect(control.online, isFalse);
+      await expectLater(
+        source.fetchPaymentDetails(FakeBills.retailOrderId),
+        throwsA(isA<NetworkException>()),
+      );
+
+      control.setOnline(online: true);
+      expect(control.online, isTrue);
+      expect(
+        await source.fetchPaymentDetails(FakeBills.retailOrderId),
+        FakeBills.retailOrder,
+      );
     });
   });
 }

@@ -77,7 +77,7 @@ void main() {
 
     test('reports a failure to protect, and can try again', () async {
       final fake = FakeSecurityPlatformDataSource()
-        ..setWindowProtectionWorks(false);
+        ..setWindowProtectionWorks(works: false);
       final (:container, :notifier) = _setup(fake);
 
       await notifier.acquire();
@@ -90,7 +90,7 @@ void main() {
       );
       expect(fake.secureWindowCount, 0);
 
-      fake.setWindowProtectionWorks(true);
+      fake.setWindowProtectionWorks(works: true);
       await notifier.retry();
 
       expect(

@@ -8,6 +8,7 @@ import 'package:secure_payment_portal/features/payment/data/datasources/fake_pay
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_request_dto.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 
 import '../../../../helpers/fake_async_helpers.dart';
 import '../../helpers/payment_fixtures.dart';
@@ -99,15 +100,15 @@ void main() {
       });
     });
 
-    final outcomes = <(String, FakePaymentOutcome, String)>[
+    final outcomes = <(String, PaymentScenario, String)>[
       (
         'a declined payment',
-        FakePaymentOutcome.declined,
+        PaymentScenario.declined,
         PaymentChannel.failureDeclined,
       ),
       (
         'a payment that fails while processing',
-        FakePaymentOutcome.processingFailure,
+        PaymentScenario.processingFailure,
         PaymentChannel.failureProcessing,
       ),
     ];
@@ -115,7 +116,7 @@ void main() {
       test('can play $name', () {
         fakeAsync((async) {
           final source = _source(
-            FakePaymentConfig(stepDelay: _step, steps: 2, outcome: outcome),
+            FakePaymentConfig(stepDelay: _step, steps: 2, scenario: outcome),
           );
           final events = _record(source);
 
@@ -241,6 +242,50 @@ void main() {
 
         expect(done, isTrue);
         expect(events, before, reason: 'nothing may be reported after dispose');
+        expectNoPendingTimers(async);
+      });
+    });
+  });
+
+  group('as a PaymentScenarioControl', () {
+    PaymentScenarioControl controlOf(FakePaymentPlatformDataSource fake) =>
+        fake;
+
+    test('starts with the scenario of its config', () {
+      final fake = _source(
+        const FakePaymentConfig(scenario: PaymentScenario.declined),
+      );
+
+      expect(controlOf(fake).scenario, PaymentScenario.declined);
+    });
+
+    test('a changed scenario applies to the next payment', () {
+      fakeAsync((async) {
+        final fake = _source();
+        final events = _record(fake);
+
+        controlOf(fake).setScenario(PaymentScenario.declined);
+        unawaited(fake.startPayment(sampleRequest));
+        async.elapse(_config.totalDuration);
+
+        expect(events.last, 'failed ${PaymentChannel.failureDeclined}');
+        unawaited(fake.dispose());
+        expectNoPendingTimers(async);
+      });
+    });
+
+    test('a payment already running keeps the script it began with', () {
+      fakeAsync((async) {
+        final fake = _source();
+        final events = _record(fake);
+
+        unawaited(fake.startPayment(sampleRequest));
+        async.elapse(_step);
+        controlOf(fake).setScenario(PaymentScenario.declined);
+        async.elapse(_config.totalDuration);
+
+        expect(events.last, 'succeeded');
+        unawaited(fake.dispose());
         expectNoPendingTimers(async);
       });
     });

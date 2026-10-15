@@ -15,6 +15,7 @@ import 'package:secure_payment_portal/features/payment/di/payment_providers.dart
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
@@ -26,7 +27,7 @@ const _step = Duration(milliseconds: 100);
 /// The default wiring, with the scan and bill latency removed and a short
 /// payment script, so the whole feature runs in a few fake milliseconds.
 ProviderContainer _container({
-  FakePaymentOutcome outcome = FakePaymentOutcome.success,
+  PaymentScenario outcome = PaymentScenario.success,
   FakeSecurityPlatformDataSource? device,
 }) {
   return ProviderContainer.test(
@@ -35,7 +36,7 @@ ProviderContainer _container({
         FakePaymentRemoteDataSource(),
       ),
       fakePaymentConfigProvider.overrideWithValue(
-        FakePaymentConfig(stepDelay: _step, steps: 2, outcome: outcome),
+        FakePaymentConfig(stepDelay: _step, steps: 2, scenario: outcome),
       ),
       securityPlatformDataSourceProvider.overrideWithValue(
         device ?? FakeSecurityPlatformDataSource(),
@@ -97,7 +98,7 @@ void main() {
 
   test('a declined script surfaces as a typed failure', () {
     fakeAsync((async) {
-      final container = _container(outcome: FakePaymentOutcome.declined);
+      final container = _container(outcome: PaymentScenario.declined);
 
       final paid = _pay(async, container, FakeBills.utilityBillId);
 

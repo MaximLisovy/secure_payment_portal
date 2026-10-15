@@ -156,7 +156,7 @@ void main() {
       'a device that cannot protect its window shows as failed, and recovers on retry',
       (tester) async {
         final fake = FakeSecurityPlatformDataSource()
-          ..setWindowProtectionWorks(false);
+          ..setWindowProtectionWorks(works: false);
         await _pump(tester, _secureText, fake: fake);
         final container = ProviderScope.containerOf(
           tester.element(find.text('secure')),
@@ -165,7 +165,7 @@ void main() {
         expect(container.read(secureWindowProvider), isA<SecureWindowFailed>());
         expect(fake.secureWindowCount, 0);
 
-        fake.setWindowProtectionWorks(true);
+        fake.setWindowProtectionWorks(works: true);
         await container.read(secureWindowProvider.notifier).retry();
 
         expect(

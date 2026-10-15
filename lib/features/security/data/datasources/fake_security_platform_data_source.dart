@@ -4,12 +4,13 @@ import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/screen_recording_dto.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/security_status_dto.dart';
+import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 
 /// A scripted device: no platform channel. Deterministic: the same latency and
 /// state always give the same result. Use the `set…` methods to play a scenario
 /// (a rooted device, a recording that starts) from a test or a demo.
 final class FakeSecurityPlatformDataSource
-    implements SecurityPlatformDataSource {
+    implements SecurityPlatformDataSource, SecurityScenarioControl {
   FakeSecurityPlatformDataSource({
     SecurityStatusDto status = cleanDevice,
     this.latency = Duration.zero,
@@ -35,6 +36,7 @@ final class FakeSecurityPlatformDataSource
   final ReplayLatest<ScreenRecordingDto> _recording;
   DataSourceException? _failure;
   bool _windowProtectionWorks = true;
+  DeviceScenario _deviceScenario = DeviceScenario.clean;
   int _secureWindowCount = 0;
 
   /// How many `enableSecureWindow` calls are still unbalanced.
@@ -42,6 +44,7 @@ final class FakeSecurityPlatformDataSource
 
   /// Whether `enableSecureWindow` can succeed. When false it fails the way a
   /// device without an Activity would, and the window stays unprotected.
+  @override
   bool get windowProtectionWorks => _windowProtectionWorks;
 
   SecurityStatusDto get status => _status;
@@ -59,7 +62,38 @@ final class FakeSecurityPlatformDataSource
     _recording.add(ScreenRecordingDto(screenRecording: wireValue));
   }
 
-  void setWindowProtectionWorks(bool works) => _windowProtectionWorks = works;
+  @override
+  void setWindowProtectionWorks({required bool works}) =>
+      _windowProtectionWorks = works;
+
+  @override
+  DeviceScenario get deviceScenario => _deviceScenario;
+
+  @override
+  void setDeviceScenario(DeviceScenario scenario) {
+    _deviceScenario = scenario;
+    switch (scenario) {
+      case DeviceScenario.clean:
+        setRoot(DetectionWire.notDetected);
+      case DeviceScenario.rooted:
+        setRoot(
+          DetectionWire.detected,
+          signals: [RootReasonCodes.suBinary, RootReasonCodes.magiskArtifacts],
+        );
+      case DeviceScenario.rootedWeakOnly:
+        setRoot(DetectionWire.detected, signals: [RootReasonCodes.testKeys]);
+      case DeviceScenario.rootUnverifiable:
+        setRoot(DetectionWire.unknown);
+    }
+  }
+
+  @override
+  bool get recordingActive => _status.screenRecording == DetectionWire.detected;
+
+  @override
+  void setRecordingActive({required bool active}) => setScreenRecording(
+    active ? DetectionWire.detected : DetectionWire.notDetected,
+  );
 
   /// The scripted root and recording facts, plus the window protection this fake
   /// has actually applied: `active` while an enable is unbalanced.

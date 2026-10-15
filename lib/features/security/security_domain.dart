@@ -7,5 +7,6 @@ export 'package:secure_payment_portal/features/security/domain/secure_window_con
 export 'package:secure_payment_portal/features/security/domain/security_decision.dart';
 export 'package:secure_payment_portal/features/security/domain/security_failures.dart';
 export 'package:secure_payment_portal/features/security/domain/security_policy.dart';
+export 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 export 'package:secure_payment_portal/features/security/domain/security_status.dart';
 export 'package:secure_payment_portal/features/security/domain/security_status_repository.dart';
