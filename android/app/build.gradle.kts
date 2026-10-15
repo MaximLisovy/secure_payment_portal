@@ -74,6 +74,15 @@ flutter {
     source = "../.."
 }
 
+// The native logic is brand-agnostic and both flavors compile the same sources, so one flavor's
+// unit tests cover it. This name keeps the Definition of Done command free of a brand:
+//   JAVA_HOME=<JDK 17-21> ./gradlew testDebugUnitTest
+tasks.register("testDebugUnitTest") {
+    group = "verification"
+    description = "Runs the JVM unit tests (flavor-independent)."
+    dependsOn("testRetailDebugUnitTest")
+}
+
 dependencies {
     // core-ktx 1.19 needs compileSdk 37 and AGP 9.1; 1.18 is the newest that fits compileSdk 36 / AGP 8.11.
     implementation("androidx.core:core-ktx:1.18.0")
