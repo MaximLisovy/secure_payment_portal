@@ -67,7 +67,8 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 - Stream changes over the EventChannel and also expose a one-shot `getSecurityStatus` query.
 
 ### 4.3 Window protection (FLAG_SECURE)
-- Dart drives it. The payment page is wrapped in a `SecureScreen` widget (security feature, presentation layer) that calls `enableSecureWindow` when the route becomes visible and `disableSecureWindow` when it is popped or disposed. Use `RouteAware` with a `RouteObserver`, so pushing another route on top behaves correctly.
+- Dart drives it. The payment page is wrapped in a `SecureScreen` widget (security feature, presentation layer). It protects from its first build until it is **disposed**, not until its route is covered. A `RouteAware` that releases on `didPushNext` or `didPop` leaves the sensitive page visible but unprotected for the whole transition animation (about 300 ms), because the outgoing page is still on screen while the new route slides in. Protection that outlives visibility costs nothing; the opposite leaks.
+- A single app-scoped notifier (`secureWindowProvider`) owns the window: screens `acquire` and `release` it, and the platform is asked only for the first acquire and the last release. The status the policy reads (`windowProtection`) comes from the real window state, and the policy blocks payment unless it is `active`.
 - Native side: `SecureWindowController` keeps a **reference count**, adding the flag on 0→1 and clearing it on 1→0. It always runs `window.addFlags/clearFlags(FLAG_SECURE)` on the UI thread and re-applies the flag after Activity re-attach (config change).
 - Optional hardening: `setRecentsScreenshotEnabled(false)` (API 33+) while secure.
 
