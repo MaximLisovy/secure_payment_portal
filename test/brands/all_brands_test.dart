@@ -1,57 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
-import 'package:secure_payment_portal/app/brand_preview/brand_preview_page.dart';
-import 'package:secure_payment_portal/app/brand_preview/brand_preview_view.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
+import 'package:secure_payment_portal/features/payment/presentation/sections/bill_line_item_tile.dart';
+import 'package:secure_payment_portal/features/payment/presentation/sections/payment_section_registry.dart';
+import 'package:secure_payment_portal/features/payment/presentation/views/pay_action_bar.dart';
+import 'package:secure_payment_portal/features/payment/presentation/views/payment_body.dart';
 
-import '../helpers/pump_app.dart';
+import '../features/payment/helpers/payment_ui_harness.dart';
 
-// Iterates the registry, so a newly registered brand is rendered automatically.
+Finder _payButton() => find.descendant(
+  of: find.byType(PayActionBar),
+  matching: find.byType(FilledButton),
+);
+
+bool _payEnabled(WidgetTester tester) =>
+    tester.widget<FilledButton>(_payButton()).onPressed != null;
+
+// Iterates the registry, so a newly registered brand is rendered automatically
+// by the real payment page, with no test to write.
 void main() {
   for (final brand in BrandRegistry.standard.all) {
-    group('preview page for ${brand.id}', () {
-      testWidgets('renders every section and the brand name', (tester) async {
-        await tester.pumpApp(const BrandPreviewPage(), brand: brand);
+    group('payment page for ${brand.id}', () {
+      test('every section it declares has a widget', () {
+        final registry = PaymentSectionRegistry.standard();
 
-        expect(tester.takeException(), isNull);
-        expect(find.text(brand.displayName), findsOneWidget);
-        for (final heading in [
-          AppStrings.previewColors,
-          AppStrings.previewShape,
-          AppStrings.previewControls,
-          AppStrings.previewDefaults,
-          AppStrings.previewRows,
-          AppStrings.previewMotion,
-        ]) {
-          expect(find.text(heading), findsOneWidget, reason: heading);
+        for (final spec in brand.payment.sections) {
+          expect(registry.supports(spec), isTrue, reason: '$spec');
         }
       });
 
-      testWidgets('widgets read this brand\'s tokens', (tester) async {
-        await tester.pumpApp(const BrandPreviewPage(), brand: brand);
+      test('the bill it names exists on the backend', () {
+        expect(FakeBills.all, contains(brand.payment.paymentId));
+      });
 
-        final context = tester.element(find.byType(BrandPreviewView));
+      testWidgets('renders its bill without errors', (tester) async {
+        await tester.pumpPaymentPage(brand: brand);
+
+        expect(tester.takeException(), isNull);
+        final bill = FakeBills.all[brand.payment.paymentId]!;
+        expect(find.text(bill.merchantName), findsOneWidget);
+        expect(find.text(bill.reference), findsOneWidget);
+        expect(_payButton(), findsOneWidget);
+      });
+
+      testWidgets('widgets read this brand\'s tokens', (tester) async {
+        await tester.pumpPaymentPage(brand: brand);
+
+        final context = tester.element(find.byType(PaymentBody));
         expect(context.brandColors, brand.tokens.colors);
         expect(context.brandShape, brand.tokens.shape);
         expect(context.brandDensity, brand.tokens.density);
         expect(context.brandMotion, brand.tokens.motion);
       });
 
-      testWidgets('list rows are as tall as the brand row height', (
+      testWidgets('bill rows are as tall as the brand row height', (
         tester,
       ) async {
-        await tester.pumpApp(const BrandPreviewPage(), brand: brand);
+        await tester.pumpPaymentPage(brand: brand);
 
-        final rows = find.byType(ListTile);
-        expect(rows, findsWidgets);
-        for (final row in rows.evaluate()) {
+        // Only a brand that declares a breakdown has rows.
+        for (final row in find.byType(BillLineItemTile).evaluate()) {
           expect(
             tester.getSize(find.byWidget(row.widget)).height,
             moreOrLessEquals(brand.tokens.density.rowHeight),
           );
         }
+      });
+
+      testWidgets('pays through to the receipt and can start again', (
+        tester,
+      ) async {
+        await tester.pumpPaymentPage(brand: brand);
+        expect(_payEnabled(tester), isTrue);
+
+        await tester.tap(_payButton());
+        await tester.pump();
+        expect(find.text(AppStrings.processingTitle), findsOneWidget);
+
+        // The fake takes five steps of 100 ms; the rest is the screen fading.
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        expect(find.text(AppStrings.paymentSuccessful), findsOneWidget);
+
+        await tester.tap(find.text(AppStrings.newPayment));
+        await tester.pumpAndSettle();
+        expect(_payEnabled(tester), isTrue);
+
+        await tester.unmountApp();
       });
     });
   }

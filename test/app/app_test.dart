@@ -4,12 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/app.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
-import 'package:secure_payment_portal/app/brand_preview/brand_preview_view.dart';
 import 'package:secure_payment_portal/app/di/root_overrides.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/brands/utility/utility_brand.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
+
+import '../features/payment/helpers/payment_ui_harness.dart';
 
 Future<ProviderContainer> _pumpApp(
   WidgetTester tester,
@@ -18,15 +19,25 @@ Future<ProviderContainer> _pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       retry: disableProviderRetry,
-      overrides: rootOverrides(initialBrand: brand),
+      overrides: [
+        ...rootOverrides(initialBrand: brand),
+        ...instantBackend(),
+      ],
       child: const App(),
     ),
   );
+  // Let the bill load and the device check finish.
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
   return ProviderScope.containerOf(tester.element(find.byType(App)));
 }
 
 Color _primaryOnScreen(WidgetTester tester) =>
-    tester.element(find.byType(BrandPreviewView)).brandColors.brandPrimary;
+    tester.element(find.byType(Scaffold)).brandColors.brandPrimary;
+
+Finder _titleInAppBar(String text) =>
+    find.descendant(of: find.byType(AppBar), matching: find.text(text));
 
 void main() {
   testWidgets('uses the initial brand for title and theme', (tester) async {
@@ -34,7 +45,15 @@ void main() {
 
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.title, utilityBrand.displayName);
+    expect(_titleInAppBar(utilityBrand.displayName), findsOneWidget);
     expect(_primaryOnScreen(tester), utilityBrand.tokens.colors.brandPrimary);
+  });
+
+  testWidgets('shows the payment page of the initial brand', (tester) async {
+    await _pumpApp(tester, retailBrand);
+
+    expect(find.text('Order #1042'), findsOneWidget);
+    expect(find.text('Welcome offer'), findsOneWidget);
   });
 
   testWidgets('switching the brand animates the theme instead of snapping', (
@@ -55,6 +74,18 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(_primaryOnScreen(tester), to);
+  });
+
+  testWidgets('switching the brand loads the other brand\'s bill', (
+    tester,
+  ) async {
+    final container = await _pumpApp(tester, retailBrand);
+
+    container.read(activeBrandProvider.notifier).select('utility');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Invoice 2026-10'), findsOneWidget);
+    expect(find.text('Order #1042'), findsNothing);
   });
 
   testWidgets('the brand switcher lists every registered brand and switches', (
@@ -79,6 +110,6 @@ void main() {
 
     expect(container.read(activeBrandProvider), utilityBrand);
     expect(_primaryOnScreen(tester), utilityBrand.tokens.colors.brandPrimary);
-    expect(find.text(utilityBrand.displayName), findsOneWidget);
+    expect(_titleInAppBar(utilityBrand.displayName), findsOneWidget);
   });
 }

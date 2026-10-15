@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
-import 'package:secure_payment_portal/app/brand_preview/brand_preview_page.dart';
+import 'package:secure_payment_portal/app/debug/brand_switcher.dart';
+import 'package:secure_payment_portal/features/payment/payment.dart';
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -23,7 +25,10 @@ class App extends ConsumerWidget {
       themeAnimationDuration: motion.medium,
       themeAnimationCurve: motion.standard,
       debugShowCheckedModeBanner: false,
-      home: const BrandPreviewPage(),
+      home: PaymentConfirmationPage(
+        title: title,
+        appBarActions: [if (!kReleaseMode) const BrandSwitcher()],
+      ),
     );
   }
 }

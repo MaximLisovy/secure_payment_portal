@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:secure_payment_portal/core/design_system/tokens/brand_colors.dart';
 
 import 'contrast.dart';
 
@@ -51,9 +52,9 @@ const _enabled = <WidgetState>{};
 
 // Read from the theme, so a missing value fails loudly instead of the pair
 // being silently skipped or Material's "primary" default being assumed.
-Color _need(Color? color, String what) {
-  if (color == null) throw StateError('$what is not set by the theme');
-  return color;
+T _need<T>(T? value, String what) {
+  if (value == null) throw StateError('$what is not set by the theme');
+  return value;
 }
 
 const Map<String, ThemeColor> _neutralSurfaces = {
@@ -66,6 +67,12 @@ Color _canvas(ThemeData t) => t.scaffoldBackgroundColor;
 Color _surface(ThemeData t) => t.colorScheme.surface;
 Color _elevatedSurface(ThemeData t) =>
     _need(t.cardTheme.color, 'cardTheme.color');
+
+BrandColors _brandColors(ThemeData t) =>
+    _need(t.extension<BrandColors>(), 'the BrandColors extension');
+
+Color _gradientStart(ThemeData t) => _brandColors(t).brandGradient.colors.first;
+Color _gradientEnd(ThemeData t) => _brandColors(t).brandGradient.colors.last;
 
 Color _foreground(ButtonStyle? style, String what) =>
     _need(style?.foregroundColor?.resolve(_enabled), what);
@@ -218,6 +225,36 @@ final List<ContrastPair> componentContrastPairs = [
     kind: ContrastKind.ui,
     foreground: (t) =>
         _need(t.textSelectionTheme.cursorColor, 'textSelectionTheme cursor'),
+  ),
+
+  // --- Colors the payment screen takes from BrandColors directly. ---
+  // Success and danger are only ever icons, never text: Utility's success green
+  // is 4.4:1 on its canvas, enough for UI but not for body text.
+  ContrastPair(
+    name: 'secondary text (reference, taxes, hints)',
+    kind: ContrastKind.text,
+    foreground: (t) => _brandColors(t).onSurfaceMuted,
+  ),
+  ContrastPair(
+    name: 'success icon',
+    kind: ContrastKind.ui,
+    foreground: (t) => _brandColors(t).success,
+  ),
+  ContrastPair(
+    name: 'danger icon',
+    kind: ContrastKind.ui,
+    foreground: (t) => _brandColors(t).danger,
+  ),
+  // Checked at both ends of the gradient; a two-stop gradient is monotone in
+  // between. A brand with a three-stop gradient needs a row for the middle.
+  ContrastPair(
+    name: 'promo banner text on the brand gradient',
+    kind: ContrastKind.text,
+    foreground: (t) => _brandColors(t).onBrandPrimary,
+    backgrounds: {
+      'gradient start': _gradientStart,
+      'gradient end': _gradientEnd,
+    },
   ),
 
   // --- ColorScheme defaults, read by every widget nobody themed (switch,

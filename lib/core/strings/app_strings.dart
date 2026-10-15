@@ -1,36 +1,42 @@
 /// User-facing text, in one place so it can move to ARB/l10n later.
 /// Brand-specific copy (names, promo text) belongs in the brand config instead.
 abstract final class AppStrings {
-  // Brand preview (temporary placeholder screen).
-  static const previewColors = 'Color roles';
-  static const previewShape = 'Shape';
-  static const previewControls = 'Controls';
-  static const previewDefaults = 'Material defaults';
-  static const previewRows = 'Rows';
-  static const previewMotion = 'Motion';
-
-  static const roleBrandPrimary = 'Primary';
-  static const roleBrandAccent = 'Accent';
-  static const roleBrandOnSurface = 'On surface';
-  static const roleSurfaceElevated = 'Elevated';
-  static const roleSuccess = 'Success';
-  static const roleDanger = 'Danger';
-  static const roleScanGlow = 'Scan glow';
-
-  static const radiusSm = 'Small';
-  static const radiusMd = 'Medium';
-  static const radiusLg = 'Large';
-  static const cardLabel = 'Card';
-
-  static const buttonFilled = 'Filled';
-  static const buttonOutlined = 'Outlined';
-  static const buttonText = 'Text';
-  static const fieldLabel = 'Reference number';
-
-  static const motionToggle = 'Animate';
+  // Debug tooling.
   static const switchBrand = 'Switch brand';
 
-  static String rowTitle(int number) => 'Row $number';
+  // The payment screen.
+  static const summaryTotal = 'Total';
+  static const billBreakdownTitle = 'Bill breakdown';
+  static const detailsLoading = 'Loading your bill…';
+  static const securityChecking = 'Checking this device…';
+  static const securityVerified = 'This device is verified';
+  static const checkAgain = 'Check again';
+  static const tryAgain = 'Try again';
+  static const confirming = 'Starting payment…';
+  static const processingTitle = 'Processing your payment';
+  static const cancel = 'Cancel';
+  static const cancelling = 'Cancelling…';
+  static const paymentSuccessful = 'Payment successful';
+  static const paymentFailed = 'Payment failed';
+  static const paymentCancelled = 'Payment cancelled';
+  static const receiptMerchant = 'Paid to';
+  static const receiptAmount = 'Amount';
+  static const receiptTransaction = 'Transaction';
+  static const receiptTime = 'Completed';
+  static const newPayment = 'New payment';
+
+  static String payAction(String amount) => 'Pay $amount';
+
+  static String percentLabel(int percent) => '$percent%';
+
+  static String progressSemantics(int percent) => '$percent percent complete';
+
+  /// Extra guidance under a block, for the reasons that lift by themselves.
+  static String? blockedHint(String key) => switch (key) {
+    'security.blocked.screen_recording' =>
+      'This continues by itself when the recording stops.',
+    _ => null,
+  };
 
   /// The text for a `Failure.messageKey` or a `SecurityBlockReason.messageKey`.
   /// An unknown key reads as a generic problem instead of showing a raw key.
@@ -43,6 +49,7 @@ abstract final class AppStrings {
     'error.platform' =>
       'Something went wrong on this device. Please try again.',
     'error.unsupported' => 'This is not available on this device.',
+    'error.unexpected' => 'Something unexpected happened. Please try again.',
     'payment.declined' => 'The payment was declined.',
     'payment.in_progress' => 'A payment is already in progress.',
     'payment.invalid' => 'There is nothing valid to pay.',

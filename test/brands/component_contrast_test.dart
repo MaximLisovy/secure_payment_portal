@@ -78,6 +78,35 @@ void main() {
       expect(flagged, contains('input border'));
     });
 
+    // Retail's orange-to-amber gradient is too light for white text.
+    test('catches promo text that does not read on the brand gradient', () {
+      final retail = retailBrand.tokens;
+      final white = BrandTokens(
+        colors: retail.colors.copyWith(onBrandPrimary: Colors.white),
+        shape: retail.shape,
+        density: retail.density,
+        motion: retail.motion,
+      );
+
+      final flagged = contrastFailures(_themeOf(white)).map((f) => f.pair);
+
+      expect(flagged, contains('promo banner text on the brand gradient'));
+    });
+
+    test('catches a success icon too faint to see', () {
+      final retail = retailBrand.tokens;
+      final faint = BrandTokens(
+        colors: retail.colors.copyWith(success: const Color(0xFFCDE8CF)),
+        shape: retail.shape,
+        density: retail.density,
+        motion: retail.motion,
+      );
+
+      final flagged = contrastFailures(_themeOf(faint)).map((f) => f.pair);
+
+      expect(flagged, contains('success icon'));
+    });
+
     test('fails loudly when a component theme leaves a color unset', () {
       expect(() => contrastFailures(ThemeData()), throwsStateError);
     });
