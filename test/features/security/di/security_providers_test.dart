@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
+import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 // The public barrel, as another feature sees it.
@@ -60,5 +61,90 @@ void main() {
     );
     expect(defaults.read(securityPolicyProvider).blockOnUnknownRoot, isTrue);
     expect(strict.read(securityPolicyProvider).blockOnWeakRootSignals, isTrue);
+  });
+
+  group('the source mode', () {
+    ProviderContainer containerWithReal(FakeSecurityPlatformDataSource real) =>
+        ProviderContainer.test(
+          overrides: [
+            realSecurityPlatformDataSourceProvider.overrideWithValue(real),
+          ],
+        );
+
+    test(
+      'is simulated while no real source is wired, with controls to steer it',
+      () {
+        final container = ProviderContainer.test();
+
+        expect(
+          container.read(securitySourceModeProvider),
+          SourceMode.simulated,
+        );
+        final control = container.read(securityScenarioControlProvider);
+        expect(control, isNotNull);
+        expect(
+          control,
+          same(container.read(securityPlatformDataSourceProvider)),
+          reason: 'the controls steer the very source the feature runs on',
+        );
+      },
+    );
+
+    test(
+      'is real once a real source is wired, and then offers no controls',
+      () {
+        final real = FakeSecurityPlatformDataSource();
+        final container = containerWithReal(real);
+
+        expect(container.read(securitySourceModeProvider), SourceMode.real);
+        expect(container.read(securityPlatformDataSourceProvider), same(real));
+        expect(container.read(securityScenarioControlProvider), isNull);
+      },
+    );
+
+    test(
+      'switching to the simulation swaps the source and brings the controls',
+      () {
+        final real = FakeSecurityPlatformDataSource();
+        final container = containerWithReal(real);
+
+        container
+            .read(securitySourceModeProvider.notifier)
+            .select(SourceMode.simulated);
+
+        expect(
+          container.read(securityPlatformDataSourceProvider),
+          isNot(same(real)),
+        );
+        expect(container.read(securityScenarioControlProvider), isNotNull);
+
+        container
+            .read(securitySourceModeProvider.notifier)
+            .select(SourceMode.real);
+        expect(container.read(securityPlatformDataSourceProvider), same(real));
+        expect(container.read(securityScenarioControlProvider), isNull);
+      },
+    );
+
+    test(
+      'the simulation keeps its scenario across a switch there and back',
+      () {
+        final container = containerWithReal(FakeSecurityPlatformDataSource());
+        final mode = container.read(securitySourceModeProvider.notifier)
+          ..select(SourceMode.simulated);
+        container
+            .read(securityScenarioControlProvider)!
+            .setDeviceScenario(DeviceScenario.rooted);
+
+        mode
+          ..select(SourceMode.real)
+          ..select(SourceMode.simulated);
+
+        expect(
+          container.read(securityScenarioControlProvider)!.deviceScenario,
+          DeviceScenario.rooted,
+        );
+      },
+    );
   });
 }

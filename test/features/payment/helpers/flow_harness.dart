@@ -11,7 +11,6 @@ import 'package:secure_payment_portal/features/payment/data/dtos/payment_details
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
-import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 import 'package:secure_payment_portal/features/payment/payment.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_notifier.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';

@@ -7,8 +7,10 @@ import 'package:secure_payment_portal/core/domain/currency.dart';
 import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
+import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
@@ -158,5 +160,67 @@ void main() {
         fakeBillLatency,
       ),
     );
+  });
+
+  group('the source mode', () {
+    ProviderContainer containerWithReal(FakePaymentPlatformDataSource real) =>
+        ProviderContainer.test(
+          overrides: [
+            realPaymentPlatformDataSourceProvider.overrideWithValue(real),
+          ],
+        );
+
+    test(
+      'is simulated while no real source is wired, with controls to steer it',
+      () {
+        final container = ProviderContainer.test();
+
+        expect(container.read(paymentSourceModeProvider), SourceMode.simulated);
+        expect(
+          container.read(paymentScenarioControlProvider),
+          same(container.read(paymentPlatformDataSourceProvider)),
+          reason: 'the controls steer the very source the feature runs on',
+        );
+      },
+    );
+
+    test(
+      'is real once a real source is wired, and then offers no controls',
+      () {
+        final real = FakePaymentPlatformDataSource();
+        final container = containerWithReal(real);
+
+        expect(container.read(paymentSourceModeProvider), SourceMode.real);
+        expect(container.read(paymentPlatformDataSourceProvider), same(real));
+        expect(container.read(paymentScenarioControlProvider), isNull);
+      },
+    );
+
+    test(
+      'switching to the simulation swaps the source and brings the controls',
+      () {
+        final real = FakePaymentPlatformDataSource();
+        final container = containerWithReal(real);
+
+        container
+            .read(paymentSourceModeProvider.notifier)
+            .select(SourceMode.simulated);
+
+        expect(
+          container.read(paymentPlatformDataSourceProvider),
+          isNot(same(real)),
+        );
+        expect(container.read(paymentScenarioControlProvider), isNotNull);
+      },
+    );
+
+    test('the bill backend is always simulated and always steerable', () {
+      final container = containerWithReal(FakePaymentPlatformDataSource());
+
+      expect(
+        container.read(billBackendControlProvider),
+        same(container.read(paymentRemoteDataSourceProvider)),
+      );
+    });
   });
 }
