@@ -342,6 +342,107 @@ void main() {
       });
     });
 
+    // The race this group closes: the bill can load before the platform has
+    // answered the request for protection. "Not answered yet" is not "failed".
+    group('while the secure window has not answered yet', () {
+      const windowDelay = Duration(milliseconds: 300);
+
+      /// What `SecureScreen` does in `initState`, with no flush: the answer is
+      /// still on its way when the bill arrives.
+      void askForProtection(FlowHarness h) {
+        unawaited(h.container.read(secureWindowProvider.notifier).acquire());
+      }
+
+      test('the device is not evaluated, so it is not blocked', () {
+        fakeAsync((async) {
+          final device = FakeSecurityPlatformDataSource(
+            windowLatency: windowDelay,
+          );
+          final h = FlowHarness.create(security: device);
+          askForProtection(h);
+
+          h.begin(async);
+          async.elapse(windowDelay ~/ 2);
+
+          expect(h.flow.state, _checking);
+          expect(h.states, isNot(contains(isA<PaymentFlowBlocked>())));
+
+          async.elapse(windowDelay);
+
+          expect(h.flow.state, _ready);
+          expect(h.states, isNot(contains(isA<PaymentFlowBlocked>())));
+        });
+      });
+
+      test('an explicit failure of the window blocks once it is known', () {
+        fakeAsync((async) {
+          final device = FakeSecurityPlatformDataSource(
+            windowLatency: windowDelay,
+          )..setWindowProtectionWorks(works: false);
+          final h = FlowHarness.create(security: device);
+          askForProtection(h);
+
+          h.begin(async);
+          async.elapse(windowDelay ~/ 2);
+          expect(h.flow.state, _checking);
+
+          async.elapse(windowDelay);
+
+          expect(
+            h.flow.state,
+            _blocked(SecurityBlockReason.screenProtectionUnavailable),
+          );
+          expect(h.states, isNot(contains(_ready)));
+        });
+      });
+
+      test('"Check again" waits for the new request too', () {
+        fakeAsync((async) {
+          final device = FakeSecurityPlatformDataSource(
+            windowLatency: windowDelay,
+          )..setWindowProtectionWorks(works: false);
+          final h = FlowHarness.create(security: device);
+          askForProtection(h);
+          h.begin(async);
+          async.elapse(windowDelay * 2);
+          expect(
+            h.flow.state,
+            _blocked(SecurityBlockReason.screenProtectionUnavailable),
+          );
+          final before = h.states.length;
+
+          device.setWindowProtectionWorks(works: true);
+          unawaited(h.flow.retry());
+          async.elapse(windowDelay ~/ 2);
+          expect(
+            h.states.length,
+            before,
+            reason: 'nothing changes while the new request is pending',
+          );
+
+          async.elapse(windowDelay);
+
+          expect(h.states.sublist(before), [_checking, _ready]);
+        });
+      });
+
+      test('a flow dropped while waiting never reads the device', () {
+        fakeAsync((async) {
+          final device = FakeSecurityPlatformDataSource(
+            windowLatency: windowDelay,
+          );
+          final h = FlowHarness.create(security: device);
+          askForProtection(h);
+          h.begin(async);
+
+          h.container.dispose();
+          async.elapse(windowDelay * 2);
+
+          expect(h.states.last, _checking);
+        });
+      });
+    });
+
     test(
       'no window protection at all blocks, as when nobody called SecureScreen',
       () {

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
+
+import '../helpers/gated_secure_window_controller.dart';
 
 Future<FakeSecurityPlatformDataSource> _pump(
   WidgetTester tester,
@@ -40,6 +43,35 @@ void main() {
 
       expect(fake.secureWindowCount, 1);
       expect(find.text('secure'), findsOneWidget);
+    });
+
+    // The request must leave in `initState`, before the first frame goes to the
+    // engine; the state may not change there, because Riverpod forbids it.
+    testWidgets('asks at once, and shows pending until the platform answers', (
+      tester,
+    ) async {
+      final gate = GatedSecureWindowController();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [secureWindowControllerProvider.overrideWithValue(gate)],
+          child: const MaterialApp(home: _secureText),
+        ),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SecureScreen)),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(gate.enables, 1);
+      await tester.pump();
+      expect(container.read(secureWindowProvider), const SecureWindowPending());
+
+      gate.answer.complete(Success.unit);
+      await tester.pump();
+      expect(
+        container.read(secureWindowProvider),
+        const SecureWindowProtected(),
+      );
     });
 
     testWidgets('releases the window when it leaves the tree', (tester) async {

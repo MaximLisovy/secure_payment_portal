@@ -24,8 +24,19 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
   /// the security source under a visible screen.
   SecureWindowController? _enabledOn;
 
+  /// The request for protection that the platform has not answered yet, if any.
+  /// Set at once, with no provider write, because the first request comes from a
+  /// widget's `initState`, where Riverpod forbids changing a provider.
+  Future<void>? _request;
+
   @override
   SecureWindowState build() => const SecureWindowIdle();
+
+  /// Completes once the platform has answered the latest request for protection,
+  /// with success or with a failure: at once if none is in flight. Anything that
+  /// reads whether the window is protected waits for this first, so that "not
+  /// answered yet" is never mistaken for "protection failed".
+  Future<void> settled() => _request ?? Future<void>.value();
 
   /// A screen that needs protection is showing.
   Future<void> acquire() async {
@@ -56,9 +67,25 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
     if (_enabledOn == null) await _enable();
   }
 
-  Future<void> _enable() async {
-    final controller = ref.read(secureWindowControllerProvider);
-    final result = await controller.enable();
+  Future<void> _enable() {
+    final request = _enableOn(ref.read(secureWindowControllerProvider));
+    _request = request;
+    return request.whenComplete(() {
+      if (identical(_request, request)) _request = null;
+    });
+  }
+
+  Future<void> _enableOn(SecureWindowController controller) async {
+    // The request leaves now, even when this runs inside `initState`, so the
+    // window is being protected before the first frame is handed to the engine.
+    final answer = controller.enable();
+    var answered = false;
+    // `Pending` is shown one microtask later, outside the widget lifecycle.
+    scheduleMicrotask(() {
+      if (!answered && ref.mounted) state = const SecureWindowPending();
+    });
+    final result = await answer;
+    answered = true;
     if (!ref.mounted) return;
     switch (result) {
       case Success<void>():

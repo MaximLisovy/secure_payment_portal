@@ -14,6 +14,7 @@ final class FakeSecurityPlatformDataSource
   FakeSecurityPlatformDataSource({
     SecurityStatusDto status = cleanDevice,
     this.latency = Duration.zero,
+    this.windowLatency = Duration.zero,
   }) : _status = status,
        _recording = ReplayLatest<ScreenRecordingDto>(
          ScreenRecordingDto(screenRecording: status.screenRecording),
@@ -31,6 +32,10 @@ final class FakeSecurityPlatformDataSource
 
   /// How long `getSecurityStatus` takes. Lets a UI show a scan in progress.
   final Duration latency;
+
+  /// How long `enableSecureWindow` takes to answer. Lets a test or a demo show a
+  /// screen whose protection has been asked for but not yet confirmed.
+  final Duration windowLatency;
 
   SecurityStatusDto _status;
   final ReplayLatest<ScreenRecordingDto> _recording;
@@ -111,6 +116,9 @@ final class FakeSecurityPlatformDataSource
 
   @override
   Future<void> enableSecureWindow() async {
+    if (windowLatency > Duration.zero) {
+      await Future<void>.delayed(windowLatency);
+    }
     _throwIfFailing();
     if (!_windowProtectionWorks) {
       throw const PlatformCallException(ChannelErrorCodes.unavailable);

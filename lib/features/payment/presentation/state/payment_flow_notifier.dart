@@ -26,6 +26,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
 
+  /// Bumped to drop a device check that is still waiting for the secure window.
+  int _checkGeneration = 0;
+
   @override
   PaymentFlowState build() {
     ref.onDispose(_stopListening);
@@ -108,12 +111,19 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   Future<void> _restart() async {
     await ref.read(secureWindowProvider.notifier).retry();
     if (!ref.mounted) return;
-    _startSecurityCheck();
+    unawaited(_startSecurityCheck());
   }
 
-  void _startSecurityCheck() {
+  Future<void> _startSecurityCheck() async {
     state = const PaymentFlowSecurityCheck();
+    final generation = ++_checkGeneration;
     unawaited(_statusSubscription?.cancel());
+    _statusSubscription = null;
+    // The device status says whether the window is protected, so it is read only
+    // once the window has answered. A failed answer is read and blocks payment;
+    // an answer that has not come yet must not.
+    await ref.read(secureWindowProvider.notifier).settled();
+    if (!ref.mounted || generation != _checkGeneration) return;
     _statusSubscription = ref
         .read(securityStatusRepositoryProvider)
         .watchStatus()
@@ -177,11 +187,12 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
         state = PaymentFlowSuccess(result);
       default:
         // Idle, or a result that belongs to something else: start fresh.
-        _startSecurityCheck();
+        unawaited(_startSecurityCheck());
     }
   }
 
   void _stopListening() {
+    _checkGeneration++;
     unawaited(_progressSubscription?.cancel());
     unawaited(_statusSubscription?.cancel());
     _progressSubscription = null;

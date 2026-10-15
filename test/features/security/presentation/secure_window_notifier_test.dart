@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
+import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
+
+import '../helpers/gated_secure_window_controller.dart';
 
 ({ProviderContainer container, SecureWindowNotifier notifier}) _setup(
   FakeSecurityPlatformDataSource fake,
@@ -263,5 +268,110 @@ void main() {
         );
       },
     );
+  });
+
+  // A screen asks for protection from `initState`; the platform answers later.
+  group('while the platform has not answered', () {
+    ({
+      ProviderContainer container,
+      SecureWindowNotifier notifier,
+      GatedSecureWindowController gate,
+    })
+    setUpGate() {
+      final gate = GatedSecureWindowController();
+      final container = ProviderContainer.test(
+        overrides: [secureWindowControllerProvider.overrideWithValue(gate)],
+      );
+      return (
+        container: container,
+        notifier: container.read(secureWindowProvider.notifier),
+        gate: gate,
+      );
+    }
+
+    test(
+      'the request is sent at once, the state says pending, not failed',
+      () async {
+        final (:container, :notifier, :gate) = setUpGate();
+
+        unawaited(notifier.acquire());
+
+        expect(gate.enables, 1, reason: 'sent before anything else can run');
+        await pumpEventQueue();
+        expect(
+          container.read(secureWindowProvider),
+          const SecureWindowPending(),
+        );
+      },
+    );
+
+    test('settled() waits for the answer, then completes', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+      unawaited(notifier.acquire());
+      var settled = false;
+      unawaited(notifier.settled().then((_) => settled = true));
+      await pumpEventQueue();
+      expect(settled, isFalse);
+
+      gate.answer.complete(Success.unit);
+      await pumpEventQueue();
+
+      expect(settled, isTrue);
+      expect(
+        container.read(secureWindowProvider),
+        const SecureWindowProtected(),
+      );
+    });
+
+    test(
+      'a failure also settles it, as a failed state and not as a throw',
+      () async {
+        final (:container, :notifier, :gate) = setUpGate();
+        unawaited(notifier.acquire());
+        var settled = false;
+        unawaited(notifier.settled().then((_) => settled = true));
+
+        gate.answer.complete(
+          const Err(PlatformFailure(ChannelErrorCodes.unavailable)),
+        );
+        await pumpEventQueue();
+
+        expect(settled, isTrue);
+        expect(container.read(secureWindowProvider), isA<SecureWindowFailed>());
+      },
+    );
+
+    test('settled() completes at once when nothing was asked', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+
+      await notifier.settled();
+
+      expect(container.read(secureWindowProvider), const SecureWindowIdle());
+      expect(gate.enables, 0);
+    });
+
+    test('a second screen does not send a second request', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+
+      unawaited(notifier.acquire());
+      unawaited(notifier.acquire());
+      gate.answer.complete(Success.unit);
+      await pumpEventQueue();
+
+      expect(gate.enables, 1);
+    });
+
+    test('leaving before the answer unprotects as soon as it comes', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+      unawaited(notifier.acquire());
+      await notifier.release();
+      expect(gate.disables, 0, reason: 'nothing is enabled yet');
+
+      gate.answer.complete(Success.unit);
+      await pumpEventQueue();
+
+      expect(gate.disables, 1);
+      expect(container.read(secureWindowProvider), const SecureWindowIdle());
+    });
   });
 }

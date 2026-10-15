@@ -14,6 +14,15 @@ final class SecureWindowIdle extends SecureWindowState {
   List<Object?> get props => [];
 }
 
+/// A screen asked for protection and the platform has not answered yet. This is
+/// not a failure: nothing is known, so nothing may be concluded from it.
+final class SecureWindowPending extends SecureWindowState {
+  const SecureWindowPending();
+
+  @override
+  List<Object?> get props => [];
+}
+
 final class SecureWindowProtected extends SecureWindowState {
   const SecureWindowProtected();
 
