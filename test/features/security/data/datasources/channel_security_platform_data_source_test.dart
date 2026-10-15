@@ -421,6 +421,44 @@ void main() {
         expect(result, isA<Err<SecurityStatus>>());
       });
 
+      // The payment flow and the debug readout both watch the status. Both go
+      // through one repository and one data source, so the native EventChannel,
+      // which keeps a single sink, is listened to once.
+      test('two watchers of the status share one native listener', () async {
+        final device = _device();
+        final source = _source();
+        addTearDown(source.dispose);
+        final repository = SecurityStatusRepositoryImpl(source);
+        final flow = <Detection>[];
+        final readout = <Detection>[];
+        final a = repository.watchStatus().listen(
+          (status) => flow.add(status.screenRecording),
+        );
+        final b = repository.watchStatus().listen(
+          (status) => readout.add(status.screenRecording),
+        );
+        await pumpEventQueue();
+
+        device.changeRecording(DetectionWire.detected);
+        await pumpEventQueue();
+
+        expect(device.listens, 1);
+        expect(flow.last, Detection.detected);
+        expect(readout.last, Detection.detected);
+
+        await a.cancel();
+        await pumpEventQueue();
+        expect(device.cancels, 0, reason: 'the readout is still watching');
+
+        device.changeRecording(DetectionWire.notDetected);
+        await pumpEventQueue();
+        expect(readout.last, Detection.notDetected);
+
+        await b.cancel();
+        await pumpEventQueue();
+        expect(device.cancels, 1);
+      });
+
       test('watching follows a recording that starts and stops', () async {
         final device = _device();
         final source = _source();

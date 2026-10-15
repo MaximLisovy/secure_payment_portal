@@ -1,30 +1,55 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/security/data/datasources/channel_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 // The public barrel, as another feature sees it.
 import 'package:secure_payment_portal/features/security/security.dart';
 
 void main() {
-  test(
-    'by default the interfaces sit on one fake data source with a scan delay',
-    () {
-      final container = ProviderContainer.test();
+  test('by default the interfaces sit on the channel-based source', () {
+    final container = ProviderContainer.test();
 
-      final dataSource = container.read(securityPlatformDataSourceProvider);
+    expect(container.read(securitySourceModeProvider), SourceMode.real);
+    expect(
+      container.read(securityPlatformDataSourceProvider),
+      isA<ChannelSecurityPlatformDataSource>(),
+    );
+    expect(container.read(securityScenarioControlProvider), isNull);
+  });
 
-      expect(
-        dataSource,
-        isA<FakeSecurityPlatformDataSource>().having(
-          (fake) => fake.latency,
-          'latency',
-          fakeSecurityScanLatency,
-        ),
-      );
-    },
-  );
+  test('the simulation has a scan delay, so the UI has a scan to show', () {
+    final container = ProviderContainer.test();
+    container
+        .read(securitySourceModeProvider.notifier)
+        .select(SourceMode.simulated);
+
+    expect(
+      container.read(securityPlatformDataSourceProvider),
+      isA<FakeSecurityPlatformDataSource>().having(
+        (fake) => fake.latency,
+        'latency',
+        fakeSecurityScanLatency,
+      ),
+    );
+  });
+
+  test('the channels are plain providers, so a test can replace them', () {
+    const methods = MethodChannel('test/security');
+    const events = EventChannel('test/security/events');
+    final container = ProviderContainer.test(
+      overrides: [
+        securityMethodChannelProvider.overrideWithValue(methods),
+        securityRecordingEventChannelProvider.overrideWithValue(events),
+      ],
+    );
+
+    expect(container.read(securityMethodChannelProvider), same(methods));
+    expect(container.read(securityRecordingEventChannelProvider), same(events));
+  });
 
   test(
     'both interfaces are backed by the same overridden data source',
@@ -64,6 +89,14 @@ void main() {
   });
 
   group('the source mode', () {
+    // The channel-based source is wired by default; take it away to see the
+    // simulation alone.
+    ProviderContainer containerWithoutReal() => ProviderContainer.test(
+      overrides: [
+        realSecurityPlatformDataSourceProvider.overrideWithValue(null),
+      ],
+    );
+
     ProviderContainer containerWithReal(FakeSecurityPlatformDataSource real) =>
         ProviderContainer.test(
           overrides: [
@@ -74,7 +107,7 @@ void main() {
     test(
       'is simulated while no real source is wired, with controls to steer it',
       () {
-        final container = ProviderContainer.test();
+        final container = containerWithoutReal();
 
         expect(
           container.read(securitySourceModeProvider),

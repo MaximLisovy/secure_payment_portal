@@ -13,6 +13,17 @@ abstract final class AppStrings {
   static const demoSourcesLocked =
       'Sources cannot be switched while a payment is in progress.';
   static const demoSecuritySection = 'Device security';
+  static const demoReportTitle = 'Device reports';
+  static const demoReportRoot = 'Root';
+  static const demoReportRecording = 'Screen recording';
+  static const demoReportWindow = 'Window protection';
+  static const demoReportReading = 'Reading the device…';
+  static const demoReportRefresh = 'Read again';
+  static const demoReportDetected = 'Detected';
+  static const demoReportNotDetected = 'Not detected';
+  static const demoReportUnknown = 'Unknown';
+  static const demoReportActive = 'Active';
+  static const demoReportInactive = 'Inactive';
   static const demoPaymentSection = 'Payment processing';
   static const demoBillSection = 'Bill backend';
   static const demoSourceReal = 'Real';

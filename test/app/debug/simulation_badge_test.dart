@@ -21,10 +21,9 @@ Future<ProviderContainer> _pumpBadge(
     const Scaffold(body: SimulationBadge()),
     brand: retailBrand,
     overrides: [
-      if (realSecurity)
-        realSecurityPlatformDataSourceProvider.overrideWithValue(
-          FakeSecurityPlatformDataSource(),
-        ),
+      realSecurityPlatformDataSourceProvider.overrideWithValue(
+        realSecurity ? FakeSecurityPlatformDataSource() : null,
+      ),
       if (realPayment)
         realPaymentPlatformDataSourceProvider.overrideWithValue(
           FakePaymentPlatformDataSource(),

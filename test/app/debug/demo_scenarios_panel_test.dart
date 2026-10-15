@@ -26,6 +26,8 @@ typedef _Sources = ({
 /// it can look at what the panel did to them.
 Future<_Sources> _pumpPanel(
   WidgetTester tester, {
+  bool withRealSources = false,
+  FakeSecurityPlatformDataSource? realDevice,
   List<Override> extra = const [],
 }) async {
   // The panel is taller than the default test screen; a sheet scrolls, but the
@@ -50,20 +52,21 @@ Future<_Sources> _pumpPanel(
         sources.payments,
       ),
       fakePaymentRemoteDataSourceProvider.overrideWithValue(sources.remote),
+      // Real is the default once wired, so "no real source" is said out loud.
+      realSecurityPlatformDataSourceProvider.overrideWithValue(
+        withRealSources
+            ? (realDevice ?? FakeSecurityPlatformDataSource())
+            : null,
+      ),
+      if (withRealSources)
+        realPaymentPlatformDataSourceProvider.overrideWithValue(
+          FakePaymentPlatformDataSource(),
+        ),
       ...extra,
     ],
   );
   return sources;
 }
-
-List<Override> _realOverrides() => [
-  realSecurityPlatformDataSourceProvider.overrideWithValue(
-    FakeSecurityPlatformDataSource(),
-  ),
-  realPaymentPlatformDataSourceProvider.overrideWithValue(
-    FakePaymentPlatformDataSource(),
-  ),
-];
 
 Finder _modePicker(int index) =>
     find.byType(SegmentedButton<SourceMode>).at(index);
@@ -156,10 +159,8 @@ void main() {
     ) async {
       await _pumpPanel(
         tester,
-        extra: [
-          paymentInProgressProvider.overrideWithValue(true),
-          ..._realOverrides(),
-        ],
+        withRealSources: true,
+        extra: [paymentInProgressProvider.overrideWithValue(true)],
       );
 
       for (final index in [0, 1]) {
@@ -172,10 +173,8 @@ void main() {
     testWidgets('a tap on the other mode changes nothing', (tester) async {
       await _pumpPanel(
         tester,
-        extra: [
-          paymentInProgressProvider.overrideWithValue(true),
-          ..._realOverrides(),
-        ],
+        withRealSources: true,
+        extra: [paymentInProgressProvider.overrideWithValue(true)],
       );
       final container = ProviderScope.containerOf(
         tester.element(find.byType(DemoScenariosPanel)),
@@ -213,10 +212,8 @@ void main() {
   ) async {
     await _pumpPanel(
       tester,
-      extra: [
-        paymentInProgressProvider.overrideWithValue(false),
-        ..._realOverrides(),
-      ],
+      withRealSources: true,
+      extra: [paymentInProgressProvider.overrideWithValue(false)],
     );
 
     for (final index in [0, 1]) {
@@ -225,11 +222,114 @@ void main() {
     expect(find.text(AppStrings.demoSourcesLocked), findsNothing);
   });
 
+  group('the device reports', () {
+    Finder title() => find.text(AppStrings.demoReportTitle);
+
+    testWidgets(
+      'are shown, read-only, while security runs on the real device',
+      (tester) async {
+        final device = FakeSecurityPlatformDataSource()
+          ..setDeviceScenario(DeviceScenario.rooted);
+        await _pumpPanel(tester, withRealSources: true, realDevice: device);
+        await tester.pump();
+        await tester.pump();
+
+        expect(title(), findsOneWidget);
+        expect(
+          find.text('Detected: magiskArtifacts, suBinary'),
+          findsOneWidget,
+        );
+        expect(find.text(AppStrings.demoReportNotDetected), findsOneWidget);
+        expect(find.text(AppStrings.demoReportInactive), findsOneWidget);
+        // Nothing to play on a real device.
+        expect(find.text(AppStrings.demoDeviceRooted), findsNothing);
+      },
+    );
+
+    testWidgets('say not detected for a clean device', (tester) async {
+      await _pumpPanel(tester, withRealSources: true);
+      await tester.pump();
+      await tester.pump();
+
+      // Root and screen recording.
+      expect(find.text(AppStrings.demoReportNotDetected), findsNWidgets(2));
+      expect(
+        find.textContaining('${AppStrings.demoReportDetected}:'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('can be read again', (tester) async {
+      final device = FakeSecurityPlatformDataSource();
+      await _pumpPanel(tester, withRealSources: true, realDevice: device);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Detected: suBinary, magiskArtifacts'), findsNothing);
+
+      device.setDeviceScenario(DeviceScenario.rootedWeakOnly);
+      await tester.tap(find.text(AppStrings.demoReportRefresh));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Detected: testKeys'), findsOneWidget);
+    });
+
+    testWidgets('follow a screen recording that starts', (tester) async {
+      final device = FakeSecurityPlatformDataSource();
+      await _pumpPanel(tester, withRealSources: true, realDevice: device);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(AppStrings.demoReportDetected), findsNothing);
+
+      device.setRecordingActive(active: true);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text(AppStrings.demoReportDetected), findsOneWidget);
+    });
+
+    testWidgets(
+      'are not shown for the simulation, which has controls instead',
+      (tester) async {
+        await _pumpPanel(tester);
+        await tester.pump();
+
+        expect(title(), findsNothing);
+        expect(find.text(AppStrings.demoDeviceRooted), findsOneWidget);
+      },
+    );
+
+    testWidgets('appear when security is switched to the real device', (
+      tester,
+    ) async {
+      await _pumpPanel(tester, withRealSources: true);
+      await tester.tap(
+        find.descendant(
+          of: _modePicker(0),
+          matching: find.text(AppStrings.demoSourceSimulated),
+        ),
+      );
+      await tester.pump();
+      expect(title(), findsNothing);
+
+      await tester.tap(
+        find.descendant(
+          of: _modePicker(0),
+          matching: find.text(AppStrings.demoSourceReal),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(title(), findsOneWidget);
+    });
+  });
+
   group('with real sources wired', () {
     testWidgets('they are the default and no scenario can be played on them', (
       tester,
     ) async {
-      await _pumpPanel(tester, extra: _realOverrides());
+      await _pumpPanel(tester, withRealSources: true);
 
       for (final index in [0, 1]) {
         expect(_picker(tester, index).selected, {SourceMode.real});
@@ -244,7 +344,7 @@ void main() {
     testWidgets('switching a source to Simulated reveals its scenarios', (
       tester,
     ) async {
-      final sources = await _pumpPanel(tester, extra: _realOverrides());
+      final sources = await _pumpPanel(tester, withRealSources: true);
 
       await tester.tap(
         find.descendant(

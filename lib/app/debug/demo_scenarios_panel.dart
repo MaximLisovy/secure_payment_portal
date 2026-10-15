@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/app/debug/demo_device_report.dart';
 import 'package:secure_payment_portal/app/debug/demo_panel_widgets.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
@@ -42,6 +43,12 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
     final payment = ref.watch(paymentScenarioControlProvider);
     final backend = ref.watch(billBackendControlProvider);
     final securityMode = ref.watch(securitySourceModeProvider);
+    // Kept watched on purpose, though the panel does not read it. A source switch
+    // makes the repository stale, and Riverpod refreshes a watched provider before
+    // the next frame is built. Without a watcher, the first read inside a widget's
+    // build (the device report appearing) would rebuild it there and schedule a
+    // refresh in the middle of the build, which Flutter forbids.
+    ref.watch(securityStatusRepositoryProvider);
     final paymentMode = ref.watch(paymentSourceModeProvider);
     // A payment belongs to the source that started it: no swapping underneath.
     final paying = ref.watch(paymentInProgressProvider);
@@ -85,6 +92,11 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                               .select(mode),
                         ),
                 ),
+                // The real device: only to be read. The simulation has controls instead.
+                if (security == null) ...[
+                  SizedBox(height: density.spaceSm),
+                  const DemoDeviceReport(),
+                ],
                 if (security != null) ...[
                   DemoChoice<DeviceScenario>(
                     label: AppStrings.demoDevice,

@@ -52,8 +52,9 @@ Future<_Env> _pumpApp(
         ),
         simulatedPaymentPlatformDataSourceProvider.overrideWithValue(payments),
         fakePaymentRemoteDataSourceProvider.overrideWithValue(env.remote),
+        // Real is the default once wired, so "no real source" is said out loud.
+        realSecurityPlatformDataSourceProvider.overrideWithValue(realDevice),
         if (realDevice != null) ...[
-          realSecurityPlatformDataSourceProvider.overrideWithValue(realDevice),
           realPaymentPlatformDataSourceProvider.overrideWithValue(
             FakePaymentPlatformDataSource(),
           ),
