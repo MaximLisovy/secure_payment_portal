@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/async/replay_latest.dart';
 
@@ -108,5 +111,76 @@ void main() {
         await subscription.cancel();
       },
     );
+  });
+
+  // Regression guard: code built on a Stream.multi, or on nested forwarding,
+  // loses the done event and never completes cancel() under a fake clock.
+  group('ReplayLatest under a fake clock', () {
+    test('delivers the replay and later values in order', () {
+      fakeAsync((async) {
+        final source = ReplayLatest<int>(0)..add(1);
+        final seen = <int>[];
+        source.stream.listen(seen.add);
+        async.flushMicrotasks();
+
+        source
+          ..add(2)
+          ..add(3);
+        async.flushMicrotasks();
+
+        expect(seen, [1, 2, 3]);
+      });
+    });
+
+    test('tells every listener the stream is done on close', () {
+      fakeAsync((async) {
+        final source = ReplayLatest<int>(0);
+        var firstDone = false;
+        var secondDone = false;
+        source.stream.listen((_) {}, onDone: () => firstDone = true);
+        source.stream.listen((_) {}, onDone: () => secondDone = true);
+        async.flushMicrotasks();
+
+        unawaited(source.close());
+        async.flushMicrotasks();
+
+        expect(firstDone, isTrue);
+        expect(secondDone, isTrue);
+      });
+    });
+
+    test('cancelling a subscription completes, and stops delivery', () {
+      fakeAsync((async) {
+        final source = ReplayLatest<int>(0);
+        final seen = <int>[];
+        final subscription = source.stream.listen(seen.add);
+        async.flushMicrotasks();
+        var cancelled = false;
+
+        unawaited(subscription.cancel().then((_) => cancelled = true));
+        async.flushMicrotasks();
+        source.add(1);
+        async.flushMicrotasks();
+
+        expect(cancelled, isTrue);
+        expect(seen, [0]);
+      });
+    });
+
+    test('close completes and leaves nothing pending', () {
+      fakeAsync((async) {
+        final source = ReplayLatest<int>(0);
+        source.stream.listen((_) {});
+        async.flushMicrotasks();
+        var closed = false;
+
+        unawaited(source.close().then((_) => closed = true));
+        async.flushMicrotasks();
+
+        expect(closed, isTrue);
+        expect(async.nonPeriodicTimerCount, 0);
+        expect(async.periodicTimerCount, 0);
+      });
+    });
   });
 }
