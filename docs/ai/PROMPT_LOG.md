@@ -48,3 +48,23 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** Gradle flavors + manifest label; `lib/core/design_system/**`, `lib/brands/**`, `lib/app/**`; `test/**` (80 tests); `.vscode/launch.json`; README, AGENTS.md (use-case and git rules) and the multi-tenant rule file updated. Committed on `main`: one feature commit, then this log entry as the milestone-closing commit.
 
 ---
+
+### 02. Milestone 1 follow-ups: accessible-by-default scheme, decorative outline, scaling notes — 2026-10-15
+- **Tool / model:** Claude Code, claude-sonnet-5-5
+- **Goal:** make unthemed Material widgets readable by default, give decorative borders their soft look back without weakening control borders, write down the later work without building it, and fix the git identity.
+- **Prompt (key part, verbatim):**
+  > map ColorScheme.primary to brandOnSurface (the accessible tone) and apply the vivid brandPrimary explicitly only where a fill is intended … Add a decorative outline role (mapped to ColorScheme.outlineVariant) for dividers and card borders. WCAG 1.4.11 exempts decorative borders, so leave it out of the 3:1 table and say so in a comment.
+- **Context given:** `AGENTS.md`, `multi-tenant-branding.md`, the contrast table from entry 01.
+- **AI output (summary):** `ColorScheme.primary` is now `brandOnSurface` and `onPrimary` reuses `surface`; fills stay explicit. New `outlineSubtle` role for card border, divider and progress track. Six more table rows for the `ColorScheme` defaults that unthemed widgets read, plus meta-tests (the old vivid Retail still fails; a soft outline used for a control fails). A "Scaling and later work" rule section and a scaling path in the insight report, both text only. Global git identity set and the existing commits re-authored. 83 tests; both flavor APKs built and checked on an emulator.
+- **Assumptions & risks flagged by the agent:**
+  - `onPrimary` reuses `surface` instead of a new token, because the table already requires `brandOnSurface` to hold 4.5:1 against every neutral surface and contrast is symmetric.
+  - Observed on the device, not fixed: an unthemed Slider's inactive track is very faint on both brands (`surfaceContainerHighest` maps to `surfaceElevated`). The thumb and active track still carry the value. Fix when a feature needs a Slider: theme it explicitly with an inactive track from `outline` and add a table row.
+  - The `ColorScheme` default is only a backstop for widgets nobody themed. Anything a feature actually uses should still be themed explicitly and get a table row.
+- **Corrections made (AI suggestion → problem → correction):**
+  - **Foregrounds patched one component at a time while `ColorScheme.primary` stayed the vivid fill** (my own fix in entry 01) → every widget nobody themed (Switch, Checkbox, Slider, focus, progress) still read the vivid color, so the trap stayed open for the next feature. The developer pointed it out → made the scheme the safe default (`primary` = accessible tone) and made the vivid fill the explicit, opt-in case; added table rows for the scheme defaults so that is enforced.
+  - **One `outline` role for control borders and decorative borders** (entry 01 raised it to 3:1 for inputs) → Retail's card borders and dividers inherited the heavy tan and lost the soft look → split a decorative `outlineSubtle`, documented the WCAG 1.4.11 exemption in the table, and added a meta-test so the soft role cannot be used for a control without failing.
+  - **Documentation drift:** adding `brandOnSurface` in entry 01 did not update the rule file's `BrandColors` row, which still listed the old roles → corrected together with this change, with a short "Color roles and contrast" rule.
+- **Developer review:** _(to be written by the developer)_
+- **Result:** commits `c0de752` (scheme), `5db62a4` (outlineSubtle), `21a2c0b` (docs), then this log entry. History re-authored to the configured identity.
+
+---
