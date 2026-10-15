@@ -40,7 +40,7 @@ Put every visual difference into `ThemeExtension` subclasses in `lib/core/design
 
 | Extension | Examples |
 |---|---|
-| `BrandColors` | semantic roles only: `brandPrimary`, `brandAccent`, `surfaceElevated`, `success`, `danger`, `scanGlow`, gradients. Names describe **role**, never hue (`orange` is a forbidden token name). |
+| `BrandColors` | semantic roles only: `brandPrimary` (fills), `brandOnSurface` (the brand as a foreground), `brandAccent`, `outline` (control edges) and `outlineSubtle` (decorative edges), `surfaceElevated`, `success`, `danger`, `scanGlow`, gradients. Names describe **role**, never hue (`orange` is a forbidden token name). |
 | `BrandShape` | `radiusSm/Md/Lg`, `buttonShape`, `cardBorder`. Retail is rounded, Utility is sharp: the difference is only in the values. |
 | `BrandDensity` | spacing scale, `VisualDensity`, list row height. Utility is high-density. |
 | `BrandMotion` | durations, curves, page-transition builder. Retail is fluid, Utility is crisp. |
@@ -53,6 +53,13 @@ Every extension must:
 - have no defaults that hide a missing registration. A missing token is a bug and must surface in debug.
 
 `ThemeFactory.build(BrandTokens)` creates `ThemeData` (`ColorScheme`, component themes, extensions) for **all** brands. Material component themes (`FilledButtonThemeData`, `CardThemeData`, `InputDecorationTheme`…) take their values from tokens, so plain Material widgets are on-brand automatically.
+
+#### Color roles and contrast
+
+- `ColorScheme.primary` is `brandOnSurface`, the accessible brand foreground, because Material reads `primary` as a foreground far more often than as a fill. Widgets nobody themed (Switch, Checkbox, Slider…) are then readable by default.
+- The vivid `brandPrimary` is applied **explicitly**, only where a fill is intended (FilledButton, AppBar…), in `ComponentThemes`. It never goes through the scheme.
+- `outline` is for edges that identify a control (input border, outlined button) and holds 3:1. `outlineSubtle` (`ColorScheme.outlineVariant`) is for purely decorative edges (card border, divider, progress track); WCAG 1.4.11 exempts those, so it is left out of the contrast table.
+- Every color that `ComponentThemes` sets, and every `ColorScheme` default that unthemed widgets read, has a row in the one table `test/helpers/component_contrast_table.dart`: **4.5:1 for text, 3:1 for non-text UI**. Rows read the built `ThemeData`, and the table runs for every registered brand. Adding a themed color means adding a row.
 
 ### Feature configs (structural differences)
 
@@ -104,3 +111,12 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 - One mega `BrandTheme` class with 60 fields. Split by concern.
 - A `ThemeExtension` without a real `lerp` (`return this`).
 - Brand-specific widgets living in `brands/`. Brands are config; widgets live in features or `core/design_system`.
+
+## 6. Scaling and later work
+
+Planned for the final milestone. **Do not implement any of it earlier.** Until then the checklist in §4 applies unchanged.
+
+1. **Brands manifest.** One `android/brands.json` with `id`, `displayName` and `applicationIdSuffix` per brand. Gradle reads it and creates the `productFlavors` in a loop, so adding a brand no longer touches Gradle code. Step 3 of the §4 checklist then becomes one manifest entry.
+2. **Manifest and registry stay in sync.** A test checks that `android/brands.json` and `BrandRegistry` list the same ids and display names. It closes the duplication of the display name between Gradle and `BrandConfig`.
+3. **CI.** A GitHub Actions matrix builds and tests every flavor. The flavor list comes from the same manifest, and the JDK comes from `setup-java` (17–21, see the README).
+4. **Per-flavor launcher icons** in `android/app/src/<id>/res/mipmap-*`.
