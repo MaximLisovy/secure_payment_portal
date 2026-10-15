@@ -40,7 +40,7 @@ ProviderContainer _container({
       fakePaymentConfigProvider.overrideWithValue(
         FakePaymentConfig(stepDelay: _step, steps: 2, scenario: outcome),
       ),
-      securityPlatformDataSourceProvider.overrideWithValue(
+      realSecurityPlatformDataSourceProvider.overrideWithValue(
         device ?? FakeSecurityPlatformDataSource(),
       ),
     ],

@@ -30,6 +30,7 @@ abstract final class AppStrings {
   static const demoSourceSimulated = 'Simulated';
   static const demoDevice = 'Device';
   static const demoRecording = 'Screen recording in progress';
+  static const demoScreenProtection = 'Screen protection available';
   static const demoPaymentEnds = 'Payment ends';
   static const demoBackendOnline = 'Backend online';
   static const demoRestart = 'Restart payment';

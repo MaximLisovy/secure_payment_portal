@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/features/security/di/security_providers.dart';
-import 'package:secure_payment_portal/features/security/domain/secure_window_controller.dart';
 import 'package:secure_payment_portal/features/security/presentation/secure_window_state.dart';
 
 /// The one owner of the secure window in the app. Screens [acquire] and
@@ -18,11 +17,7 @@ final secureWindowProvider =
 
 class SecureWindowNotifier extends Notifier<SecureWindowState> {
   int _holders = 0;
-
-  /// The controller that turned protection on, while it is on. Releasing goes to
-  /// this one, not to whatever the provider says now: a debug build can switch
-  /// the security source under a visible screen.
-  SecureWindowController? _enabledOn;
+  bool _enabled = false;
 
   /// The request for protection that the platform has not answered yet, if any.
   /// Set at once, with no provider write, because the first request comes from a
@@ -52,33 +47,23 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
     await _disable();
   }
 
-  /// Makes sure the window is protected on the *current* source, while some
-  /// screen needs it: tries again after a failure, and moves the protection
-  /// when the security source was switched since it was turned on.
+  /// Tries again after a failure, while some screen still needs protection.
   Future<void> retry() async {
-    if (_holders == 0) return;
-    final stale = _enabledOn;
-    if (stale != null &&
-        !identical(stale, ref.read(secureWindowControllerProvider))) {
-      _enabledOn = null;
-      await stale.disable();
-      if (!ref.mounted) return;
-    }
-    if (_enabledOn == null) await _enable();
+    if (_holders > 0 && !_enabled) await _enable();
   }
 
   Future<void> _enable() {
-    final request = _enableOn(ref.read(secureWindowControllerProvider));
+    final request = _askPlatform();
     _request = request;
     return request.whenComplete(() {
       if (identical(_request, request)) _request = null;
     });
   }
 
-  Future<void> _enableOn(SecureWindowController controller) async {
+  Future<void> _askPlatform() async {
     // The request leaves now, even when this runs inside `initState`, so the
     // window is being protected before the first frame is handed to the engine.
-    final answer = controller.enable();
+    final answer = ref.read(secureWindowControllerProvider).enable();
     var answered = false;
     // `Pending` is shown one microtask later, outside the widget lifecycle.
     scheduleMicrotask(() {
@@ -89,7 +74,7 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
     if (!ref.mounted) return;
     switch (result) {
       case Success<void>():
-        _enabledOn = controller;
+        _enabled = true;
         state = const SecureWindowProtected();
         // Every screen left while the platform was still answering.
         if (_holders == 0) await _disable();
@@ -99,11 +84,10 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
   }
 
   Future<void> _disable() async {
-    final enabledOn = _enabledOn;
-    if (enabledOn != null) {
-      _enabledOn = null;
+    if (_enabled) {
+      _enabled = false;
       // If this fails the window simply stays protected, which is the safe side.
-      await enabledOn.disable();
+      await ref.read(secureWindowControllerProvider).disable();
     }
     if (ref.mounted) state = const SecureWindowIdle();
   }

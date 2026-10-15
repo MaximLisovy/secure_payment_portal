@@ -60,7 +60,7 @@ List<Override> instantBackend({
   ),
   FakePaymentRemoteDataSource? remote,
 }) => [
-  securityPlatformDataSourceProvider.overrideWith((ref) {
+  realSecurityPlatformDataSourceProvider.overrideWith((ref) {
     final fake = security ?? FakeSecurityPlatformDataSource();
     ref.onDispose(fake.dispose);
     return fake;

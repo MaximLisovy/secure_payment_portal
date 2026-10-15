@@ -183,7 +183,8 @@ read with `adb`; the app's own view comes from the debug log of `SecurityPlugin`
 | `windowProtection` | `active` in the first status read after launch, so the wait for the window (settle before check) works |
 | Rotation and Activity re-creation ("Don't keep activities") | `FLAG_SECURE` still present, screenshot still black, no crash or "Reply already submitted" in the log |
 | `DETECT_SCREEN_RECORDING` | granted at install (a normal permission) |
-| Source swap Real → Simulated → Real | with the simulation, `SECURE` is **absent** and the screen can be captured, because the simulated source has no Android window; back on Real it is present again and the screenshot is black |
+| Source swap Real → Simulated → Real | `SECURE` stays present and the screenshot stays black in both modes: the window always goes through the real source, the simulation only replaces readings. (An earlier build, where the simulation owned a window of its own, left the window unprotected in Simulated mode; that was changed.) |
+| Simulated scenario "screen protection unavailable" | the page shows "Screen protection could not be turned on, so payment is paused" with "Check again", while `SECURE` stays present and the screenshot stays black |
 | `adb shell screenrecord` | **not detected**: the recording readout stayed `notDetected` for the whole recording. It is not a MediaProjection capture, which is what the API 35 callback reports |
 | Screen record quick-settings tile (MediaProjection) | **pending**, see below |
 

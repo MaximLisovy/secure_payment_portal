@@ -6,7 +6,6 @@ import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
-import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
@@ -17,7 +16,7 @@ import '../helpers/gated_secure_window_controller.dart';
   FakeSecurityPlatformDataSource fake,
 ) {
   final container = ProviderContainer.test(
-    overrides: [securityPlatformDataSourceProvider.overrideWithValue(fake)],
+    overrides: [realSecurityPlatformDataSourceProvider.overrideWithValue(fake)],
   );
   return (
     container: container,
@@ -83,7 +82,7 @@ void main() {
 
     test('reports a failure to protect, and can try again', () async {
       final fake = FakeSecurityPlatformDataSource()
-        ..setWindowProtectionWorks(works: false);
+        ..setScreenProtectionAvailable(available: false);
       final (:container, :notifier) = _setup(fake);
 
       await notifier.acquire();
@@ -96,7 +95,7 @@ void main() {
       );
       expect(fake.secureWindowCount, 0);
 
-      fake.setWindowProtectionWorks(works: true);
+      fake.setScreenProtectionAvailable(available: true);
       await notifier.retry();
 
       expect(
@@ -158,114 +157,6 @@ void main() {
         await notifier.release();
 
         expect(fake.secureWindowCount, 1);
-      },
-    );
-  });
-
-  // A debug build can switch the security source under a visible screen.
-  group('when the source is switched', () {
-    ({
-      ProviderContainer container,
-      FakeSecurityPlatformDataSource real,
-      FakeSecurityPlatformDataSource simulated,
-    })
-    setUpSources() {
-      final real = FakeSecurityPlatformDataSource();
-      final simulated = FakeSecurityPlatformDataSource();
-      final container = ProviderContainer.test(
-        overrides: [
-          realSecurityPlatformDataSourceProvider.overrideWithValue(real),
-          simulatedSecurityPlatformDataSourceProvider.overrideWithValue(
-            simulated,
-          ),
-        ],
-      );
-      return (container: container, real: real, simulated: simulated);
-    }
-
-    test(
-      'retry moves protection to the new source while a screen needs it',
-      () async {
-        final (:container, :real, :simulated) = setUpSources();
-        final notifier = container.read(secureWindowProvider.notifier);
-        await notifier.acquire();
-        expect(real.secureWindowCount, 1);
-
-        container
-            .read(securitySourceModeProvider.notifier)
-            .select(SourceMode.simulated);
-        await notifier.retry();
-
-        expect(real.secureWindowCount, 0);
-        expect(simulated.secureWindowCount, 1);
-        expect(
-          container.read(secureWindowProvider),
-          const SecureWindowProtected(),
-        );
-
-        await notifier.release();
-        expect(simulated.secureWindowCount, 0);
-      },
-    );
-
-    test(
-      'releasing after a switch unprotects the source that was protected',
-      () async {
-        final (:container, :real, :simulated) = setUpSources();
-        final notifier = container.read(secureWindowProvider.notifier);
-        await notifier.acquire();
-
-        container
-            .read(securitySourceModeProvider.notifier)
-            .select(SourceMode.simulated);
-        await notifier.release();
-
-        expect(real.secureWindowCount, 0, reason: 'it must not stay protected');
-        expect(simulated.secureWindowCount, 0);
-      },
-    );
-
-    test(
-      'nothing is protected on the new source when no screen needs it',
-      () async {
-        final (:container, :real, :simulated) = setUpSources();
-        final notifier = container.read(secureWindowProvider.notifier);
-        await notifier.acquire();
-        await notifier.release();
-
-        container
-            .read(securitySourceModeProvider.notifier)
-            .select(SourceMode.simulated);
-        await notifier.retry();
-
-        expect(real.secureWindowCount, 0);
-        expect(simulated.secureWindowCount, 0);
-        expect(container.read(secureWindowProvider), const SecureWindowIdle());
-      },
-    );
-
-    test(
-      'a new source that cannot protect shows as failed, until it can',
-      () async {
-        final (:container, :real, :simulated) = setUpSources();
-        simulated.setWindowProtectionWorks(works: false);
-        final notifier = container.read(secureWindowProvider.notifier);
-        await notifier.acquire();
-
-        container
-            .read(securitySourceModeProvider.notifier)
-            .select(SourceMode.simulated);
-        await notifier.retry();
-        expect(container.read(secureWindowProvider), isA<SecureWindowFailed>());
-
-        simulated.setWindowProtectionWorks(works: true);
-        await notifier.retry();
-
-        expect(simulated.secureWindowCount, 1);
-        expect(
-          container.read(secureWindowProvider),
-          const SecureWindowProtected(),
-        );
       },
     );
   });

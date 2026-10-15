@@ -16,7 +16,9 @@ Future<FakeSecurityPlatformDataSource> _pump(
   final source = fake ?? FakeSecurityPlatformDataSource();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [securityPlatformDataSourceProvider.overrideWithValue(source)],
+      overrides: [
+        realSecurityPlatformDataSourceProvider.overrideWithValue(source),
+      ],
       child: MaterialApp(home: home),
     ),
   );
@@ -80,7 +82,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            securityPlatformDataSourceProvider.overrideWithValue(fake),
+            realSecurityPlatformDataSourceProvider.overrideWithValue(fake),
           ],
           child: const MaterialApp(home: Text('plain')),
         ),
@@ -188,7 +190,7 @@ void main() {
       'a device that cannot protect its window shows as failed, and recovers on retry',
       (tester) async {
         final fake = FakeSecurityPlatformDataSource()
-          ..setWindowProtectionWorks(works: false);
+          ..setScreenProtectionAvailable(available: false);
         await _pump(tester, _secureText, fake: fake);
         final container = ProviderScope.containerOf(
           tester.element(find.text('secure')),
@@ -197,7 +199,7 @@ void main() {
         expect(container.read(secureWindowProvider), isA<SecureWindowFailed>());
         expect(fake.secureWindowCount, 0);
 
-        fake.setWindowProtectionWorks(works: true);
+        fake.setScreenProtectionAvailable(available: true);
         await container.read(secureWindowProvider.notifier).retry();
 
         expect(

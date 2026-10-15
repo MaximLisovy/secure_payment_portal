@@ -37,7 +37,7 @@ Future<_Sources> _pumpPanel(
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final sources = (
-    security: FakeSecurityPlatformDataSource(),
+    security: FakeSecurityPlatformDataSource(scriptedWindow: true),
     payments: FakePaymentPlatformDataSource(),
     remote: FakePaymentRemoteDataSource(),
   );

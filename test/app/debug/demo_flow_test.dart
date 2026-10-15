@@ -34,7 +34,7 @@ Future<_Env> _pumpApp(
   addTearDown(tester.view.reset);
 
   final env = (
-    simulatedDevice: FakeSecurityPlatformDataSource(),
+    simulatedDevice: FakeSecurityPlatformDataSource(scriptedWindow: true),
     realDevice: withRealSources ? FakeSecurityPlatformDataSource() : null,
     remote: FakePaymentRemoteDataSource(),
   );
@@ -207,29 +207,75 @@ void main() {
       },
     );
 
-    testWidgets('switching the device to Simulated restarts on the simulation', (
-      tester,
-    ) async {
-      final env = await _pumpApp(tester, withRealSources: true);
-      env.simulatedDevice.setDeviceScenario(DeviceScenario.rooted);
-      await _openPanel(tester);
+    testWidgets(
+      'switching the device to Simulated swaps the readings, not the window',
+      (tester) async {
+        final env = await _pumpApp(tester, withRealSources: true);
+        env.simulatedDevice.setDeviceScenario(DeviceScenario.rooted);
+        await _openPanel(tester);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(SegmentedButton<SourceMode>).first,
-          matching: find.text(AppStrings.demoSourceSimulated),
-        ),
-      );
-      await _settle(tester);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(SegmentedButton<SourceMode>).first,
+            matching: find.text(AppStrings.demoSourceSimulated),
+          ),
+        );
+        await _settle(tester);
 
-      expect(_text(AppStrings.simulatedBadge), findsOneWidget);
-      expect(
-        _text(AppStrings.message(SecurityBlockReason.rootDetected.messageKey)),
-        findsOneWidget,
-      );
-      // The protection followed the switch: nothing is left on the real device.
-      expect(env.realDevice!.secureWindowCount, 0);
-      expect(env.simulatedDevice.secureWindowCount, 1);
-    });
+        expect(_text(AppStrings.simulatedBadge), findsOneWidget);
+        expect(
+          _text(
+            AppStrings.message(SecurityBlockReason.rootDetected.messageKey),
+          ),
+          findsOneWidget,
+        );
+        // The simulation never touches the window: it stays protected through the
+        // real source, and the simulated device is not asked to protect anything.
+        expect(env.realDevice!.secureWindowCount, 1);
+        expect(env.simulatedDevice.secureWindowCount, 0);
+      },
+    );
+
+    testWidgets(
+      'simulated screen protection can be reported unavailable, and the real window stays protected',
+      (tester) async {
+        final env = await _pumpApp(tester, withRealSources: true);
+        await _openPanel(tester);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(SegmentedButton<SourceMode>).first,
+            matching: find.text(AppStrings.demoSourceSimulated),
+          ),
+        );
+        await _settle(tester);
+        expect(_text(AppStrings.securityVerified), findsOneWidget);
+
+        await tester.tap(
+          find.widgetWithText(SwitchListTile, AppStrings.demoScreenProtection),
+        );
+        await _settle(tester);
+
+        expect(
+          _text(
+            AppStrings.message(
+              SecurityBlockReason.screenProtectionUnavailable.messageKey,
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          env.realDevice!.secureWindowCount,
+          1,
+          reason: 'the scenario changes a reading, never the protection',
+        );
+
+        await tester.tap(
+          find.widgetWithText(SwitchListTile, AppStrings.demoScreenProtection),
+        );
+        await _settle(tester);
+        expect(_text(AppStrings.securityVerified), findsOneWidget);
+        expect(env.realDevice!.secureWindowCount, 1);
+      },
+    );
   });
 }

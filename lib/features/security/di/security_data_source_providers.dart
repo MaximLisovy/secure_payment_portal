@@ -41,8 +41,10 @@ final realSecurityPlatformDataSourceProvider =
 /// Override this one, not the selection below, to script a device in a test.
 final simulatedSecurityPlatformDataSourceProvider =
     Provider<FakeSecurityPlatformDataSource>((ref) {
+      // The window is scripted: the simulation never touches the real one.
       final fake = FakeSecurityPlatformDataSource(
         latency: fakeSecurityScanLatency,
+        scriptedWindow: true,
       );
       ref.onDispose(fake.dispose);
       return fake;
@@ -69,3 +71,16 @@ final securityPlatformDataSourceProvider = Provider<SecurityPlatformDataSource>(
     return ref.watch(simulatedSecurityPlatformDataSourceProvider);
   },
 );
+
+/// Where the secure window calls go: **always the real source**, whatever the
+/// mode. The simulation replaces the security *readings* (root, recording, the
+/// scenarios) and never `FLAG_SECURE`: the window of a simulated build is as
+/// protected as a real one, and a screenshot or recording of it is black. Only
+/// where no real source is wired (a test that overrides it with null) do the
+/// window calls fall back to the selected one.
+final secureWindowPlatformDataSourceProvider =
+    Provider<SecurityPlatformDataSource>(
+      (ref) =>
+          ref.watch(realSecurityPlatformDataSourceProvider) ??
+          ref.watch(securityPlatformDataSourceProvider),
+    );

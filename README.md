@@ -97,6 +97,8 @@ milestone), so a build still runs with simulated payments and says so with the b
 read-only **Device reports** block: the root signals that fired, whether a recording is detected, whether the window is
 protected.
 
-The simulated device has no Android window, so in Simulated mode `FLAG_SECURE` is **not** applied and the screen can be
-screenshotted and recorded. That is by design, and what makes a demo recording possible; on Real the same screen is black
-in a screenshot, a recording and the recents list.
+The simulation replaces the security **readings** only (root, recording, the scenarios), never the window: `FLAG_SECURE`
+is applied through the real source in every mode, so the payment screen is black in a screenshot, a screen recording and
+the recents list on every Android build, simulated or not. The simulation can still *report* a scenario, for example
+"Screen protection available" switched off shows the "screen protection unavailable" block without removing any
+protection. (A consequence: a screen recording of the payment page is black. Use a camera, or capture a different screen.)

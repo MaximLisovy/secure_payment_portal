@@ -57,7 +57,9 @@ void main() {
       final fake = FakeSecurityPlatformDataSource()
         ..setRoot(DetectionWire.detected, signals: [RootReasonCodes.suBinary]);
       final container = ProviderContainer.test(
-        overrides: [securityPlatformDataSourceProvider.overrideWithValue(fake)],
+        overrides: [
+          realSecurityPlatformDataSourceProvider.overrideWithValue(fake),
+        ],
       );
 
       final status = await container
@@ -176,6 +178,146 @@ void main() {
         expect(
           container.read(securityScenarioControlProvider)!.deviceScenario,
           DeviceScenario.rooted,
+        );
+      },
+    );
+  });
+
+  // The simulation replaces readings, never the window: FLAG_SECURE is the real
+  // one's in every mode.
+  group('the secure window', () {
+    late FakeSecurityPlatformDataSource real;
+    late FakeSecurityPlatformDataSource simulated;
+    late ProviderContainer container;
+
+    setUp(() {
+      real = FakeSecurityPlatformDataSource();
+      simulated = FakeSecurityPlatformDataSource(scriptedWindow: true);
+      container = ProviderContainer.test(
+        overrides: [
+          realSecurityPlatformDataSourceProvider.overrideWithValue(real),
+          simulatedSecurityPlatformDataSourceProvider.overrideWithValue(
+            simulated,
+          ),
+        ],
+      );
+    });
+
+    void switchTo(SourceMode mode) =>
+        container.read(securitySourceModeProvider.notifier).select(mode);
+
+    test('goes to the real source while security is real', () async {
+      await container.read(secureWindowControllerProvider).enable();
+
+      expect(real.secureWindowCount, 1);
+      expect(simulated.secureWindowCount, 0);
+    });
+
+    test('still goes to the real source once security is simulated', () async {
+      switchTo(SourceMode.simulated);
+
+      await container.read(secureWindowControllerProvider).enable();
+
+      expect(real.secureWindowCount, 1, reason: 'the window is the real one');
+      expect(simulated.secureWindowCount, 0);
+    });
+
+    test(
+      'is the same controller before and after a switch, so nothing moves',
+      () {
+        final before = container.read(secureWindowControllerProvider);
+
+        switchTo(SourceMode.simulated);
+        switchTo(SourceMode.real);
+
+        expect(container.read(secureWindowControllerProvider), same(before));
+      },
+    );
+
+    test(
+      'stays protected through a switch to the simulation and back',
+      () async {
+        final window = container.read(secureWindowProvider.notifier);
+        await window.acquire();
+        expect(real.secureWindowCount, 1);
+
+        switchTo(SourceMode.simulated);
+        await window.retry();
+        expect(real.secureWindowCount, 1);
+
+        switchTo(SourceMode.real);
+        await window.retry();
+        expect(
+          real.secureWindowCount,
+          1,
+          reason: 'never stacked, never dropped',
+        );
+
+        await window.release();
+        expect(real.secureWindowCount, 0);
+      },
+    );
+
+    test(
+      'is reported by the simulation as a script, not by the real window',
+      () async {
+        switchTo(SourceMode.simulated);
+        final repository = container.read(securityStatusRepositoryProvider);
+        await container.read(secureWindowControllerProvider).enable();
+
+        expect(
+          (await repository.getStatus()).valueOrNull?.windowProtection,
+          WindowProtection.active,
+        );
+
+        container
+            .read(securityScenarioControlProvider)!
+            .setScreenProtectionAvailable(available: false);
+
+        expect(
+          (await repository.getStatus()).valueOrNull?.windowProtection,
+          WindowProtection.inactive,
+        );
+        expect(real.secureWindowCount, 1, reason: 'only the reading changed');
+      },
+    );
+
+    test(
+      'is not simulated by the default simulation, which only scripts readings',
+      () async {
+        final container = ProviderContainer.test();
+        container
+            .read(securitySourceModeProvider.notifier)
+            .select(SourceMode.simulated);
+
+        final fake = container.read(
+          simulatedSecurityPlatformDataSourceProvider,
+        );
+
+        expect(fake.scriptedWindow, isTrue);
+        expect(
+          (await fake.getSecurityStatus()).windowProtection,
+          WindowProtectionWire.active,
+          reason: 'a clean simulated device is payable without any window call',
+        );
+      },
+    );
+
+    test(
+      'falls back to the selected source where no real one is wired',
+      () async {
+        final bare = ProviderContainer.test(
+          overrides: [
+            realSecurityPlatformDataSourceProvider.overrideWithValue(null),
+            simulatedSecurityPlatformDataSourceProvider.overrideWithValue(
+              FakeSecurityPlatformDataSource(),
+            ),
+          ],
+        );
+
+        expect(
+          bare.read(secureWindowPlatformDataSourceProvider),
+          same(bare.read(securityPlatformDataSourceProvider)),
         );
       },
     );

@@ -26,4 +26,12 @@ abstract interface class SecurityScenarioControl {
   bool get recordingActive;
 
   void setRecordingActive({required bool active});
+
+  /// Whether the simulated device *reports* screen protection as active. It is
+  /// a reading, like root and recording: it never touches the real window, whose
+  /// `FLAG_SECURE` stays on in every mode. Turning it off lets a demo show the
+  /// "screen protection unavailable" block without removing any protection.
+  bool get screenProtectionAvailable;
+
+  void setScreenProtectionAvailable({required bool available});
 }

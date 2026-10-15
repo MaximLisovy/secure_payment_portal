@@ -319,7 +319,7 @@ void main() {
     test('a window that cannot be protected blocks, and recovers on retry', () {
       fakeAsync((async) {
         final device = FakeSecurityPlatformDataSource()
-          ..setWindowProtectionWorks(works: false);
+          ..setScreenProtectionAvailable(available: false);
         final h = FlowHarness.create(security: device);
         h.protectWindow(async);
 
@@ -329,7 +329,7 @@ void main() {
           _blocked(SecurityBlockReason.screenProtectionUnavailable),
         );
 
-        device.setWindowProtectionWorks(works: true);
+        device.setScreenProtectionAvailable(available: true);
         unawaited(h.flow.retry());
         async.flushMicrotasks();
 
@@ -378,7 +378,7 @@ void main() {
         fakeAsync((async) {
           final device = FakeSecurityPlatformDataSource(
             windowLatency: windowDelay,
-          )..setWindowProtectionWorks(works: false);
+          )..setScreenProtectionAvailable(available: false);
           final h = FlowHarness.create(security: device);
           askForProtection(h);
 
@@ -400,7 +400,7 @@ void main() {
         fakeAsync((async) {
           final device = FakeSecurityPlatformDataSource(
             windowLatency: windowDelay,
-          )..setWindowProtectionWorks(works: false);
+          )..setScreenProtectionAvailable(available: false);
           final h = FlowHarness.create(security: device);
           askForProtection(h);
           h.begin(async);
@@ -411,7 +411,7 @@ void main() {
           );
           final before = h.states.length;
 
-          device.setWindowProtectionWorks(works: true);
+          device.setScreenProtectionAvailable(available: true);
           unawaited(h.flow.retry());
           async.elapse(windowDelay ~/ 2);
           expect(

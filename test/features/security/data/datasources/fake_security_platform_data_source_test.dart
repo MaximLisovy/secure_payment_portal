@@ -42,7 +42,7 @@ void main() {
 
     test('can play a device that cannot protect its window', () async {
       final source = FakeSecurityPlatformDataSource()
-        ..setWindowProtectionWorks(works: false);
+        ..setScreenProtectionAvailable(available: false);
 
       await expectLater(
         source.enableSecureWindow(),
@@ -61,9 +61,9 @@ void main() {
         WindowProtectionWire.inactive,
       );
 
-      source.setWindowProtectionWorks(works: true);
+      source.setScreenProtectionAvailable(available: true);
       await source.enableSecureWindow();
-      expect(source.windowProtectionWorks, isTrue);
+      expect(source.screenProtectionAvailable, isTrue);
       expect(source.secureWindowCount, 1);
     });
 
@@ -254,5 +254,58 @@ void main() {
       ]);
       await subscription.cancel();
     });
+  });
+
+  // The simulation in the app: readings only, the window belongs to the real source.
+  group('with a scripted window', () {
+    Future<String> protection(FakeSecurityPlatformDataSource source) async =>
+        (await source.getSecurityStatus()).windowProtection;
+
+    test('reports protection from its script, active by default', () async {
+      final source = FakeSecurityPlatformDataSource(scriptedWindow: true);
+
+      expect(await protection(source), WindowProtectionWire.active);
+      expect(source.screenProtectionAvailable, isTrue);
+
+      source.setScreenProtectionAvailable(available: false);
+      expect(await protection(source), WindowProtectionWire.inactive);
+
+      source.setScreenProtectionAvailable(available: true);
+      expect(await protection(source), WindowProtectionWire.active);
+    });
+
+    test('ignores secure window calls: it has no window to protect', () async {
+      final source = FakeSecurityPlatformDataSource(scriptedWindow: true);
+
+      await source.enableSecureWindow();
+      await source.enableSecureWindow();
+      await source.disableSecureWindow();
+
+      expect(source.secureWindowCount, 0);
+      expect(await protection(source), WindowProtectionWire.active);
+    });
+
+    test(
+      'an enable never fails, even when protection is reported unavailable',
+      () async {
+        final source = FakeSecurityPlatformDataSource(scriptedWindow: true)
+          ..setScreenProtectionAvailable(available: false);
+
+        await source.enableSecureWindow();
+
+        expect(await protection(source), WindowProtectionWire.inactive);
+      },
+    );
+
+    test(
+      'a whole device still reports protection from the calls it received',
+      () async {
+        final source = FakeSecurityPlatformDataSource();
+
+        expect(await protection(source), WindowProtectionWire.inactive);
+        await source.enableSecureWindow();
+        expect(await protection(source), WindowProtectionWire.active);
+      },
+    );
   });
 }

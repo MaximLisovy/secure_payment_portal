@@ -18,9 +18,12 @@ final securityStatusRepositoryProvider = Provider<SecurityStatusRepository>(
   ),
 );
 
+/// Always on the real source, in every mode (see
+/// `secureWindowPlatformDataSourceProvider`).
 final secureWindowControllerProvider = Provider<SecureWindowController>(
-  (ref) =>
-      SecureWindowControllerImpl(ref.watch(securityPlatformDataSourceProvider)),
+  (ref) => SecureWindowControllerImpl(
+    ref.watch(secureWindowPlatformDataSourceProvider),
+  ),
 );
 
 /// The default policy. Override it to change what a device may do.

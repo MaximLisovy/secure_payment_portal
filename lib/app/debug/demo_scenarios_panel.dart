@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/debug/demo_device_report.dart';
@@ -26,7 +24,7 @@ class DemoScenariosPanel extends ConsumerStatefulWidget {
 class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
   /// Reload the bill and start the flow over, so a change that is read at the
   /// start of a flow (the device, a source, the backend) takes effect now.
-  void _restart() => unawaited(restartPaymentFlow(ref));
+  void _restart() => restartPaymentFlow(ref);
 
   /// Applies [change] to a control, repaints, and restarts the flow.
   void _apply(VoidCallback change, {bool restart = true}) {
@@ -114,6 +112,19 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                     onChanged: (active) => _apply(
                       () => security.setRecordingActive(active: active),
                       restart: false,
+                    ),
+                  ),
+
+                  // A reading, not the window: the real flag stays on. The status
+                  // is read when the flow starts, so it restarts.
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(AppStrings.demoScreenProtection),
+                    value: security.screenProtectionAvailable,
+                    onChanged: (available) => _apply(
+                      () => security.setScreenProtectionAvailable(
+                        available: available,
+                      ),
                     ),
                   ),
                 ],

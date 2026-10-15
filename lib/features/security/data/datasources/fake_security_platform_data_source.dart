@@ -9,20 +9,29 @@ import 'package:secure_payment_portal/features/security/domain/security_scenario
 /// A scripted device: no platform channel. Deterministic: the same latency and
 /// state always give the same result. Use the `set…` methods to play a scenario
 /// (a rooted device, a recording that starts) from a test or a demo.
+///
+/// By default it is a whole device, window included: it counts the secure window
+/// calls it receives and reports protection from them, which is what the tests
+/// of the window logic need. With [scriptedWindow] it is only a source of
+/// *readings*: the window calls do nothing and the protection it reports is a
+/// script ([setScreenProtectionAvailable]). That is how the simulation runs in
+/// the app, where the real window is protected through the real source and the
+/// simulation never touches it.
 final class FakeSecurityPlatformDataSource
     implements SecurityPlatformDataSource, SecurityScenarioControl {
   FakeSecurityPlatformDataSource({
     SecurityStatusDto status = cleanDevice,
     this.latency = Duration.zero,
     this.windowLatency = Duration.zero,
+    this.scriptedWindow = false,
   }) : _status = status,
        _recording = ReplayLatest<ScreenRecordingDto>(
          ScreenRecordingDto(screenRecording: status.screenRecording),
        );
 
-  /// Root checks clean and no screen recording. Window protection is not part
-  /// of the script: like a real device, the fake reports it from the secure
-  /// window calls it has received (see [getSecurityStatus]).
+  /// Root checks clean and no screen recording. The window protection in this
+  /// constant is a placeholder: [getSecurityStatus] replaces it, from the window
+  /// calls received (a whole device) or from the script ([scriptedWindow]).
   static const SecurityStatusDto cleanDevice = SecurityStatusDto(
     root: DetectionWire.notDetected,
     rootSignals: [],
@@ -37,6 +46,11 @@ final class FakeSecurityPlatformDataSource
   /// screen whose protection has been asked for but not yet confirmed.
   final Duration windowLatency;
 
+  /// The window is not simulated by requests: `enableSecureWindow` and
+  /// `disableSecureWindow` do nothing, and the reported protection comes from
+  /// [screenProtectionAvailable].
+  final bool scriptedWindow;
+
   SecurityStatusDto _status;
   final ReplayLatest<ScreenRecordingDto> _recording;
   DataSourceException? _failure;
@@ -47,9 +61,12 @@ final class FakeSecurityPlatformDataSource
   /// How many `enableSecureWindow` calls are still unbalanced.
   int get secureWindowCount => _secureWindowCount;
 
-  /// Whether `enableSecureWindow` can succeed. When false it fails the way a
-  /// device without an Activity would, and the window stays unprotected.
-  bool get windowProtectionWorks => _windowProtectionWorks;
+  /// Whether the device can protect its window. For a whole device, when false
+  /// `enableSecureWindow` fails the way a device without an Activity would, and
+  /// the window stays unprotected. With [scriptedWindow], when false the status
+  /// reports the window as unprotected.
+  @override
+  bool get screenProtectionAvailable => _windowProtectionWorks;
 
   SecurityStatusDto get status => _status;
 
@@ -66,8 +83,9 @@ final class FakeSecurityPlatformDataSource
     _recording.add(ScreenRecordingDto(screenRecording: wireValue));
   }
 
-  void setWindowProtectionWorks({required bool works}) =>
-      _windowProtectionWorks = works;
+  @override
+  void setScreenProtectionAvailable({required bool available}) =>
+      _windowProtectionWorks = available;
 
   @override
   DeviceScenario get deviceScenario => _deviceScenario;
@@ -104,8 +122,11 @@ final class FakeSecurityPlatformDataSource
   Future<SecurityStatusDto> getSecurityStatus() async {
     await _wait();
     _throwIfFailing();
+    final protected = scriptedWindow
+        ? _windowProtectionWorks
+        : _secureWindowCount > 0;
     return _status.copyWith(
-      windowProtection: _secureWindowCount > 0
+      windowProtection: protected
           ? WindowProtectionWire.active
           : WindowProtectionWire.inactive,
     );
@@ -120,6 +141,7 @@ final class FakeSecurityPlatformDataSource
       await Future<void>.delayed(windowLatency);
     }
     _throwIfFailing();
+    if (scriptedWindow) return;
     if (!_windowProtectionWorks) {
       throw const PlatformCallException(ChannelErrorCodes.unavailable);
     }
@@ -129,6 +151,7 @@ final class FakeSecurityPlatformDataSource
   @override
   Future<void> disableSecureWindow() async {
     _throwIfFailing();
+    if (scriptedWindow) return;
     if (_secureWindowCount > 0) _secureWindowCount--;
   }
 

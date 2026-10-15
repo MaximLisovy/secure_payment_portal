@@ -71,7 +71,7 @@ final class FlowHarness {
             sections: const [SummarySpec()],
           ),
         ),
-        securityPlatformDataSourceProvider.overrideWithValue(device),
+        realSecurityPlatformDataSourceProvider.overrideWithValue(device),
         paymentPlatformDataSourceProvider.overrideWithValue(payments),
         paymentRemoteDataSourceProvider.overrideWithValue(
           remote ??
