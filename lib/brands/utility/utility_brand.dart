@@ -5,6 +5,7 @@ import 'package:secure_payment_portal/core/design_system/tokens/brand_density.da
 import 'package:secure_payment_portal/core/design_system/tokens/brand_motion.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_shape.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_tokens.dart';
+import 'package:secure_payment_portal/features/payment/payment.dart';
 
 /// Utility Pay: navy and slate, sharp, dense, crisp. `controlHeight` is 44 so a
 /// button ends up 36 after `VisualDensity.compact` takes 8 off.
@@ -63,5 +64,9 @@ const utilityBrand = BrandConfig(
         },
       ),
     ),
+  ),
+  payment: PaymentScreenConfig(
+    paymentId: 'utility-bill-2026-10',
+    sections: [SummarySpec(), BillBreakdownSpec()],
   ),
 );

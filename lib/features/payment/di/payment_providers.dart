@@ -3,9 +3,18 @@ import 'package:secure_payment_portal/features/payment/data/repositories/payment
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/confirm_payment.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
+import 'package:secure_payment_portal/features/payment/presentation/config/payment_screen_config.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
 // The public providers of the payment feature, typed by domain types.
+
+/// The screen's layout and bill. The feature never knows which brand it runs
+/// in: the composition root overrides this with the active brand's config.
+final paymentScreenConfigProvider = Provider<PaymentScreenConfig>(
+  (ref) => throw UnimplementedError(
+    'paymentScreenConfigProvider must be overridden by the app.',
+  ),
+);
 
 final paymentRepositoryProvider = Provider<PaymentRepository>(
   (ref) => PaymentRepositoryImpl(

@@ -3,18 +3,26 @@ import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/brands/utility/utility_brand.dart';
+import 'package:secure_payment_portal/features/payment/payment.dart';
 
 import '../../helpers/token_fixtures.dart';
+
+const _payment = PaymentScreenConfig(
+  paymentId: 'bill-1',
+  sections: [SummarySpec()],
+);
 
 const _alpha = BrandConfig(
   id: 'alpha',
   displayName: 'Alpha',
   tokens: sampleTokensA,
+  payment: _payment,
 );
 const _beta = BrandConfig(
   id: 'beta',
   displayName: 'Beta',
   tokens: sampleTokensB,
+  payment: _payment,
 );
 
 void main() {

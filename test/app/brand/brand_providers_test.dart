@@ -75,6 +75,7 @@ void main() {
         id: 'retail-twin',
         displayName: 'Retail Twin',
         tokens: retailBrand.tokens,
+        payment: retailBrand.payment,
       );
       final container = ProviderContainer.test(
         overrides: [

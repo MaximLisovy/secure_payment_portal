@@ -5,6 +5,7 @@ import 'package:secure_payment_portal/core/design_system/tokens/brand_density.da
 import 'package:secure_payment_portal/core/design_system/tokens/brand_motion.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_shape.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_tokens.dart';
+import 'package:secure_payment_portal/features/payment/payment.dart';
 
 /// Retail Shop: warm, rounded, fluid.
 ///
@@ -68,5 +69,15 @@ const retailBrand = BrandConfig(
         },
       ),
     ),
+  ),
+  payment: PaymentScreenConfig(
+    paymentId: 'retail-order-1042',
+    sections: [
+      SummarySpec(),
+      PromoBannerSpec(
+        headline: 'Welcome offer',
+        body: 'WELCOME10 is applied: 10% off your first order.',
+      ),
+    ],
   ),
 );
