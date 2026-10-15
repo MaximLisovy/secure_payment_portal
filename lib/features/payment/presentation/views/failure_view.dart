@@ -53,6 +53,7 @@ class FailureView extends StatelessWidget {
   Widget build(BuildContext context) {
     final density = context.brandDensity;
     final text = Theme.of(context).textTheme;
+    final detail = message;
     return ContentWidth(
       child: Center(
         child: SingleChildScrollView(
@@ -72,10 +73,10 @@ class FailureView extends StatelessWidget {
                   style: text.titleLarge,
                 ),
               ),
-              if (message != null) ...[
+              if (detail != null) ...[
                 SizedBox(height: density.spaceSm),
                 Text(
-                  message!,
+                  detail,
                   textAlign: TextAlign.center,
                   style: text.bodyMedium?.copyWith(
                     color: context.brandColors.onSurfaceMuted,
