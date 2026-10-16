@@ -53,7 +53,7 @@ cd android && ./gradlew :app:testRetailDebugUnitTest   # Kotlin JVM tests (after
 
 **Device suites** (an emulator, never CI): `integration_test/payment_flow_test.dart` with `test_driver/payment_integration.dart`
 (the payment flow over the real plugin and service, every brand), `tool/test_payment_lifecycle.py` (background and engine
-replacement mid-payment), and `integration_test/scan_performance_test.dart` (frame timing). Commands are in the README. A device
+replacement mid-payment), and `integration_test/scan_performance_test.dart` (frame timing). Commands are in [Manual QA](../../docs/MANUAL_QA.md#tests-and-ci). A device
 suite loops over `BrandRegistry.standard.all` or `android/brands.json`, so a new brand is covered with no edit; a script that
 drives a device waits for a condition with a bounded timeout and retries a flaky tool call (`uiautomator dump`), and has no fixed
 sleeps.

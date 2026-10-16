@@ -415,3 +415,57 @@ whether any recorder is active. `notDetected` is not a global recorder absence
 verdict, and below API 35 the result is `unknown`. This partially meets the brief's
 active-recorder detection requirement; FLAG_SECURE remains the primary control.
 See the [Android API contract](https://developer.android.com/reference/android/view/WindowManager#addScreenRecordingCallback(java.util.concurrent.Executor,java.util.function.Consumer)).
+
+## Native Android features
+
+Kotlin logic uses small ports for JVM tests, and `MainActivity` only wires plugins. `SafeResult` guarantees at most one
+reply and sends it on the main thread; handlers supply the reply. Engine-detach cancellation may leave an abandoned call
+unanswered, and bounded Dart command deadlines handle unavailable replies.
+
+| Feature | Minimum supported Android API |
+|---|---|
+| App, root heuristics and secure-window protection | 24 (Android 7.0), the app minimum |
+| Foreground payment simulation | 24; modern foreground-service behavior from 26 |
+| Notification channels | 26 (Android 8.0) |
+| Notification runtime permission | 33 (Android 13); no prompt below |
+| `shortService` type rules and timeout callback | 34 (Android 14); compat behavior below |
+| Recording visibility callback | 35 (Android 15); `unknown` below |
+
+- **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
+  `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
+  when no signal fired and no strong check completed cleanly. Clean build tags/type alone are insufficient.
+  These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
+  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring a strong clean check
+  can also block legitimate devices when all strong probes are inconclusive.
+- **Screen recording.** From API 35, the callback reports whether this app is visible in a recording, rather than whether
+  any recorder is active. Below API 35 it is `unknown` (the policy allows it). This only partially meets the brief's
+  “detect an active recorder” requirement; it cannot prove that no recorder is running.
+  See [Android's callback contract](https://developer.android.com/reference/android/view/WindowManager#addScreenRecordingCallback(java.util.concurrent.Executor,java.util.function.Consumer)).
+- **Window protection.** Sensitive content is mounted only after the platform confirms the secure window. A neutral
+  placeholder appears while waiting, and a blocked message with a protection recheck appears on failure. `FLAG_SECURE`
+  stays acquired through route transitions until disposal, is reference counted, re-applied on Activity recreation, and reported back
+  from the window itself. It also hides the Recents thumbnail. It is real in every mode, simulated or not, so a
+  screenshot, a screen recording or `adb screencap` of the payment page is black.
+- **Payment foreground service.** A `shortService` foreground service (declared alone, as the platform requires) runs the
+  simulated payment (20 steps of 400 ms) with a progress notification: generic text, private on the lock screen, throttled
+  to two updates a second, with a **Cancel** action handled by a non-exported broadcast receiver. `START_NOT_STICKY`, one
+  payment at a time, `onTimeout` handled, `ServiceCompat` for the foreground type and the stop. Denying the notification
+  permission (Android 13+) never stops a payment.
+- **State** that the service, the plugin and a cancel from the notification all touch lives in one process-wide store with
+  atomic transitions, so the first of a cancel and a finish wins and a refused start gives its claim back. Every execution has its own attempt id (wire schema 2), so a late event, a stale cancel or a duplicate delivery from an earlier attempt cannot touch a retry.
+
+### Security policy
+
+Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `lib/features/security/domain/`):
+
+| Device state | Decision |
+|---|---|
+| a strong root signal (su binary, Magisk, root manager) | blocked |
+| only weak root signals (test keys, debuggable build) | allowed |
+| root could not be verified | blocked (fail-closed) |
+| app reported visible in a recording (API 35+) | blocked; lifts when the recording ends |
+| screen recording state unknown (below Android 15) | allowed |
+| the window could not be protected | blocked, recoverable ("Check again") |
+
+Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these choices is a
+constructor flag on the policy.

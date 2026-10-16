@@ -78,7 +78,7 @@ the emulator window from outside the guest, so the payment screen shows.
 | M4-2 | Stop the recording (status-bar chip, or the tile again). | Within about two seconds the page returns to **"This device is verified"** with Pay enabled, with no tap. The panel reads **Not detected**. | n/a: no block appeared, so there was nothing to clear. |
 | M4-3 | Repeat M4-1 and M4-2 choosing **Record a single app** and picking the app. | Same as M4-1 and M4-2. *Write down whether it differs from entire-screen.* | *not tested*: which recording mode (entire screen or single app) was used was not noted. |
 | M4-4 | Open the recorded video (Photos or Files). | The app window is **black** in the video (`FLAG_SECURE`). The rest of the screen (status bar, shade) is visible. | ✅ The saved screen recording was checked on the phone: the app area is black. |
-| M4-5 | **If nothing changed in M4-1 and M4-3** (the readout stays Not detected the whole time): this is the finding "defense in depth". Report it as such. If it changed: report "verified". | The result decides the wording in `docs/platform_channels.md` and entry 06 of the working log (`docs/ai/appendix/working_log.md`): *verified* (the callback fires with `FLAG_SECURE` on) or *defense in depth* (it never fires for a secure window; `FLAG_SECURE` already blacks the recording out). | **Defense in depth** (final). On Android 16 (ZTE RedMagic 10 Pro, the OEM recorder) the recording callback did not fire while `FLAG_SECURE` was set, and the saved recording shows the app area black (`M4-4`): `FLAG_SECURE` is **device-verified** against recording. The first hypothesis, that a secure window is left out of the callback, did **not** survive an emulator experiment: the stock recorder (Pixel_9, API 36) triggers the recording block with `FLAG_SECURE` on (4 of 4 runs) and off (3 of 3), while its capture of the secure window is black. So the silence on the phone more likely comes from the OEM recorder not being reported to the callback; that is **not proven** (it was not tried on the phone with a window without `FLAG_SECURE`). The detection stays as an extra layer that cannot be relied on across makers; `FLAG_SECURE` is the primary control. |
+| M4-5 | **If nothing changed in M4-1 and M4-3** (the readout stays Not detected the whole time): this is the finding "defense in depth". Report it as such. If it changed: report "verified". | The result decides the wording in the [platform contract](platform_channels.md#recording-callback-while-the-window-is-secure-defense-in-depth) and [Prompt Log highlight 3](ai/PROMPT_LOG.md#3-an-emulator-experiment-refuted-the-recording-hypothesis): *verified* (the callback fires with `FLAG_SECURE` on) or *defense in depth* (it never fires for a secure window; `FLAG_SECURE` already blacks the recording out). | **Defense in depth** (final). On Android 16 (ZTE RedMagic 10 Pro, the OEM recorder) the recording callback did not fire while `FLAG_SECURE` was set, and the saved recording shows the app area black (`M4-4`): `FLAG_SECURE` is **device-verified** against recording. The first hypothesis, that a secure window is left out of the callback, did **not** survive an emulator experiment: the stock recorder (Pixel_9, API 36) triggers the recording block with `FLAG_SECURE` on (4 of 4 runs) and off (3 of 3), while its capture of the secure window is black. So the silence on the phone more likely comes from the OEM recorder not being reported to the callback; that is **not proven** (it was not tried on the phone with a window without `FLAG_SECURE`). The detection stays as an extra layer that cannot be relied on across makers; `FLAG_SECURE` is the primary control. |
 | M4-6 | Press the hardware screenshot buttons on the payment screen. | The phone says it cannot take a screenshot because of the security policy (or saves a black image). The Recents (overview) card for the app is blank. | ✅ Screenshots are blocked by the system; the app is blacked out in Recents (swipe up). |
 | M4-7 | On a phone **below Android 15 (API 35)**, open the panel. | Screen recording reads **Unknown**, never Not detected. Starting a recording does **not** block the page. *Skip if the phone is on API 35 or above.* | n/a: the phone is on Android 16 (API 36). |
 | M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | ✅ Root: the device was verified, Pay was enabled and payments went through. The panel's Device reports block was not noted separately. |
@@ -170,3 +170,119 @@ These scenarios have automated coverage; the phone run of 2026-10-16 did not cov
    Display Hz is the rate reported by Flutter's display, not a measured FPS value. Do not claim 120 FPS from that field alone.
 
 **Result:** not yet run on the phone. No new phone measurements are claimed.
+
+## Run it
+
+### Requirements
+
+- Flutter 3.41.x (Dart 3.11.5, see `environment.sdk` in `pubspec.yaml`). CI pins 3.41.9.
+- Android SDK 36.
+- **JDK 21** for Android builds: it is what CI and the author's machine use. The code targets Java 17 bytecode, but no
+  other JDK was tried. JDK 25 is known to fail: Gradle configuration stops with `IllegalArgumentException: 25.0.1`
+  because the Kotlin Gradle plugin (2.2.20) cannot parse that version.
+  - Point Flutter at a JDK 21 once: `flutter config --jdk-dir="<path to JDK 21>"`, then check with `flutter doctor -v`.
+  - Raw Gradle calls (`./gradlew …`) do not read that setting. Prefix them for that command:
+    `JAVA_HOME="<path to JDK 21>" ./gradlew …`.
+- `jq` for `tool/build_release_apks.sh`; ImageMagick only to regenerate launcher icons.
+
+### Flavors
+
+One Android flavor per brand, named after the brand id. `--flavor` is required: a plain `flutter run` or
+`flutter build apk` fails, because no flavor-less APK exists.
+
+```bash
+flutter run --flavor retail                  # or utility; add --profile to keep the demo panel and run fast
+flutter build apk --debug --flavor retail
+flutter build apk --release --flavor utility
+tool/build_release_apks.sh                   # every brand: release + arm64 profile APKs in dist/, SHA256SUMS and SOURCE_REVISION
+```
+
+The build script records the source HEAD in `dist/SOURCE_REVISION` and hashes all four APKs in `dist/SHA256SUMS`.
+
+APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`. Both brands install side by side
+(`com.hypertenant.secure_payment_portal.retail` and `.utility`).
+
+**Debug and profile builds** have the demo tools (brand switcher, demo panel, performance overlay). **Release builds do
+not**, by design: they are what a user would get.
+
+### Release signing
+
+`flutter build apk --release --flavor <brand>` produces an APK signed with the **debug keys**. That is deliberate: the
+repository holds no keystore and no secret, so anyone can build and install a release APK. These APKs are for review, not
+for a store, and an APK from CI will not install over one built on another machine (different debug key). A store release
+needs a real signing config (a keystore and its passwords, supplied from outside the repository, for example from CI
+secrets), which is not part of this project.
+
+## Tests and CI
+
+```bash
+dart format --set-exit-if-changed lib test integration_test test_driver
+flutter analyze                                  # zero issues
+flutter test                                     # 888 Dart tests
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 226 Kotlin JVM tests
+flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
+```
+
+- **Dart.** Domain and policy; data sources against the same contract suites as their fakes (the channel sources run
+  unchanged against a Dart stand-in for the native side); notifiers through `ProviderContainer`; widgets; every registered
+  brand; regex layering guardrails (not architectural proof); the documentation links.
+- **Kotlin.** The ports, root checks, reply-once and threading, the secure window count, the payment store, session,
+  notification throttle and handlers, and a guard over the manifest (permissions, one exported component, a
+  `shortService`-only service, backups off).
+- **Mutation checks.** These are targeted manual mutations, not a comprehensive mutation score. The review found two
+  surviving mutations (unscoped failure handling and the restart generation guard); regression tests now cover both.
+  Results and limits are recorded in the [review summary](ai/appendix/review.md).
+- **CI** (`.github/workflows/ci.yml`) runs the format check, analysis and both test suites on every push to `main` and every
+  pull request, then builds a release APK per brand (the list comes from `android/brands.json`) and uploads it as an
+  artifact. Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA.
+- **Device suites (an emulator, not in CI).** Two suites drive the real app on a device, and neither runs in CI because CI has
+  no device. Each takes a minute or two and needs an emulator (they reset app data and grant the notification
+  permission with `adb`, and refuse a physical phone):
+  - `integration_test/payment_flow_test.dart` runs the payment flow through the real Kotlin plugin and foreground service, for
+    every registered brand: a cancelled and retried payment completes only the new attempt, and a payment whose request
+    changes while the final security read is pending never starts.
+    ```bash
+    PAYMENT_TEST_DEVICE=emulator-5554 PAYMENT_TEST_FLAVOR=retail \
+      flutter drive --debug --no-dds --flavor retail -d emulator-5554 \
+      --driver=test_driver/payment_integration.dart --target=integration_test/payment_flow_test.dart
+    ```
+  - `tool/test_payment_lifecycle.py` pays, then sends the app to the background, and then replaces its Activity and Flutter
+    engine mid-payment, and checks that the service carries on and the receipt appears once. One command runs every brand
+    (`--flavor retail` for one):
+    ```bash
+    python3 tool/test_payment_lifecycle.py --device emulator-5554
+    ```
+  The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [the security scan](ai/appendix/performance.md#the-security-scan)) is a
+  third device test, also outside CI.
+- **On a phone.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](MANUAL_QA.md).
+  It was run once, on 2026-10-16, on a ZTE RedMagic 10 Pro (Android 16), with its results and the items *not tested* in the
+  same file.
+  [docs/DEMO_SCRIPT.md](DEMO_SCRIPT.md) is the shot list for the demo video, which is recorded from the emulator window
+  with macOS screen capture, because `FLAG_SECURE` blacks out any capture made inside Android.
+
+## Known limitations
+
+- **Android only.** iOS compiles (a simulator build was checked) but has no native side. A silent payment EventChannel
+  reaches a blocked, unavailable state after the 5 s startup deadline; security failures also block confirmation. This
+  makes startup fail closed rather than wait indefinitely. See the platform-channel contract for recovery behavior.
+- **Release APKs are debug-signed** (see [Release signing](MANUAL_QA.md#release-signing)).
+- **Root detection is heuristic** and can be bypassed (renamed packages, hiding tools); Play Integrity is out of scope.
+- **Screen recording detection needs Android 15.** Below it the state is `unknown` and allowed. It is **defense in depth**:
+  on a ZTE RedMagic 10 Pro (Android 16, the phone's own recorder) the callback did not fire and no recording block appeared,
+  while the stock recorder on an emulator does trigger it, with `FLAG_SECURE` on or off. It cannot be relied on across makers
+  (the likely reason, that the phone maker's recorder is not reported to the callback, is not proven). `FLAG_SECURE` is the
+  primary control, and the saved recording shows the app area black on the phone and on the emulator (`M4-5`,
+  [details](platform_channels.md)).
+- **Payments are simulated.** The native processing always succeeds; declines and failures are simulated scenarios. A killed
+  process loses an in-flight payment (the state is in memory, the service is not sticky): a real backend would need an
+  idempotency key and reconciliation, described in [the appendix](ai/appendix/payments-in-production.md).
+  `shortService` stops after about three minutes, fine for this simulation and not for a long real call.
+- **The verdict dwell is a product cost:** Pay is enabled 1.6 to 2.4 s after the check starts, on every visit.
+- **Frame timing was measured on an emulator.** On the phone the app showed 120 FPS on the performance overlay with no visible
+  drops, which is an observation; the harness was not run there. No numbers are claimed for 90 or 120 Hz or a real GPU.
+- **The phone run was one run on one phone, before these review fixes and three earlier code commits.** The wire contract is
+  final. The notification permission prompt, the lock screen, swiping the app away, other Android versions, battery saver and
+  Utility's 1.6 s scan speed were not tested; each is marked *not tested* in `docs/MANUAL_QA.md`.
+- **Money and dates are not locale-aware.** Amounts are integer minor units in a `Money` value object, never `double`, and
+  format as `$1,234.50`; receipts show UTC time. Neither uses `intl`, so grouping, symbol position and date order are fixed.
+- **Light theme only** (tokens are brightness-agnostic, so a dark set can be added).

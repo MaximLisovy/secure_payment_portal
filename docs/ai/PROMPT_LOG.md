@@ -1,12 +1,12 @@
 # AI Prompt Log
 
 Three interactions that show how this project was steered: context, my prompt, what the AI proposed, my review and decision,
-and the outcome. The complete record is the [working log](appendix/working_log.md); the main findings are in the
+and the outcome. Significant decisions are explained in commit messages; the main findings are in the
 [AI Insight Report](AI_INSIGHT_REPORT.md). All three are from the milestones written with Claude Code (`claude-sonnet-5-5`).
 
 ## 1. The plan gate changed the architecture before any code existed
 
-Milestone 2, [working log entry 03](appendix/working_log.md#03-domain-and-fake-data-for-payment-and-security-milestone-2--2026-10-15).
+Milestone 2: [Result and Failure](https://github.com/MaximLisovy/secure_payment_portal/commit/056a8ad), [segregated security interfaces](https://github.com/MaximLisovy/secure_payment_portal/commit/977790c) and [payment domain](https://github.com/MaximLisovy/secure_payment_portal/commit/233b355).
 
 - **Context.** The domain layer for payment and security had to let the native modules of later milestones replace the fakes
   unchanged. A milestone starts with a plan-only turn and waits for approval.
@@ -35,7 +35,7 @@ Milestone 2, [working log entry 03](appendix/working_log.md#03-domain-and-fake-d
 
 ## 2. The device overruled the AI's plan, its comments and the rule file
 
-Milestone 5, [working log entry 07](appendix/working_log.md#07-payment-foreground-service-milestone-5--2026-10-16).
+Milestone 5: [foreground service](https://github.com/MaximLisovy/secure_payment_portal/commit/d0505a3) and [corrected notification order](https://github.com/MaximLisovy/secure_payment_portal/commit/52cb030).
 
 - **Context.** A foreground service with a progress notification carries out the simulated payment, and every device fact was
   to be checked on an emulator with `adb` instead of assumed.
@@ -63,7 +63,7 @@ Milestone 5, [working log entry 07](appendix/working_log.md#07-payment-foregroun
 
 ## 3. An emulator experiment refuted the recording hypothesis
 
-[Working log entry 25](appendix/working_log.md#25-the-saved-recording-and-an-emulator-experiment-on-the-recording-callback--2026-10-16).
+[Recording experiment and corrected finding](https://github.com/MaximLisovy/secure_payment_portal/commit/4f54e15); [device evidence](../platform_channels.md#recording-callback-while-the-window-is-secure-defense-in-depth).
 
 - **Context.** The phone's saved recording showed a black app area, but no recording block had appeared. The proposed
   explanation was that FLAG_SECURE excluded the window from capture and therefore silenced the visibility callback.

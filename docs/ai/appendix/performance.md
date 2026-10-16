@@ -45,7 +45,7 @@ What the numbers say, and what they do not:
 
 **Unchanged verdict timing.** The flow reveals the verdict at the end of a scan revolution: at least one period,
 aligned to the current revolution, with the existing reduced-motion and final-confirmation exceptions. VerdictHold was not
-changed by the review fixes. The decision and its trade-offs remain in [working log entry 08](working_log.md#08-the-security-scanning-animation-milestone-6--2026-10-16).
+changed by the review fixes. The original decision is preserved in [the verdict-timing commit](https://github.com/MaximLisovy/secure_payment_portal/commit/8938a25).
 
 
 ## Phone frame statistics
@@ -63,3 +63,48 @@ Hz and does not measure FPS. See the [manual steps](../../MANUAL_QA.md#in-app-fr
 
 These rows are placeholders for the developer's measurements. The earlier visual observation of 120 Hz is unchanged and
 is not substituted for timing data from this new readout.
+
+## The security scan
+
+While the device is being checked the security card shows a radar: a sweep that goes round once per period, with three
+pulses staggered a third of a period apart. It is a `CustomPainter` (`lib/core/design_system/scan/`), and all of its maths
+is a function of one number, the phase of the animation, documented in `scan_math.dart` (formulas, period, why it repeats
+without a seam).
+
+- **Each brand gets its own scan from its tokens, with no brand check.** `ScanStyle` reads the glow (`scanGlow`), the
+  rings (`outlineSubtle`) and the pulse easing (`motion.standard`), and sets the period to four times `motion.slow`, held
+  between 1.6 s and 3 s: Retail turns in 2.4 s with soft pulses, Utility in 1.6 s with quick ones.
+- **No rebuilds, one repaint layer.** A still backdrop and the moving part sit in two `RepaintBoundary`s; the moving painter
+  listens to the animation itself. `paint()` allocates nothing, and the ticker exists only while the scan is on screen.
+  With reduced motion the scan shows a still pose and nothing animates.
+- **The verdict waits for the sweep to go all the way round.** The flow holds the verdict until the end
+  of a revolution: `max(how long the check took, one period)`, rounded up to the end of the revolution it finished in. Pay
+  is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on any device that answers quickly. The wait is
+  the brand's own period, so there is no number to configure. It is not applied with reduced motion (nothing sweeps), not
+  to the second check made when Pay is pressed, and not in tests.
+
+### Performance
+
+Measured by `integration_test/scan_performance_test.dart` (`flutter drive --profile --no-dds`), per brand, median of three
+8 s runs, on a **Pixel_9 emulator** (profile build, 60 Hz). On a ZTE RedMagic 10 Pro (Android 16) the performance overlay
+showed 120 FPS with no visible drops: an observation, not a measurement, because the harness was not run on the phone, so
+there are no phone numbers ([docs/MANUAL_QA.md](../../MANUAL_QA.md)).
+
+| Variant | UI thread, avg (ms) | New-gen GCs in 8 s | Frames per second |
+|---|---|---|---|
+| the scan in the app, Retail | 1.15 | 2 | 60.3 |
+| the scan in the app, Utility | 1.18 | 2 | 59.1 |
+| a layer that draws one dot (the least possible) | 0.92 to 1.08 | 2 | 59.9 |
+| Material's own spinner | 1.40 | 6 | 59.4 to 59.9 |
+
+The scan costs about 0.1 to 0.2 ms more than the least an animating layer can cost, less than Material's spinner, and
+allocates as little as the floor. **Raster time on the emulator is not informative** (the one-dot layer also takes 13 to
+16 ms there, the emulator's swap path), so it is left out of the table; it and the whole method are in
+[the performance appendix](performance.md).
+
+```bash
+flutter drive --profile --no-dds --flavor retail -d <device id> \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/scan_performance_test.dart \
+  --dart-define=DEVICE_NAME="<what to call the device>"      # about 6 minutes; writes build/scan_performance/summary.md
+```

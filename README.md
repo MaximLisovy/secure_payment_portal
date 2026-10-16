@@ -2,9 +2,13 @@
 
 [![CI](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml)
 
+A multi-tenant payment confirmation module built from one Flutter codebase, with two independently installable Android
+apps. It combines configurable branding, native security checks, a foreground payment simulation and an isolated scan
+animation. There is no backend: payment APIs are simulated behind interfaces a real backend could implement.
+
 ## Quickstart
 
-With Flutter 3.41.x, Android SDK 36 and JDK 21 installed:
+Install Flutter 3.41.x, Android SDK 36 and JDK 21, then:
 
 ```bash
 git clone https://github.com/MaximLisovy/secure_payment_portal.git
@@ -15,438 +19,175 @@ flutter run --flavor retail
 flutter run --flavor utility
 ```
 
-To install without building, open the [v1.0.0 GitHub Release](https://github.com/MaximLisovy/secure_payment_portal/releases/tag/v1.0.0),
-download the APK for your brand, allow installation from your browser/files app when Android asks, and open the APK to install.
-The two flavors install side by side. A signing-key mismatch requires removing the older copy before installing.
-Release APKs show the normal happy path on a supported device; use the arm64 profile APKs in `dist/` and their demo panel
-for simulated blocked states, declines and failures. Real device security can also block a release build.
+`--flavor` is required; there is no flavor-less APK. CI pins Flutter 3.41.9; the project uses Dart 3.11.5. Configure Flutter
+with `flutter config --jdk-dir="<path to JDK 21>"` and check `flutter doctor -v`. Raw Gradle commands need `JAVA_HOME`
+separately. Java bytecode targets 17, but builds were verified with JDK 21; JDK 25 fails with the current Kotlin plugin.
+The packaging script also needs `jq`; ImageMagick is needed only to regenerate launcher icons.
 
-A multi-tenant **payment confirmation module** built from one Flutter codebase. Two brands ship from it, each its own
-Android app:
+To try the app without building, download your brand's APK from the
+[v1.0.0 GitHub Release](https://github.com/MaximLisovy/secure_payment_portal/releases/tag/v1.0.0).
+Installation and signing notes are [below](#release-and-install). Full setup details are in
+[Manual QA](docs/MANUAL_QA.md#run-it).
+
+## What the app does
+
+The payment page loads a bill, checks device security, enables Pay when permitted, and shows native processing progress
+followed by a receipt, failure or cancellation. Confirmation performs a fresh security read. Every execution has a new
+attempt ID, so a delayed event or cancellation from an earlier execution cannot complete or cancel a retry.
+
+An uncertain start enters “checking payment status”: it queries an attempt-scoped native snapshot immediately, retries
+with capped backoff for 30 seconds and continues accepting stream events. Expiry retains the attempt and Cancel while
+withholding payment retry; an idle snapshot does not prove rejection. Confirmed start refusals permit retry. If the progress
+stream never supplies its first event, a five-second deadline shows an unavailable state with Check again.
+The [channel contract](docs/platform_channels.md#uncertain-payment-outcomes-and-reconciliation) contains the classification table.
+
+Debug and profile builds include an app-bar brand switcher and a demo panel. Each platform source can use real readings or
+simulated root, recording and processing scenarios; the bill backend can simulate being offline. A SIMULATED badge appears
+whenever a source is simulated, including in release. Window protection always uses the real platform source. The panel
+also offers a performance overlay, rolling build/raster statistics and Reset. Reported display Hz is distinct from measured
+FPS. See the [demo guide](docs/DEMO_SCRIPT.md#demo-scenarios-debug-and-profile-builds) for scenarios and recording instructions.
+
+## Brands and adding a third
 
 | | Retail Shop (`retail`) | Utility Pay (`utility`) |
 |---|---|---|
-| Look | orange and gold, rounded, fluid motion | navy and slate, sharp, dense, crisp |
-| Payment page | bill summary and a **Promo Banner** | bill summary and a **Bill Breakdown** list |
+| Appearance | orange/gold, rounded, fluid | navy/slate, sharp, dense |
+| Payment sections | summary and Promo Banner | summary and Bill Breakdown |
+| Scan period | 2.4 seconds, soft pulses | 1.6 seconds, quick pulses |
 
 ![The two launcher icons](docs/images/launcher-icons.png)
 
-<!-- A GIF of switching brand (from the demo recording) goes here: docs/images/brand-switch.gif -->
-_A GIF of the brand switch will be added here from the demo recording._
+Visual differences live in four small `ThemeExtension` token families: colors, shape, density and motion. One `ThemeFactory`
+builds themes; real `lerp` implementations animate switching. Structural differences are ordered section specifications
+rendered through a registry. Features never import a brand or branch on its identity. Only `BrandRegistry` reads `appFlavor`.
 
-What is in it:
+To add a third brand:
 
-- **White-label engine.** A brand is a folder of configuration, a registry line, a manifest entry and an icon folder.
-  No feature code changes to add one ([how](#add-a-brand)).
-- **Android native (Kotlin).** Root and screen-recording detection, `FLAG_SECURE` while the payment page is visible, and a
-  foreground service with a live progress notification that carries the payment out
-  ([details](#native-android-features)).
-- **A security scan animation** drawn by a `CustomPainter`, math-driven and exactly periodic, styled from each brand's
-  tokens, with no widget rebuilt per frame ([details](#the-security-scan)).
-- **Clean Architecture** (`presentation → domain ← data`), Riverpod 3, sealed `Result`/`Failure`, one rule per layer,
-  enforced by tests ([architecture](#architecture)).
-- **Backend: none.** Payment APIs are simulated behind the interfaces a real backend would use.
+1. Create `lib/brands/<id>/<id>_brand.dart` with a const `BrandConfig` and `BrandRegistration`. Declare its `DemoBill` data,
+   include it in `demoBills`, and select its bill through `demoPaymentId`.
+2. Import the registration in `lib/app/brand/brand_registry.dart` and add
+   `if (!kReleaseMode || appFlavor == '<id>') <id>Registration` to the const list.
+3. Add its ID, display name and application-ID suffix to `android/brands.json`; Gradle generates the flavor.
+4. Add launcher resources under `android/app/src/<id>/res/`, set colors and glyph, and regenerate legacy icon PNGs with
+   `python3 tool/make_launcher_icons.py`.
+5. Run the checks and inspect release isolation with `tool/check_release_brand_isolation.py`.
 
-Claude Code implemented the initial milestones. OpenAI Codex reviewed the code, found defects and, with my approval,
-implemented the fixes in an earlier pass: **13 commits, about 2,300 lines, including the attempt-id rewrite**. I reviewed
-its plan and the smaller diffs, and verified the large change through tests and device runs. Later review-fix batches are
-recorded separately in the working log:
-[AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md), [Prompt Log](docs/ai/PROMPT_LOG.md) (three highlights) and the
-[working log](docs/ai/appendix/working_log.md) (everything).
-
-## Run it
-
-### Requirements
-
-- Flutter 3.41.x (Dart 3.11.5, see `environment.sdk` in `pubspec.yaml`). CI pins 3.41.9.
-- Android SDK 36.
-- **JDK 21** for Android builds: it is what CI and the author's machine use. The code targets Java 17 bytecode, but no
-  other JDK was tried. JDK 25 is known to fail: Gradle configuration stops with `IllegalArgumentException: 25.0.1`
-  because the Kotlin Gradle plugin (2.2.20) cannot parse that version.
-  - Point Flutter at a JDK 21 once: `flutter config --jdk-dir="<path to JDK 21>"`, then check with `flutter doctor -v`.
-  - Raw Gradle calls (`./gradlew …`) do not read that setting. Prefix them for that command:
-    `JAVA_HOME="<path to JDK 21>" ./gradlew …`.
-- `jq` for `tool/build_release_apks.sh`; ImageMagick only to regenerate launcher icons.
-
-### Flavors
-
-One Android flavor per brand, named after the brand id. `--flavor` is required: a plain `flutter run` or
-`flutter build apk` fails, because no flavor-less APK exists.
-
-```bash
-flutter run --flavor retail                  # or utility; add --profile to keep the demo panel and run fast
-flutter build apk --debug --flavor retail
-flutter build apk --release --flavor utility
-tool/build_release_apks.sh                   # every brand: release + arm64 profile APKs in dist/, SHA256SUMS and SOURCE_REVISION
-```
-
-The build script records the source HEAD in `dist/SOURCE_REVISION` and hashes all four APKs in `dist/SHA256SUMS`.
-
-APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`. Both brands install side by side
-(`com.hypertenant.secure_payment_portal.retail` and `.utility`).
-
-**Debug and profile builds** have the demo tools (brand switcher, demo panel, performance overlay). **Release builds do
-not**, by design: they are what a user would get.
-
-### Release signing
-
-`flutter build apk --release --flavor <brand>` produces an APK signed with the **debug keys**. That is deliberate: the
-repository holds no keystore and no secret, so anyone can build and install a release APK. These APKs are for review, not
-for a store, and an APK from CI will not install over one built on another machine (different debug key). A store release
-needs a real signing config (a keystore and its passwords, supplied from outside the repository, for example from CI
-secrets), which is not part of this project.
+Debug/profile keep all registrations; release keeps its own brand and demo catalog. All-brands, contrast, icon and manifest
+tests discover registrations automatically. A scratch third brand passed those tests and built without feature or core
+edits. The [brand guide](docs/ai/appendix/scaling-path.md#multi-tenancy) preserves the detailed recipe and scaling options.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph app["app/ (composition root)"]
-    main["main.dart"]
-    registry["BrandRegistry<br/>the only reader of appFlavor"]
-  end
-  brands["brands/<br/>retail, utility, ...<br/>pure configuration"]
-  subgraph feature["features/payment and features/security"]
-    presentation["presentation<br/>widgets, Riverpod notifiers"]
-    di["di<br/>wiring, typed by domain interfaces"]
-    domain["domain<br/>pure Dart: entities, policy,<br/>repository interfaces, use cases"]
-    data["data<br/>DTOs, mappers, data sources"]
-  end
-  core["core/<br/>design system, scan painter, Result and Failure,<br/>Logger, platform contract"]
-  native["Android, Kotlin<br/>security, payment service"]
-
-  main --> registry
-  app --> brands
-  app --> feature
-  brands --> core
-  feature --> core
-  presentation --> domain
-  presentation --> di
-  di --> domain
-  di --> data
-  data --> domain
-  data -- "MethodChannel and EventChannel" --> native
+  App["app: composition root and BrandRegistry"] --> Brands["brands: configuration and demo catalogs"]
+  App --> DI["feature DI: implementations exposed as interfaces"]
+  UI["presentation: widgets and Riverpod notifiers"] --> Domain["domain: pure Dart entities, policies and interfaces"]
+  UI --> DI
+  DI --> Domain
+  DI --> Data["data: DTOs, mappers and sources"]
+  Data --> Domain
+  Data --> Native["Kotlin plugins and payment service"]
+  UI --> Core["core: tokens, errors and platform contract"]
+  Brands --> Core
 ```
 
-- **The dependency rule** is `presentation → domain ← data`. Domain is pure Dart (no Flutter, no channels, no JSON). Data
-  never leaks DTOs or `PlatformException` upward: it maps them to typed `Failure`s. `di/` is the only place in a feature
-  that sees both data and domain.
-- **`test/architecture/layering_test.dart`** reads the sources and fails on a layer importing what it must not, a brand
-  check outside the registry, a `print`, a fake used outside its seams, and more. The rest of the rules are lints and
-  the review checklist.
-- **State** is Riverpod 3 without codegen: one `Notifier` per screen or flow, side effects only in methods (never in
-  `build()`), `ref.mounted` checked after every `await`, retry off at the root.
-- **Errors** are values. `Result<T>` is `Success` or `Err(Failure)`; each feature has its own sealed `Failure` family, so a
-  `switch` is exhaustive.
+The dependency rule is `presentation → domain ← data`. Domain contains no Flutter, channels or JSON. DI wires data
+implementations and exposes domain interfaces; data maps exceptions to typed failures. Riverpod 3 uses one notifier per
+flow, no code generation, no side effects in `build()`, mounted checks after awaits and root retry disabled.
 
-The payment flow is one state machine in one notifier:
+Errors are values: sealed `Result<T>` contains `Success` or `Err(Failure)`, with exhaustive failure families per feature.
+Money uses integer minor units. Unknown security facts stay tri-state. Architecture source checks enforce common import and
+branding violations as guardrails; they do not prove architecture. The
+[architecture reference](docs/ai/appendix/scaling-path.md#architecture) includes the full flow and bridge diagrams.
 
-```mermaid
-stateDiagram-v2
-  [*] --> Idle
-  Idle --> SecurityCheck: initial progress replay
-  Idle --> Unavailable: first-event deadline (5 s)
-  Unavailable --> Idle: Check again
-  SecurityCheck --> Ready: device allowed
-  SecurityCheck --> Blocked: device blocked
-  Blocked --> SecurityCheck: Check again
-  Ready --> Confirming: Pay
-  Confirming --> Processing: accepted
-  Confirming --> Blocked: security policy refuses
-  Confirming --> Failure: confirmed start rejection
-  Confirming --> CheckingStatus: uncertain start
-  Processing --> CheckingStatus: transport unavailable
-  Processing --> Success
-  Processing --> Failure
-  Processing --> Cancelled: confirmed cancellation
-  CheckingStatus --> Success: matching terminal
-  CheckingStatus --> Failure: matching terminal
-  CheckingStatus --> Cancelled: matching terminal
-  CheckingStatus --> Unresolved: 30 s window expires
-  Unresolved --> Success: late matching stream terminal
-  Unresolved --> Failure: late matching stream terminal
-  Unresolved --> Cancelled: late matching stream terminal
-  Failure --> SecurityCheck: Try again
-  Cancelled --> SecurityCheck: Try again
-  Success --> SecurityCheck: Repeat demo payment
-
-```
-
-An uncertain outcome retains its attempt ID and Cancel. Snapshot queries run immediately and with backoff alongside stream
-updates; window expiry changes the guidance and keeps payment retry unavailable. Idle snapshots never prove rejection.
-The [channel contract](docs/platform_channels.md#uncertain-payment-outcomes-and-reconciliation) records the classification table.
-
-And a payment crosses the bridge like this:
-
-```mermaid
-sequenceDiagram
-  participant UI as Flutter UI (Riverpod)
-  participant Src as Repository and channel data source
-  participant Plugin as Kotlin plugin (main thread)
-  participant Svc as PaymentProcessingService
-  participant Store as PaymentProgressStore
-
-  UI->>Src: confirm (fresh attemptId)
-  Src->>Plugin: requestNotificationPermission
-  Src->>Src: fresh security read, discard obsolete confirmation
-  Src->>Plugin: startPayment (paymentId, attemptId)
-  Plugin->>Store: claim the payment, atomically
-  Plugin->>Svc: start the foreground service
-  Plugin-->>Src: reply once, on the main thread
-  Svc->>Store: progress, success or failure
-  Store-->>Src: events on the EventChannel
-  Src-->>UI: PaymentProgress stream
-  UI->>Src: cancel
-  Src->>Plugin: cancelPayment
-  Plugin->>Store: cancel matching attempt
-```
-
-The wire contract (channel names, payload shapes, error codes, threading and lifecycle rules) is in
-[docs/platform_channels.md](docs/platform_channels.md); Dart and Kotlin keep the constants in step, and a test compares
-the two files.
-
-## Multi-tenancy
-
-A brand is made of:
-
-```
-lib/brands/<id>/<id>_brand.dart   a const BrandConfig: tokens (colors, shape, density, motion) and the payment layout
-android/brands.json               one entry: id, displayName, applicationIdSuffix
-android/app/src/<id>/res/         the launcher icon, in the brand's colors
-lib/app/brand/brand_registry.dart one line
-```
-
-- **Visual differences are tokens**: four `ThemeExtension`s with real `lerp`, so switching brand animates. The theme is
-  derived from them by one `ThemeFactory` for every brand. ThemeExtensions plus Riverpod overrides (an `InheritedWidget`
-  underneath) are this project's answer to "ThemeExtensions, InheritedWidget, or a similar scalable pattern".
-- **Structural differences are data.** The Promo Banner and the Bill Breakdown are not an `if (brand == …)`: a brand lists
-  section specs, and a registry keyed by spec type draws them. A feature never imports a brand and never branches on one;
-  only `brand_registry.dart` reads `appFlavor`.
-- **Contrast is checked per brand**: every color the components use has a row in one table (4.5:1 for text, 3:1 for UI),
-  and the table runs for every registered brand.
-
-### Add a brand
-
-1. Add `lib/brands/<id>/<id>_brand.dart` with a `const BrandConfig` and a `const BrandRegistration`. Visual configuration
-   lives in BrandConfig; bill selection is `BrandRegistration.demoPaymentId`. Declare that brand's `DemoBill` data beside it
-   and include it in `demoBills`. The simulated backend receives the catalog from registrations through root DI.
-2. Import the registration in `lib/app/brand/brand_registry.dart` and add a const list entry:
-   `if (!kReleaseMode || appFlavor == '<id>') <id>Registration`. Debug/profile retain every registration; release retains its flavor.
-3. Add an entry to `android/brands.json`. The flavor, application ID suffix and launcher label come from it; Gradle needs no edit.
-4. Add `android/app/src/<id>/res/`: copy another brand's resources, set the three colors in `values/ic_launcher_colors.xml`, edit
-   the glyph in `drawable/ic_launcher_foreground.xml`, and run `python3 tool/make_launcher_icons.py` for the legacy PNGs.
-5. Run the checks and release isolation checker against each binary. Adding a brand or demo bill requires no feature edits.
-
-Tests and Gradle enforce each step: the manifest must match the registry, a brand without an icon fails the build, icon
-colors must equal the tokens, and every per-brand test (renders the page, contrast, tokens read, bill exists) picks the new
-brand up from the registry. This was tried on a scratch third brand: those four things, every test green, a built APK, and
-nothing changed under `lib/features` or `lib/core`.
+The scan uses elapsed-time mathematics, a `CustomPainter(repaint: animation)` and separate repaint boundaries for its
+moving and static layers. It allocates no objects in `paint()` and rebuilds no widgets per frame. Reduced motion displays a
+still pose. The verdict waits until a revolution ends, adding 1.6–2.4 seconds on fast checks; reduced motion and the final
+confirmation check bypass that hold. This timing was unchanged by the reviews.
+[Performance evidence](docs/ai/appendix/performance.md) records formulas, isolation tests, benchmarks and their limits.
 
 ## Native Android features
 
-Kotlin logic uses small ports for JVM tests, and `MainActivity` only wires plugins. `SafeResult` guarantees at most one
-reply and sends it on the main thread; handlers supply the reply. Engine-detach cancellation may leave an abandoned call
-unanswered, and bounded Dart command deadlines handle unavailable replies.
+`MainActivity` wires small Kotlin plugins; lifecycle-scoped coroutines and testable ports own the work. `SafeResult`
+provides at-most-one reply on the main thread. Engine detach can abandon a call before a reply, so Dart also applies
+command deadlines. Channel names, payloads and errors are mirrored and tested across languages.
 
-| Feature | Minimum supported Android API |
-|---|---|
-| App, root heuristics and secure-window protection | 24 (Android 7.0), the app minimum |
-| Foreground payment simulation | 24; modern foreground-service behavior from 26 |
-| Notification channels | 26 (Android 8.0) |
-| Notification runtime permission | 33 (Android 13); no prompt below |
-| `shortService` type rules and timeout callback | 34 (Android 14); compat behavior below |
-| Recording visibility callback | 35 (Android 15); `unknown` below |
+- **Root heuristics:** six concurrent probes check binaries, artifacts, packages, `which su`, test keys and build type.
+  A clean verdict needs a conclusive strong check; weak signals alone are allowed, while unverifiable root is blocked.
+  Awaiting probes has a deadline even when an OS call remains blocked.
+- **Recording visibility:** API 35+ reports whether this app is visible in a recording. Unknown recording state below API
+  35 is allowed; positive visibility blocks confirmation. This cannot detect every active recorder.
+- **Secure window:** sensitive content appears only after `FLAG_SECURE` is confirmed. Pending protection shows a neutral
+  placeholder; failure blocks with a protection recheck. Reference counting and Activity recreation preserve protection
+  through navigation. Screenshots, recordings and Recents captures are protected.
+- **Payment service:** a `shortService` runs 20 simulated 400 ms steps with generic, lock-screen-private progress updates
+  throttled to twice per second. A non-exported broadcast receiver handles notification Cancel. Atomic attempt-scoped store
+  transitions decide cancellation versus completion. The service is `START_NOT_STICKY`, handles timeout and releases claims
+  on refused starts. Denied notification permission does not prevent payment.
 
-- **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
-  `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
-  when no signal fired and no strong check completed cleanly. Clean build tags/type alone are insufficient.
-  These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
-  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring a strong clean check
-  can also block legitimate devices when all strong probes are inconclusive.
-- **Screen recording.** From API 35, the callback reports whether this app is visible in a recording, rather than whether
-  any recorder is active. Below API 35 it is `unknown` (the policy allows it). This only partially meets the brief's
-  “detect an active recorder” requirement; it cannot prove that no recorder is running.
-  See [Android's callback contract](https://developer.android.com/reference/android/view/WindowManager#addScreenRecordingCallback(java.util.concurrent.Executor,java.util.function.Consumer)).
-- **Window protection.** Sensitive content is mounted only after the platform confirms the secure window. A neutral
-  placeholder appears while waiting, and a blocked message with a protection recheck appears on failure. `FLAG_SECURE`
-  stays acquired through route transitions until disposal, is reference counted, re-applied on Activity recreation, and reported back
-  from the window itself. It also hides the Recents thumbnail. It is real in every mode, simulated or not, so a
-  screenshot, a screen recording or `adb screencap` of the payment page is black.
-- **Payment foreground service.** A `shortService` foreground service (declared alone, as the platform requires) runs the
-  simulated payment (20 steps of 400 ms) with a progress notification: generic text, private on the lock screen, throttled
-  to two updates a second, with a **Cancel** action handled by a non-exported broadcast receiver. `START_NOT_STICKY`, one
-  payment at a time, `onTimeout` handled, `ServiceCompat` for the foreground type and the stop. Denying the notification
-  permission (Android 13+) never stops a payment.
-- **State** that the service, the plugin and a cancel from the notification all touch lives in one process-wide store with
-  atomic transitions, so the first of a cancel and a finish wins and a refused start gives its claim back. Every execution has its own attempt id (wire schema 2), so a late event, a stale cancel or a duplicate delivery from an earlier attempt cannot touch a retry.
+Minimum Android API is 24. Notification channels require 26, runtime notification permission 33, `shortService` rules 34,
+and recording visibility 35. Guards provide compatibility below those levels. The
+[native reference](docs/platform_channels.md#native-android-features) covers APIs, policy and device findings.
 
-### Security policy
-
-Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `lib/features/security/domain/`):
-
-| Device state | Decision |
-|---|---|
-| a strong root signal (su binary, Magisk, root manager) | blocked |
-| only weak root signals (test keys, debuggable build) | allowed |
-| root could not be verified | blocked (fail-closed) |
-| app reported visible in a recording (API 35+) | blocked; lifts when the recording ends |
-| screen recording state unknown (below Android 15) | allowed |
-| the window could not be protected | blocked, recoverable ("Check again") |
-
-Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these choices is a
-constructor flag on the policy.
-
-## The security scan
-
-While the device is being checked the security card shows a radar: a sweep that goes round once per period, with three
-pulses staggered a third of a period apart. It is a `CustomPainter` (`lib/core/design_system/scan/`), and all of its maths
-is a function of one number, the phase of the animation, documented in `scan_math.dart` (formulas, period, why it repeats
-without a seam).
-
-- **Each brand gets its own scan from its tokens, with no brand check.** `ScanStyle` reads the glow (`scanGlow`), the
-  rings (`outlineSubtle`) and the pulse easing (`motion.standard`), and sets the period to four times `motion.slow`, held
-  between 1.6 s and 3 s: Retail turns in 2.4 s with soft pulses, Utility in 1.6 s with quick ones.
-- **No rebuilds, one repaint layer.** A still backdrop and the moving part sit in two `RepaintBoundary`s; the moving painter
-  listens to the animation itself. `paint()` allocates nothing, and the ticker exists only while the scan is on screen.
-  With reduced motion the scan shows a still pose and nothing animates.
-- **The verdict waits for the sweep to go all the way round.** The flow holds the verdict until the end
-  of a revolution: `max(how long the check took, one period)`, rounded up to the end of the revolution it finished in. Pay
-  is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on any device that answers quickly. The wait is
-  the brand's own period, so there is no number to configure. It is not applied with reduced motion (nothing sweeps), not
-  to the second check made when Pay is pressed, and not in tests.
-
-### Performance
-
-Measured by `integration_test/scan_performance_test.dart` (`flutter drive --profile --no-dds`), per brand, median of three
-8 s runs, on a **Pixel_9 emulator** (profile build, 60 Hz). On a ZTE RedMagic 10 Pro (Android 16) the performance overlay
-showed 120 FPS with no visible drops: an observation, not a measurement, because the harness was not run on the phone, so
-there are no phone numbers ([docs/MANUAL_QA.md](docs/MANUAL_QA.md)).
-
-| Variant | UI thread, avg (ms) | New-gen GCs in 8 s | Frames per second |
-|---|---|---|---|
-| the scan in the app, Retail | 1.15 | 2 | 60.3 |
-| the scan in the app, Utility | 1.18 | 2 | 59.1 |
-| a layer that draws one dot (the least possible) | 0.92 to 1.08 | 2 | 59.9 |
-| Material's own spinner | 1.40 | 6 | 59.4 to 59.9 |
-
-The scan costs about 0.1 to 0.2 ms more than the least an animating layer can cost, less than Material's spinner, and
-allocates as little as the floor. **Raster time on the emulator is not informative** (the one-dot layer also takes 13 to
-16 ms there, the emulator's swap path), so it is left out of the table; it and the whole method are in
-[the performance appendix](docs/ai/appendix/performance.md).
-
-```bash
-flutter drive --profile --no-dds --flavor retail -d <device id> \
-  --driver=test_driver/integration_test.dart \
-  --target=integration_test/scan_performance_test.dart \
-  --dart-define=DEVICE_NAME="<what to call the device>"      # about 6 minutes; writes build/scan_performance/summary.md
-```
-
-## Demo scenarios (debug and profile builds)
-
-Whenever a device or backend is hard to put in a given state, every source with a platform side can run on a **simulation**.
-The tune icon in the app bar opens a panel where, per source (device security, payment processing), you pick *Real* or
-*Simulated* and, for a simulated one, play a situation:
-
-- a clean, rooted, weakly-rooted or unverifiable device;
-- a screen recording that starts and stops while the screen is open;
-- how long the device check takes (1.5 s, 5 s, 15 s), to hold the scan on screen;
-- a payment that succeeds, is declined, or fails while processing;
-- a bill backend that goes offline (simulated by design: there is no backend).
-
-A **SIMULATED** badge sits in the app bar while any source is simulated, in every build mode. The simulation replaces the
-security *readings* only, never the window: `FLAG_SECURE` is applied through the real source in every mode. The panel's
-*Display* section has Flutter's performance overlay and rolling build/raster statistics with Reset; reported display Hz is
-not measured FPS. [Manual QA](docs/MANUAL_QA.md#in-app-frame-statistics-without-adb-debugprofile) explains ADB-free phone measurements.
-The app bar has the brand switcher. In Real mode the panel
-shows a read-only **Device reports** block (the root signals that fired, whether a recording is detected, whether the
-window is protected).
-
-Release registry entries are selected with compile-time `kReleaseMode`/`appFlavor` conditions;
-only that brand's demo catalog is supplied to the feature. Debug/profile retain all brands.
-The artifact check is reproducible with `tool/check_release_brand_isolation.py`, which runs
-`strings` on each AOT library and also scans decompressed APK entries for forbidden markers.
-
-## Tests and CI
+## Testing and CI
 
 ```bash
 dart format --set-exit-if-changed lib test integration_test test_driver
-flutter analyze                                  # zero issues
-flutter test                                     # 888 Dart tests
-(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 226 Kotlin JVM tests
-flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
+flutter analyze
+flutter test
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)
+flutter build apk --debug --flavor retail
+flutter build apk --debug --flavor utility
 ```
 
-- **Dart.** Domain and policy; data sources against the same contract suites as their fakes (the channel sources run
-  unchanged against a Dart stand-in for the native side); notifiers through `ProviderContainer`; widgets; every registered
-  brand; regex layering guardrails (not architectural proof); the documentation links.
-- **Kotlin.** The ports, root checks, reply-once and threading, the secure window count, the payment store, session,
-  notification throttle and handlers, and a guard over the manifest (permissions, one exported component, a
-  `shortService`-only service, backups off).
-- **Mutation checks.** These are targeted manual mutations, not a comprehensive mutation score. The review found two
-  surviving mutations (unscoped failure handling and the restart generation guard); regression tests now cover both.
-  Results and limits are recorded in the [working log](docs/ai/appendix/working_log.md).
-- **CI** (`.github/workflows/ci.yml`) runs the format check, analysis and both test suites on every push to `main` and every
-  pull request, then builds a release APK per brand (the list comes from `android/brands.json`) and uploads it as an
-  artifact. Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA.
-- **Device suites (an emulator, not in CI).** Two suites drive the real app on a device, and neither runs in CI because CI has
-  no device. Each takes a minute or two and needs an emulator (they reset app data and grant the notification
-  permission with `adb`, and refuse a physical phone):
-  - `integration_test/payment_flow_test.dart` runs the payment flow through the real Kotlin plugin and foreground service, for
-    every registered brand: a cancelled and retried payment completes only the new attempt, and a payment whose request
-    changes while the final security read is pending never starts.
-    ```bash
-    PAYMENT_TEST_DEVICE=emulator-5554 PAYMENT_TEST_FLAVOR=retail \
-      flutter drive --debug --no-dds --flavor retail -d emulator-5554 \
-      --driver=test_driver/payment_integration.dart --target=integration_test/payment_flow_test.dart
-    ```
-  - `tool/test_payment_lifecycle.py` pays, then sends the app to the background, and then replaces its Activity and Flutter
-    engine mid-payment, and checks that the service carries on and the receipt appears once. One command runs every brand
-    (`--flavor retail` for one):
-    ```bash
-    python3 tool/test_payment_lifecycle.py --device emulator-5554
-    ```
-  The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [the security scan](#the-security-scan)) is a
-  third device test, also outside CI.
-- **On a phone.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
-  It was run once, on 2026-10-16, on a ZTE RedMagic 10 Pro (Android 16), with its results and the items *not tested* in the
-  same file.
-  [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) is the shot list for the demo video, which is recorded from the emulator window
-  with macOS screen capture, because `FLAG_SECURE` blacks out any capture made inside Android.
+Current validation includes 888 Dart tests and 226 Kotlin/JVM tests. Coverage spans domain policies, shared fake/channel
+contract suites, repository mapping, notifier races, widgets, every brand, native stores and lifecycle handling, manifest
+guards and documentation links. Targeted manual mutations found regression gaps that were fixed; no comprehensive mutation
+score is claimed.
+
+CI runs formatting, zero-issue analysis and both suites on pushes to `main` and pull requests, then builds a release APK
+for each brand from `android/brands.json` and uploads artifacts. It pins Flutter 3.41.9, Temurin 21 and action commit SHAs.
+Emulator payment-flow, engine-replacement and frame-timing suites run separately from CI. Their commands and coverage are
+in [Manual QA](docs/MANUAL_QA.md#tests-and-ci); phone checks and untested items are recorded there too.
+
+## Release and install
+
+Run `tool/build_release_apks.sh` to package both release APKs and both arm64 profile APKs into `dist/`, with `SHA256SUMS`
+and `SOURCE_REVISION` identifying the source HEAD. Individual Flutter builds write to `build/app/outputs/flutter-apk/`.
+Release excludes demo tools; profile retains them for blocked-state, decline and failure demonstrations.
+
+Download from the [GitHub Release](https://github.com/MaximLisovy/secure_payment_portal/releases/tag/v1.0.0), allow installation
+from your browser or files app when Android asks, then open the APK. Retail and Utility install side by side with package
+suffixes `.retail` and `.utility`. A signing-key mismatch requires uninstalling the older copy first.
+
+Release APKs deliberately use debug signing so the repository needs no keystore or secrets. They are review builds; a CI
+APK may not install over a locally built one with another debug key. Store distribution needs externally supplied signing
+credentials. [Packaging and signing details](docs/MANUAL_QA.md#release-signing) remain documented.
 
 ## Known limitations
 
-- **Android only.** iOS compiles (a simulator build was checked) but has no native side. A silent payment EventChannel
-  reaches a blocked, unavailable state after the 5 s startup deadline; security failures also block confirmation. This
-  makes startup fail closed rather than wait indefinitely. See the platform-channel contract for recovery behavior.
-- **Release APKs are debug-signed** (see [Release signing](#release-signing)).
-- **Root detection is heuristic** and can be bypassed (renamed packages, hiding tools); Play Integrity is out of scope.
-- **Screen recording detection needs Android 15.** Below it the state is `unknown` and allowed. It is **defense in depth**:
-  on a ZTE RedMagic 10 Pro (Android 16, the phone's own recorder) the callback did not fire and no recording block appeared,
-  while the stock recorder on an emulator does trigger it, with `FLAG_SECURE` on or off. It cannot be relied on across makers
-  (the likely reason, that the phone maker's recorder is not reported to the callback, is not proven). `FLAG_SECURE` is the
-  primary control, and the saved recording shows the app area black on the phone and on the emulator (`M4-5`,
-  [details](docs/platform_channels.md)).
-- **Payments are simulated.** The native processing always succeeds; declines and failures are simulated scenarios. A killed
-  process loses an in-flight payment (the state is in memory, the service is not sticky): a real backend would need an
-  idempotency key and reconciliation, described in [the appendix](docs/ai/appendix/payments-in-production.md).
-  `shortService` stops after about three minutes, fine for this simulation and not for a long real call.
-- **The verdict dwell is a product cost:** Pay is enabled 1.6 to 2.4 s after the check starts, on every visit.
-- **Frame timing was measured on an emulator.** On the phone the app showed 120 FPS on the performance overlay with no visible
-  drops, which is an observation; the harness was not run there. No numbers are claimed for 90 or 120 Hz or a real GPU.
-- **The phone run was one run on one phone, before these review fixes and three earlier code commits.** The wire contract is
-  final. The notification permission prompt, the lock screen, swiping the app away, other Android versions, battery saver and
-  Utility's 1.6 s scan speed were not tested; each is marked *not tested* in `docs/MANUAL_QA.md`.
-- **Money and dates are not locale-aware.** Amounts are integer minor units in a `Money` value object, never `double`, and
-  format as `$1,234.50`; receipts show UTC time. Neither uses `intl`, so grouping, symbol position and date order are fixed.
-- **Light theme only** (tokens are brightness-agnostic, so a dark set can be added).
+Payments and snapshots are in memory; process death loses an attempt. There is no durable intent store, server idempotency
+or backend reconciliation. Native processing always succeeds; declines/failures are demo scenarios. A roughly three-minute
+`shortService` limit suits this simulation. The [production appendix](docs/ai/appendix/payments-in-production.md) explains the missing pieces.
 
-## Documents
+Root heuristics are bypassable and inaccessible paths can resemble absent artifacts. Recording visibility varies by API
+and recorder: the phone's OEM recorder stayed silent while captures were black; the stock emulator recorder triggered
+with `FLAG_SECURE` both on and off. The OEM explanation remains unproven. `FLAG_SECURE` is the primary capture control.
 
-| | |
-|---|---|
-| [AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md) | multi-tenant structure, how AI accelerated the work, one sub-optimal AI solution and its correction, with appendices |
-| [Prompt Log](docs/ai/PROMPT_LOG.md) | the three interactions that best show how the work was steered: context, prompt, what the AI proposed, the decision, the outcome |
-| [Working log](docs/ai/appendix/working_log.md) | every significant interaction, with its corrections and the developer's recorded decisions |
-| [Platform channels](docs/platform_channels.md) | the Dart ⇄ Kotlin wire contract, with what was verified on a device |
-| [Manual QA](docs/MANUAL_QA.md) | what needs a person and a phone |
-| [Demo script](docs/DEMO_SCRIPT.md) | the shot list for the demo video |
-| [AGENTS.md](AGENTS.md) and [.agents/rules](.agents/rules) | the rules the AI agent worked under |
+iOS compiles but has no native implementation; unavailable channels block payment. Themes are light-only; money and UTC
+receipt dates use fixed formatting rather than locale-aware formatting. Frame timings were measured on a 60 Hz emulator;
+the phone's observed 120 FPS was qualitative. The historical single-phone run predates these fixes, and permission prompts,
+lock screen, swipe-away, battery saver and other Android versions remain untested. No new phone measurements are claimed.
+
+## Documents and AI contribution
+
+Claude Code implemented the initial milestones. Codex reviewed and implemented an earlier approved pass of 13 commits,
+about 2,300 lines including attempt isolation. The developer reviewed plans and smaller diffs and verified the large change
+through tests and device runs. Later independent-review fixes are linked in the review summary; significant decisions live
+in commit messages.
+
+- [AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md) and [Prompt Log](docs/ai/PROMPT_LOG.md): a short report and three selected interactions.
+- [Review summary](docs/ai/appendix/review.md): both reviews, corrections and commits.
+- [Platform channels](docs/platform_channels.md), [Manual QA](docs/MANUAL_QA.md) and [demo script](docs/DEMO_SCRIPT.md): implementation and verification references.
+- [AGENTS.md](AGENTS.md) and [topic rules](.agents/rules): repository working conventions.

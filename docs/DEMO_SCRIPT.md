@@ -78,3 +78,28 @@ The exact validation results are in the [AI Insight Report](ai/AI_INSIGHT_REPORT
 Android versions other than 36, frame-timing numbers) are in [Manual QA](MANUAL_QA.md). On that phone the screen recording callback did not fire (the stock recorder on the emulator does trigger it), so the recording block is defense in depth and `FLAG_SECURE`, which blacks out the saved recording, is the control. An
 emulator recording does not prove 120 Hz performance on a phone; the phone showed 120 FPS on the performance overlay, an
 observation and not a measurement.
+
+## Demo scenarios (debug and profile builds)
+
+Whenever a device or backend is hard to put in a given state, every source with a platform side can run on a **simulation**.
+The tune icon in the app bar opens a panel where, per source (device security, payment processing), you pick *Real* or
+*Simulated* and, for a simulated one, play a situation:
+
+- a clean, rooted, weakly-rooted or unverifiable device;
+- a screen recording that starts and stops while the screen is open;
+- how long the device check takes (1.5 s, 5 s, 15 s), to hold the scan on screen;
+- a payment that succeeds, is declined, or fails while processing;
+- a bill backend that goes offline (simulated by design: there is no backend).
+
+A **SIMULATED** badge sits in the app bar while any source is simulated, in every build mode. The simulation replaces the
+security *readings* only, never the window: `FLAG_SECURE` is applied through the real source in every mode. The panel's
+*Display* section has Flutter's performance overlay and rolling build/raster statistics with Reset; reported display Hz is
+not measured FPS. [Manual QA](MANUAL_QA.md#in-app-frame-statistics-without-adb-debugprofile) explains ADB-free phone measurements.
+The app bar has the brand switcher. In Real mode the panel
+shows a read-only **Device reports** block (the root signals that fired, whether a recording is detected, whether the
+window is protected).
+
+Release registry entries are selected with compile-time `kReleaseMode`/`appFlavor` conditions;
+only that brand's demo catalog is supplied to the feature. Debug/profile retain all brands.
+The artifact check is reproducible with `tool/check_release_brand_isolation.py`, which runs
+`strings` on each AOT library and also scans decompressed APK entries for forbidden markers.
