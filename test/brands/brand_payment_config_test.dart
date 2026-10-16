@@ -21,9 +21,11 @@ void main() {
     });
   }
 
+  // The page shows whichever bill a brand names. Two brands showing different
+  // ones proves that, and a later brand may name a bill another brand uses.
   test('different brands can show different bills', () {
     final ids = BrandRegistry.standard.all.map((b) => b.payment.paymentId);
 
-    expect(ids.toSet(), hasLength(ids.length));
+    expect(ids.toSet().length, greaterThan(1));
   });
 }

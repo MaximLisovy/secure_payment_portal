@@ -29,8 +29,10 @@ void main() {
   group('BrandRegistry.standard', () {
     const registry = BrandRegistry.standard;
 
+    // At least, not exactly: adding a brand adds to this list and must not need
+    // a test edited.
     test('registers retail and utility', () {
-      expect(registry.all, [retailBrand, utilityBrand]);
+      expect(registry.all, containsAll([retailBrand, utilityBrand]));
     });
 
     test('has unique, non-empty ids and display names', () {
