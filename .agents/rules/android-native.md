@@ -105,7 +105,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 ## 5. Gradle and compliance
 
 - Kotlin DSL only. Add `androidx.core:core-ktx` and `org.jetbrains.kotlinx:kotlinx-coroutines-android` with explicit versions (core-ktx 1.18.0: 1.19 needs compileSdk 37 and AGP 9.1; coroutines 1.11.0). Keep `compileSdk`/`targetSdk`/`minSdk` from the Flutter Gradle plugin unless there is a reason.
-- JVM tests: JUnit 4 and `kotlinx-coroutines-test`, in `app/src/test/kotlin`. System access (files, packages, commands, `Build`, `Looper`, the `Window`) sits behind small ports, so no Android stubs are needed. Run them with `JAVA_HOME=<JDK 17-21> ./gradlew testDebugUnitTest` from `android/`; the task is flavor-free because both flavors compile the same sources.
+- JVM tests: JUnit 4 and `kotlinx-coroutines-test`, in `app/src/test/kotlin`. System access (files, packages, commands, `Build`, `Looper`, the `Window`) sits behind small ports, so no Android stubs are needed. Run them with `JAVA_HOME=<JDK 21> ./gradlew testDebugUnitTest` from `android/`; the task is flavor-free because both flavors compile the same sources.
 - Guard every API above minSdk with `Build.VERSION.SDK_INT` + `@RequiresApi`, and write the API level in a comment next to the call.
 - No deprecated APIs where a replacement exists: `ServiceCompat.stopForeground`, `PendingIntent.FLAG_IMMUTABLE`, `NotificationCompat`, `ContextCompat`.
 - Release builds must work with R8. Don't rely on reflection.

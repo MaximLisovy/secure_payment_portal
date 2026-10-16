@@ -6,17 +6,18 @@ Hyper-Tenant Secure Payment Portal: multi-brand payment confirmation module.
 
 - Flutter 3.41.x (Dart 3.11.5, see `environment.sdk` in `pubspec.yaml`).
 - Android SDK 36.
-- **JDK 17–21** for Android builds. JDK 25 is known to fail: Gradle configuration stops with
-  `IllegalArgumentException: 25.0.1` because the Kotlin Gradle plugin (2.2.20) cannot parse that version.
-  - Point Flutter at a supported JDK once: `flutter config --jdk-dir="<path to JDK 17–21>"`, then check with `flutter doctor -v`.
+- **JDK 21** for Android builds: it is what CI and the author's machine use. The code targets Java 17 bytecode, but no
+  other JDK was tried. JDK 25 is known to fail: Gradle configuration stops with `IllegalArgumentException: 25.0.1`
+  because the Kotlin Gradle plugin (2.2.20) cannot parse that version.
+  - Point Flutter at a JDK 21 once: `flutter config --jdk-dir="<path to JDK 21>"`, then check with `flutter doctor -v`.
   - Raw Gradle calls (`./gradlew …`, e.g. Kotlin unit tests) do not read that setting. Prefix them for that command:
-    `JAVA_HOME="<path to JDK 17–21>" ./gradlew …`.
+    `JAVA_HOME="<path to JDK 21>" ./gradlew …`.
 
 ## Tests
 
 ```bash
 flutter test                                  # Dart: domain, data, presentation, architecture rules
-(cd android && JAVA_HOME="<path to JDK 17–21>" ./gradlew testDebugUnitTest)   # Kotlin: JVM unit tests
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # Kotlin: JVM unit tests
 ```
 
 The Kotlin tests need no device or emulator: the root checks, the reference-counted secure window, the recording
@@ -43,6 +44,14 @@ flutter build apk --debug --flavor utility
 ```
 
 The APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`.
+
+### Release signing
+
+`flutter build apk --release --flavor <brand>` produces an APK signed with the **debug keys**. That is deliberate: the
+repository holds no keystore and no secret, so anyone can build and install a release APK. These APKs are for review,
+not for a store, and an APK from CI will not install over one built on another machine (different debug key). A store
+release needs a real signing config (a keystore and its passwords, supplied from outside the repository, for example from
+CI secrets), which is not part of this project.
 
 ## Platform support
 

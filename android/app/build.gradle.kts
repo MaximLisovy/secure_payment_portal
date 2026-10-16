@@ -52,7 +52,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // The base application id. Each brand flavor appends its own suffix from brands.json, so the
+        // installed ids are com.hypertenant.secure_payment_portal.<brand> and both brands can be
+        // installed side by side.
         applicationId = "com.hypertenant.secure_payment_portal"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -90,8 +92,10 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Release builds are signed with the debug keys, on purpose: this repository holds no
+            // keystore and no secret, so anyone can build and install a release APK. These APKs are for
+            // review, not for a store. A store release signs with its own key, supplied outside the
+            // repository (see "Release signing" in the README).
             signingConfig = signingConfigs.getByName("debug")
         }
     }

@@ -119,5 +119,5 @@ Planned for the final milestone. **Do not implement any of it earlier.** Until t
 
 1. **Brands manifest.** One `android/brands.json` with `id`, `displayName` and `applicationIdSuffix` per brand. Gradle reads it and creates the `productFlavors` in a loop, so adding a brand no longer touches Gradle code. Step 3 of the §4 checklist then becomes one manifest entry.
 2. **Manifest and registry stay in sync.** A test checks that `android/brands.json` and `BrandRegistry` list the same ids and display names. It closes the duplication of the display name between Gradle and `BrandConfig`.
-3. **CI.** A GitHub Actions matrix builds and tests every flavor. The flavor list comes from the same manifest, and the JDK comes from `setup-java` (17–21, see the README).
+3. **CI.** A GitHub Actions matrix builds and tests every flavor. The flavor list comes from the same manifest, and the JDK comes from `setup-java` (21, see the README).
 4. **Per-flavor launcher icons** in `android/app/src/<id>/res/mipmap-*`.

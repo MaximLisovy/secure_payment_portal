@@ -151,8 +151,8 @@ flutter analyze                       # zero issues, warnings included
 flutter test
 flutter build apk --debug --flavor retail
 flutter build apk --debug --flavor utility
-# native logic, when android/ changed (raw Gradle ignores `flutter config --jdk-dir`, so give it a JDK 17-21):
-(cd android && JAVA_HOME="<path to JDK 17-21>" ./gradlew testDebugUnitTest)
+# native logic, when android/ changed (raw Gradle ignores `flutter config --jdk-dir`, so give it a JDK 21):
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)
 ```
 
 New domain logic and notifiers come with tests (see `.agents/rules/testing.md`).
