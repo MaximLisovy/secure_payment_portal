@@ -1,0 +1,111 @@
+name: CI
+
+# Format, analysis and every test on each push to main and each pull request, then a release
+# APK per brand. The brands come from android/brands.json, the same file Gradle builds its
+# flavors from, so a new brand is built here without editing this file.
+#
+# The release APKs are signed with the debug keys (the repository holds no keystore): they are
+# for review, not for a store. The frame timing test (integration_test/) needs a device and is
+# not run here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.41.9"
+  JAVA_VERSION: "21"
+
+jobs:
+  brands:
+    name: Read the brands
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.read.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read android/brands.json
+        id: read
+        run: |
+          jq -e 'length > 0' android/brands.json > /dev/null
+          echo "matrix=$(jq -c '{brand: map(.id)}' android/brands.json)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Format, analyze, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
+      - name: Analyze
+        run: flutter analyze
+      - name: Dart tests
+        run: flutter test
+      - name: Kotlin unit tests
+        working-directory: android
+        run: ./gradlew testDebugUnitTest
+
+  build:
+    name: Release APK (${{ matrix.brand }})
+    needs: [brands, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.brands.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - name: Build the release APK
+        env:
+          BRAND: ${{ matrix.brand }}
+        run: flutter build apk --release --flavor "$BRAND"
+      - name: Checksum
+        env:
+          BRAND: ${{ matrix.brand }}
+        run: sha256sum "build/app/outputs/flutter-apk/app-${BRAND}-release.apk"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apk-${{ matrix.brand }}
+          path: build/app/outputs/flutter-apk/app-${{ matrix.brand }}-release.apk
+          if-no-files-found: error
+          retention-days: 14
