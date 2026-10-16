@@ -155,6 +155,14 @@ These scenarios have automated coverage; the phone run of 2026-10-16 did not cov
 | Change brand or leave the page during permission preparation or the final security read. | The obsolete confirmation never starts processing. Already accepted work follows the documented service lifecycle. | *not tested* on the phone. |
 | Attempt cancellation while the bridge is unavailable, then restore it. | A visible error accompanies continuing progress; retry cancels the matching attempt. | *not tested* on the phone. |
 
+**Recording block after the root and watchdog changes (emulator, 2026-10-16).** Checked by the developer on the Pixel_9
+emulator (API 36), by hand, after the root-monotonicity and post-acceptance watchdog commits (`8a9a8da`, `2434136`):
+recording with the shade's **Screen record** tile triggers the recording block in the app. The emulator's own host-side
+recorder does not trigger it, which is expected (it is not an in-guest `MediaProjection` capture, which is what the
+callback reports). Only the appearance of the block was reported; its lifting after the recording stops
+was not re-checked in this round (the earlier experiment is under
+[the platform contract](platform_channels.md#recording-callback-while-the-window-is-secure-defense-in-depth)).
+
 
 ## In-app frame statistics without ADB (debug/profile)
 
