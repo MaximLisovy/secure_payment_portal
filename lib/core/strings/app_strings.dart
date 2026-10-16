@@ -52,7 +52,7 @@ abstract final class AppStrings {
   static const detailsLoading = 'Loading your bill…';
   static const protectingScreen = 'Preparing a protected screen…';
   static const securityChecking = 'Checking this device…';
-  static const securityVerified = 'This device is verified';
+  static const securityVerified = 'No root indicators found';
   static const checkAgain = 'Check again';
   static const tryAgain = 'Try again';
   static const confirming = 'Starting payment…';

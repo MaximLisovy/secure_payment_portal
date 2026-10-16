@@ -9,6 +9,7 @@ class RootManagerPackageCheck(
     private val names: List<String> = RootManagerPackages.ALL,
 ) : RootCheck {
     override val code = RootReasonCodes.ROOT_MANAGER_PACKAGE
+    override val isStrong = true
 
     override suspend fun run(): CheckOutcome =
         if (names.any(packages::isInstalled)) CheckOutcome.Fired else CheckOutcome.Clear

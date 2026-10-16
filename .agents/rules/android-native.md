@@ -65,7 +65,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
   - `Build.TYPE` of `userdebug` or `eng` (weak). **Not** `ro.debuggable` / `ro.secure` through `getprop`: an app cannot read them (SELinux), so that check could never run (found on an API 36 device)
   - `which su` with a timeout
 - Return **which** signals fired (`List<String>` of reason codes), not just a boolean. Domain decides the policy.
-- Each check answers `Clear`, `Fired` or `Inconclusive`. `unknown` only when **every** check is inconclusive; a check that throws or times out is inconclusive and never takes the others down. Cancelling the caller still cancels the detection, and a cancellation raised *inside* a check (its own `withTimeout`) is that check failing.
+- Each check answers `Clear`, `Fired` or `Inconclusive`. `notDetected` requires at least one **strong** check to complete cleanly; only weak clean checks means `unknown`; a check that throws or times out is inconclusive and never takes the others down. Cancelling the caller still cancels the detection, and a cancellation raised *inside* a check (its own `withTimeout`) is that check failing.
 - `Process.waitFor(long, TimeUnit)`, `isAlive` and `destroyForcibly` are API 26 and minSdk is 24: poll `exitValue()` and end the process with `destroy()`.
 - Document honestly in KDoc: client-side root checks are heuristics that tools like Magisk DenyList/Zygisk can bypass. Production would add server-verified **Play Integrity API**. Don't present heuristics as tamper-proof.
 

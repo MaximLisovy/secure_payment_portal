@@ -204,7 +204,10 @@ call replies exactly once, on the main thread.
 
 - **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
   `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
-  only when every check was inconclusive.
+  when no signal fired and no strong check completed cleanly. Clean build tags/type alone are insufficient.
+  These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
+  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring a strong clean check
+  can also block legitimate devices when all strong probes are inconclusive.
 - **Screen recording.** From Android 15 (API 35) `WindowManager.addScreenRecordingCallback` reports it as a stream. Below
   35 the state is `unknown` (the policy allows it), never "not recording".
 - **Window protection.** Sensitive content is mounted only after the platform confirms the secure window. A neutral

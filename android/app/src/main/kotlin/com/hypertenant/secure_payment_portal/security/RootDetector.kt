@@ -36,13 +36,13 @@ data class RootReport(
  * Runs the checks together, off the main thread, and combines them.
  *
  * - any check fired → `DETECTED`, with the codes of those that did, in the order of [checks];
- * - otherwise, if at least one check ran to a clean result → `NOT_DETECTED`;
+ * - otherwise, if at least one strong check ran to a clean result → `NOT_DETECTED`;
  * - otherwise (no check could run, or there are none) → `UNKNOWN`.
  *
  * A check that throws, or does not finish within [perCheckTimeoutMillis], counts as inconclusive and
- * never takes the others down. "Unknown only when every check is inconclusive" keeps one flaky
- * optional check (a process that will not start) from blocking every payment, while a device on
- * which nothing could be checked still reads as unverifiable.
+ * never takes the others down. A clean weak check (build tags/type) is insufficient:
+ * when no strong check completes conclusively, an otherwise clean result is UNKNOWN.
+ * This may block a legitimate device whose strong probes are all unavailable.
  *
  * The checks run concurrently, so the whole call is bounded by one check's timeout.
  */
@@ -64,7 +64,7 @@ class RootDetector(
         val state =
             when {
                 fired.isNotEmpty() -> Detection.DETECTED
-                outcomes.any { it == CheckOutcome.Clear } -> Detection.NOT_DETECTED
+                checks.zip(outcomes).any { (check, outcome) -> check.isStrong && outcome == CheckOutcome.Clear } -> Detection.NOT_DETECTED
                 else -> Detection.UNKNOWN
             }
         val inconclusive =

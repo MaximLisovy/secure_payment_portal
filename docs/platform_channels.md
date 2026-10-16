@@ -395,3 +395,9 @@ Mappers apply the same bounds to directly constructed DTOs. Malformed or unexpec
 mapping failures become typed failures for reads, an unknown start/snapshot outcome,
 or an unscoped uncertainty event for an active progress stream; they never fabricate
 a payment decline. Both notifier subscriptions handle stream errors explicitly.
+
+Root aggregation returns `notDetected` only when no signal fires and at least one
+strong probe completes cleanly. Clean build tags/type alone yield `unknown`.
+`File.exists` cannot distinguish absent from inaccessible; counting false as a
+clean file check favors availability and may miss hidden root artifacts. The UI
+therefore says “No root indicators found”, not that the device is verified.

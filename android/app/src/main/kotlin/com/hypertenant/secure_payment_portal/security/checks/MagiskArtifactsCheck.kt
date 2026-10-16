@@ -15,6 +15,7 @@ class MagiskArtifactsCheck(
     private val paths: List<String> = MAGISK_PATHS,
 ) : RootCheck {
     override val code = RootReasonCodes.MAGISK_ARTIFACTS
+    override val isStrong = true
 
     override suspend fun run(): CheckOutcome =
         if (paths.any(files::exists)) CheckOutcome.Fired else CheckOutcome.Clear

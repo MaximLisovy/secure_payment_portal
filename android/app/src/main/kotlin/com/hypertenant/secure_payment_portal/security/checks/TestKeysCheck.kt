@@ -9,6 +9,7 @@ import com.hypertenant.secure_payment_portal.security.probes.BuildInfo
  */
 class TestKeysCheck(private val build: BuildInfo) : RootCheck {
     override val code = RootReasonCodes.TEST_KEYS
+    override val isStrong = false
 
     override suspend fun run(): CheckOutcome {
         val tags = build.tags ?: return CheckOutcome.Inconclusive

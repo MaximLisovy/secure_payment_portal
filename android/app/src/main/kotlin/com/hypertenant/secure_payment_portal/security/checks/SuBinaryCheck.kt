@@ -9,6 +9,7 @@ class SuBinaryCheck(
     private val paths: List<String> = SU_PATHS,
 ) : RootCheck {
     override val code = RootReasonCodes.SU_BINARY
+    override val isStrong = true
 
     override suspend fun run(): CheckOutcome =
         if (paths.any(files::exists)) CheckOutcome.Fired else CheckOutcome.Clear

@@ -23,5 +23,8 @@ sealed interface CheckOutcome {
 interface RootCheck {
     val code: String
 
+    /** Whether a conclusive clean result contributes to a not-detected verdict. */
+    val isStrong: Boolean
+
     suspend fun run(): CheckOutcome
 }

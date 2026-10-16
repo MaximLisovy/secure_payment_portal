@@ -14,6 +14,7 @@ class WhichSuCheck(
     private val timeoutMillis: Long = 2_000,
 ) : RootCheck {
     override val code = RootReasonCodes.WHICH_SU
+    override val isStrong = true
 
     override suspend fun run(): CheckOutcome =
         when (val result = runner.run(listOf("which", "su"), timeoutMillis)) {

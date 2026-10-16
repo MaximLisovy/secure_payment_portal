@@ -22,6 +22,8 @@ private class FakeCheck(
 ) : RootCheck {
     constructor(code: String, fixed: CheckOutcome) : this(code, { fixed })
 
+    override var isStrong = true
+
     override suspend fun run(): CheckOutcome = outcome()
 }
 
@@ -36,6 +38,32 @@ class RootDetectorTest {
             perCheckTimeoutMillis = timeout,
             onCheckFailed = { code, error -> failures += "$code:${error.javaClass.simpleName}" },
         )
+
+    @Test
+    fun cleanWeakChecksWithInconclusiveStrongChecksAreUnknown() = runTest {
+        val report = detector(
+            FakeCheck("weak-tags", CheckOutcome.Clear).also { it.isStrong = false },
+            FakeCheck("weak-build", CheckOutcome.Clear).also { it.isStrong = false },
+            FakeCheck("strong", CheckOutcome.Inconclusive),
+        ).detect()
+        assertEquals(RootReport(Detection.UNKNOWN, emptyList(), listOf("strong")), report)
+    }
+
+    @Test
+    fun cleanWeakChecksAloneAreUnknown() = runTest {
+        assertEquals(Detection.UNKNOWN, detector(
+            FakeCheck("weak", CheckOutcome.Clear).also { it.isStrong = false },
+        ).detect().state)
+    }
+
+    @Test
+    fun oneConclusiveStrongCheckSufficesEvenWhenOthersCannotRun() = runTest {
+        assertEquals(Detection.NOT_DETECTED, detector(
+            FakeCheck("strong", CheckOutcome.Clear),
+            FakeCheck("unavailable", CheckOutcome.Inconclusive),
+            FakeCheck("weak", CheckOutcome.Clear).also { it.isStrong = false },
+        ).detect().state)
+    }
 
     @Test
     fun noSignalFiredAndAtLeastOneCheckRanClean_isNotDetected() = runTest {

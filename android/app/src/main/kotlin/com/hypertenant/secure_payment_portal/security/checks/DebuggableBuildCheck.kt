@@ -13,6 +13,7 @@ import com.hypertenant.secure_payment_portal.security.probes.BuildInfo
  */
 class DebuggableBuildCheck(private val build: BuildInfo) : RootCheck {
     override val code = RootReasonCodes.DEBUGGABLE_BUILD
+    override val isStrong = false
 
     override suspend fun run(): CheckOutcome {
         val type = build.type ?: return CheckOutcome.Inconclusive

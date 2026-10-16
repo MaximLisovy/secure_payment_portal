@@ -22,6 +22,8 @@ private class Check(override val code: String, private val run: suspend () -> Ch
     RootCheck {
     constructor(code: String, fixed: CheckOutcome) : this(code, { fixed })
 
+    override val isStrong = true
+
     override suspend fun run() = run.invoke()
 }
 
