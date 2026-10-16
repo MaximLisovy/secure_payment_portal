@@ -70,6 +70,45 @@ Defaults:
 Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these
 choices is a constructor flag on the policy.
 
+## The security scan
+
+While the device is being checked, the security card shows a radar: a sweep that goes round once per period, with three
+pulses staggered a third of a period apart. It is a `CustomPainter` (`lib/core/design_system/scan/`), and all of its
+maths is a function of one number, the phase of the animation, documented in `scan_math.dart` (formulas, period, why it
+repeats without a seam).
+
+- **Each brand gets its own scan from its tokens, with no brand check.** `ScanStyle` reads the glow (`scanGlow`), the
+  rings (`outlineSubtle`) and the pulse easing (`motion.standard`), and sets the period to four times `motion.slow`,
+  held between 1.6 s and 3 s: Retail turns in 2.4 s with soft pulses, Utility in 1.6 s with quick ones. A new brand needs
+  nothing extra.
+- **It costs no rebuilds and one repaint layer.** A still backdrop and the moving part sit in two `RepaintBoundary`s; the
+  moving painter listens to the animation itself. Frames rebuild no widget and repaint nothing else on the page, `paint()`
+  allocates nothing, and the ticker exists only while the scan is on screen. With reduced motion the scan shows a still
+  pose and nothing animates. The tests that prove it are listed in `.agents/rules/performance-custom-painter.md`.
+- **The verdict waits for the sweep to go all the way round.** A real device check takes a fraction of a second, which
+  would make the scan a flash that a release build never really shows. The flow therefore holds the verdict until the end
+  of a revolution: `max(how long the check took, one period)`, rounded up to the end of the revolution it finished in.
+  Pay is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on any device that answers quickly; a slow
+  check waits for the end of the revolution it lands in. The wait is the brand's own period, so there is no number to
+  configure. It is not applied with reduced motion (nothing sweeps), not to the second check made when Pay is pressed,
+  and not in tests, where the verdict is immediate. The one place it is wired for the app is `main()`.
+- **To see it for longer** (a recording, a close look), switch Device security to *Simulated* in the demo panel and pick
+  how long the check takes: 1.5 s, 5 s or 15 s. The panel's *Display* section also turns on Flutter's performance overlay.
+
+Frame timing is measured on a device, in profile mode, for every registered brand, next to two references: Material's own
+spinner, and a layer that draws one dot per frame (the least any animating layer costs on that device):
+
+```bash
+flutter drive --profile --no-dds --flavor retail -d <device id> \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/scan_performance_test.dart \
+  --dart-define=DEVICE_NAME="<what to call the device>"
+```
+
+It takes about 6 minutes and writes `build/scan_performance/summary.md` (and `summary.json`, `raw.json`). It is not part
+of `flutter test`. Emulator numbers are indicative only; the measured ones are in `docs/ai/AI_INSIGHT_REPORT.md` and
+the phone run is in `docs/MANUAL_QA.md`.
+
 ## Manual QA and the demo video
 
 What needs a person is collected in [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md), one checklist grouped by milestone, to be

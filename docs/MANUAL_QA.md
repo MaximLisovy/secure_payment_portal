@@ -70,6 +70,34 @@ not been answered: uninstall and reinstall, or Settings > Apps > Retail Shop > P
 Covered by JVM tests only, not reproducible by hand: the refusal to start the service from the background
 (`ForegroundServiceStartNotAllowedException`), the 3 minute `onTimeout`, and the "Payment failed" notification.
 
+## M6: the security scan
+
+What the emulator could check is in `docs/ai/AI_INSIGHT_REPORT.md` §4 (frame timing, profile mode) and in the tests (no
+rebuilds, one repaint layer, the maths). `FLAG_SECURE` blacks out any screenshot of this page, so what the scan *looks like*
+in motion, and how it runs on real hardware, is for a person. Use a **profile** build
+(`flutter run --profile --flavor retail -d <phone>`; the demo panel is there). For a 120 Hz phone, check first that the display
+really runs fast: `adb shell dumpsys display | grep -i "refreshRate\|fps"`, and Settings > Display > Smooth display on.
+
+| # | Steps | Expected | Result |
+|---|---|---|---|
+| M6-1 | **Retail.** Open the app (Retail flavor). Watch the security card from the moment the page appears. | A radar with a gold sweep turning clockwise and soft rings expanding from the centre. The sweep goes **all the way round once** (about 2.4 s), then fades into the shield and **"This device is verified"**, and Pay becomes enabled just then. No stutter, no flicker. | |
+| M6-2 | **Utility.** The same on the Utility flavor, or switch brand in the app bar. | The sky-blue sweep turns once in about 1.6 s with quicker rings. *Does it look frantic or fine? If it is too fast, say so: the minimum period is one constant.* | |
+| M6-3 | **Held scan.** Demo panel > Device security > **Simulated** > Device check takes **15 s**. Watch the card for the whole 15 s. | The sweep and the rings run smoothly for the whole time, with no stutter, no change in speed and no jump when the sweep passes the top. The grid, rings and ticks stay perfectly still. The verdict appears at the end of a revolution (up to a period after the 15 s). | |
+| M6-4 | **The loop has no seam.** During M6-3 watch at least three revolutions, looking at the top of the circle and at the centre. | No jump of the sweep when it passes 12 o'clock. A ring appears at the centre without popping and fades out at the rim without a visible cut. | |
+| M6-5 | **Reduced motion.** Settings > Accessibility > **Remove animations** (or "Reduce motion"). Open the payment page. | The scan is drawn **still** (a sweep wedge and three rings), nothing moves, and the verdict shows **at once**: Pay is enabled without waiting. Turn the setting off again and re-open the page: the scan moves. | |
+| M6-6 | **Frame timing on the phone.** Run the command from the README with `-d <phone id>` and `--dart-define=DEVICE_NAME="<model, Android version>"` (about 6 minutes, phone unlocked and awake). Paste `build/scan_performance/summary.md` below. | Mode `profile`, FPS close to the display's rate (60, 90 or 120), **0 or almost 0 frames over budget** for the scan, build and raster times under the budget (16.7 ms at 60 Hz, 8.3 ms at 120 Hz) and in the same range as the spinner reference. *If a 120 Hz phone reports 60 Hz, say so: the display, not the app, is limiting it.* | |
+| M6-7 | **Performance overlay.** Demo panel > Display > Performance overlay on, then M6-3. | Both graphs stay under the green budget line while the scan runs; no red bars. | |
+| M6-8 | **Only the radar repaints.** Debug build (`flutter run --debug`), DevTools > Inspector > **Highlight repaints**, then M6-3. | Only the radar layer changes colour frame after frame; the text beside it, the card and the rest of the page do not. Then **Track widget rebuilds**: no rebuild counts rise during the scan. | |
+| M6-9 | **Sustained.** Run M6-3 four times in a row (about a minute), screen on. | No visible slow-down; the phone is not noticeably hot. | |
+| M6-10 | **Battery saver.** Turn it on, repeat M6-3. | Still smooth (Android may lower the refresh rate to 60 Hz; that is fine if it is steady). | |
+| M6-11 | **Away and back.** During M6-3 press Home, wait 5 s, return. | The scan carries on from where the clock is, with no jump or freeze; the verdict still arrives at the end of a revolution. | |
+
+Frame timing result (M6-6), paste the table here:
+
+```
+(paste summary.md)
+```
+
 ## Devices
 
 | Phone model | Android version / API level | Build | Date |
