@@ -96,6 +96,17 @@ final class ReplayLatest<T> {
     }
   }
 
+  /// Reports an error to every current listener. An error is not a value: it is
+  /// not replayed to a later listener and [latest] stays as it was. For an
+  /// upstream that can say "unreadable" or "failed" without having a state for
+  /// it; a listener without an `onError` handler gets it as an uncaught error.
+  void addError(Object error, [StackTrace? stackTrace]) {
+    if (_closed) return;
+    for (final listener in _listeners.toList()) {
+      listener.addError(error, stackTrace);
+    }
+  }
+
   /// Tells every listener the stream is done, and ignores later values. The
   /// hooks do not run: whoever closes it cleans up its own upstream.
   Future<void> close() {

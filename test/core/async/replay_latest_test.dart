@@ -349,4 +349,62 @@ void main() {
       });
     });
   });
+
+  group('ReplayLatest.addError', () {
+    test('reaches every current listener and keeps the stream open', () async {
+      final source = ReplayLatest<int>(0);
+      final a = <Object>[];
+      final b = <Object>[];
+      final seenA = <int>[];
+      final first = source.stream.listen(seenA.add, onError: a.add);
+      final second = source.stream.listen((_) {}, onError: b.add);
+      await pumpEventQueue();
+
+      source
+        ..addError(StateError('unreadable'))
+        ..add(1);
+      await pumpEventQueue();
+
+      expect(a.single, isA<StateError>());
+      expect(b.single, isA<StateError>());
+      expect(seenA, [0, 1], reason: 'values still follow an error');
+      await first.cancel();
+      await second.cancel();
+    });
+
+    test(
+      'is not a value: not replayed to a later listener, latest unchanged',
+      () async {
+        final source = ReplayLatest<int>(0)
+          ..add(5)
+          ..addError(StateError('unreadable'));
+        final seen = <int>[];
+        final errors = <Object>[];
+
+        final subscription = source.stream.listen(
+          seen.add,
+          onError: errors.add,
+        );
+        await pumpEventQueue();
+
+        expect(seen, [5]);
+        expect(errors, isEmpty);
+        expect(source.latest, 5);
+        await subscription.cancel();
+      },
+    );
+
+    test('is ignored once the source is closed', () async {
+      final source = ReplayLatest<int>(0);
+      final errors = <Object>[];
+      source.stream.listen((_) {}, onError: errors.add);
+      await pumpEventQueue();
+
+      await source.close();
+      source.addError(StateError('late'));
+      await pumpEventQueue();
+
+      expect(errors, isEmpty);
+    });
+  });
 }
