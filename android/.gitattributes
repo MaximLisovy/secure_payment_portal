@@ -1,0 +1,3 @@
+# Keep the Gradle scripts runnable on every platform: a shell script with LF, a batch file with CRLF.
+gradlew text eol=lf
+*.bat text eol=crlf

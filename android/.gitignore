@@ -1,8 +1,6 @@
-gradle-wrapper.jar
+# The Gradle wrapper (gradlew, gradlew.bat, gradle/wrapper/) is committed, so ./gradlew works on a fresh clone and in CI.
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
