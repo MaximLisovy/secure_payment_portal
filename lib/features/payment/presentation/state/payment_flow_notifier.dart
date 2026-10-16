@@ -6,6 +6,7 @@ import 'package:secure_payment_portal/features/payment/di/payment_providers.dart
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
+import 'package:secure_payment_portal/features/payment/presentation/state/scan_dwell_provider.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
 /// The payment flow as a state machine.
@@ -20,6 +21,13 @@ import 'package:secure_payment_portal/features/security/security.dart';
 /// `Failure`, `Cancelled` and `Success` go back to `SecurityCheck`. Security
 /// changes are applied only before confirming: once a payment is authorized, a
 /// recording that starts does not cancel it.
+///
+/// **The scan dwell.** While the check is shown, the verdict is held until the
+/// end of a revolution of the scan (`scanDwellProvider`): max(how long the check
+/// really took, one revolution), rounded up to the end of the current one. The
+/// held verdict is always the latest, and it is applied the moment it is
+/// released. Once released, later changes apply at once. Confirming is never
+/// delayed: the dwell belongs to the check the user watches.
 class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   PaymentDetails? _details;
   StreamSubscription<PaymentProgress>? _progressSubscription;
@@ -28,6 +36,12 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
 
   /// Bumped to drop a device check that is still waiting for the secure window.
   int _checkGeneration = 0;
+
+  /// Ticks at the end of each revolution of the scan while the check is shown.
+  Timer? _revolutions;
+
+  /// The latest verdict, held until a revolution ends.
+  PaymentFlowState? _heldVerdict;
 
   @override
   PaymentFlowState build() {
@@ -119,6 +133,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     final generation = ++_checkGeneration;
     unawaited(_statusSubscription?.cancel());
     _statusSubscription = null;
+    _startDwell();
     // The device status says whether the window is protected, so it is read only
     // once the window has answered. A failed answer is read and blocks payment;
     // an answer that has not come yet must not.
@@ -138,10 +153,36 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
         current is PaymentFlowReady ||
         current is PaymentFlowBlocked;
     if (!reviewing) return;
-    state = switch (ref.read(securityPolicyProvider).evaluate(status)) {
+    final verdict = switch (ref.read(securityPolicyProvider).evaluate(status)) {
       SecurityAllowed() => const PaymentFlowReady(),
       SecurityBlocked(:final reason) => PaymentFlowBlocked(reason),
     };
+    if (current is PaymentFlowSecurityCheck && _revolutions != null) {
+      _heldVerdict = verdict;
+      return;
+    }
+    state = verdict;
+  }
+
+  void _startDwell() {
+    _stopDwell();
+    final revolution = ref.read(scanDwellProvider);
+    if (revolution <= Duration.zero) return;
+    _revolutions = Timer.periodic(revolution, (_) => _onRevolutionEnd());
+  }
+
+  void _onRevolutionEnd() {
+    final verdict = _heldVerdict;
+    if (verdict == null) return; // Nothing to show yet: wait for the next one.
+    _stopDwell();
+    if (!ref.mounted || state is! PaymentFlowSecurityCheck) return;
+    state = verdict;
+  }
+
+  void _stopDwell() {
+    _revolutions?.cancel();
+    _revolutions = null;
+    _heldVerdict = null;
   }
 
   void _onProgress(PaymentProgress progress) {
@@ -192,6 +233,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _stopListening() {
+    _stopDwell();
     _checkGeneration++;
     unawaited(_progressSubscription?.cancel());
     unawaited(_statusSubscription?.cancel());

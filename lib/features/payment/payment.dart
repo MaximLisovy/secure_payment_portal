@@ -15,3 +15,4 @@ export 'package:secure_payment_portal/features/payment/presentation/sections/pay
 export 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart'
     show paymentInProgressProvider;
 export 'package:secure_payment_portal/features/payment/presentation/state/restart_payment_flow.dart';
+export 'package:secure_payment_portal/features/payment/presentation/state/scan_dwell_provider.dart';

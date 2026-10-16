@@ -16,6 +16,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_repository
 import 'package:secure_payment_portal/features/payment/domain/payment_result.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
+import 'package:secure_payment_portal/features/payment/presentation/state/scan_dwell_provider.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
@@ -679,6 +680,208 @@ void main() {
         declined.begin(async);
 
         expect(declined.states, [_idle, _checking, _ready]);
+      });
+    });
+  });
+
+  group('the scan dwell', () {
+    const revolution = Duration(seconds: 2);
+    final dwell = [scanDwellProvider.overrideWithValue(revolution)];
+
+    test('a quick verdict waits for the end of the first revolution', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+
+        h.begin(async);
+        expect(h.states, [_idle, _checking]);
+
+        async.elapse(revolution - const Duration(milliseconds: 1));
+        expect(h.states, [_idle, _checking]);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(h.states, [_idle, _checking, _ready]);
+        expectNoPendingTimers(async);
+      });
+    });
+
+    test(
+      'a verdict after the first revolution waits for the end of the next',
+      () {
+        fakeAsync((async) {
+          final h = FlowHarness.create(
+            security: FakeSecurityPlatformDataSource(
+              latency: const Duration(milliseconds: 2500),
+            ),
+            overrides: dwell,
+          );
+          h.protectWindow(async);
+
+          h.begin(async);
+          async.elapse(const Duration(milliseconds: 2500));
+          expect(h.states.last, _checking, reason: 'known, but mid-revolution');
+
+          async.elapse(const Duration(milliseconds: 1499));
+          expect(h.states.last, _checking);
+          async.elapse(const Duration(milliseconds: 1));
+          expect(h.states.last, _ready);
+        });
+      },
+    );
+
+    test('a block waits like a pass does', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(
+          security: FakeSecurityPlatformDataSource(status: rootedDto),
+          overrides: dwell,
+        );
+        h.protectWindow(async);
+
+        h.begin(async);
+        async.elapse(revolution - const Duration(milliseconds: 1));
+        expect(h.states.whereType<PaymentFlowBlocked>(), isEmpty);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(h.states.last, _blocked(SecurityBlockReason.rootDetected));
+      });
+    });
+
+    test('the latest verdict is the one shown, with nothing in between', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.begin(async);
+
+        async.elapse(const Duration(seconds: 1));
+        h.security.setScreenRecording(DetectionWire.detected);
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+
+        expect(h.states, [
+          _idle,
+          _checking,
+          _blocked(SecurityBlockReason.screenRecording),
+        ]);
+      });
+    });
+
+    test('after the verdict is shown, changes apply at once', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.begin(async);
+        async.elapse(revolution);
+        expect(h.states.last, _ready);
+
+        h.security.setScreenRecording(DetectionWire.detected);
+        async.flushMicrotasks();
+
+        expect(h.states.last, _blocked(SecurityBlockReason.screenRecording));
+      });
+    });
+
+    test('confirming is not delayed', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.begin(async);
+        async.elapse(revolution);
+        h.states.clear();
+
+        h.confirm(async);
+
+        expect(h.states, [_confirming, _processing(0)]);
+      });
+    });
+
+    test('checking again waits for a revolution again', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.security.setScreenRecording(DetectionWire.detected);
+        h.begin(async);
+        async.elapse(revolution);
+        expect(h.states.last, _blocked(SecurityBlockReason.screenRecording));
+        h.states.clear();
+
+        unawaited(h.flow.retry());
+        async.flushMicrotasks();
+        async.elapse(revolution - const Duration(milliseconds: 1));
+        expect(h.states, [_checking]);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(h.states, [
+          _checking,
+          _blocked(SecurityBlockReason.screenRecording),
+        ]);
+      });
+    });
+
+    test('a new bill starts a new revolution', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.begin(async);
+        async.elapse(const Duration(milliseconds: 1500));
+
+        h.begin(async, detailsWith([usdItem(500)]));
+        async.elapse(const Duration(milliseconds: 1500));
+        expect(
+          h.states.last,
+          _checking,
+          reason: 'only 1.5 s into the new bill',
+        );
+
+        async.elapse(const Duration(milliseconds: 500));
+        expect(h.states.last, _ready);
+      });
+    });
+
+    test('with no dwell the verdict is shown at once', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(
+          overrides: [scanDwellProvider.overrideWithValue(Duration.zero)],
+        );
+        h.protectWindow(async);
+
+        h.begin(async);
+
+        expect(h.states, [_idle, _checking, _ready]);
+      });
+    });
+
+    test('leaving the page before any verdict leaves no timer behind', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(
+          security: FakeSecurityPlatformDataSource(
+            latency: const Duration(seconds: 10),
+          ),
+          overrides: dwell,
+        );
+        h.protectWindow(async);
+        h.begin(async);
+        async.elapse(const Duration(seconds: 1));
+
+        h.container.dispose();
+        async.elapse(const Duration(seconds: 30));
+
+        expectNoPendingTimers(async);
+      });
+    });
+
+    test('leaving the page mid-revolution leaves no timer and no change', () {
+      fakeAsync((async) {
+        final h = FlowHarness.create(overrides: dwell);
+        h.protectWindow(async);
+        h.begin(async);
+        async.elapse(const Duration(seconds: 1));
+        final before = List.of(h.states);
+
+        h.container.dispose();
+        async.elapse(const Duration(seconds: 5));
+
+        expect(h.states, before);
+        expectNoPendingTimers(async);
       });
     });
   });
