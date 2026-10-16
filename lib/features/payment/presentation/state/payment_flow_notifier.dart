@@ -14,6 +14,10 @@ import 'package:secure_payment_portal/features/payment/presentation/state/scan_d
 import 'package:secure_payment_portal/features/payment/presentation/state/verdict_hold.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
+// Native progress replays immediately; 5 s tolerates channel activation without
+// leaving platforms with no plugin scanning indefinitely.
+const paymentStartupFirstEventDeadline = Duration(seconds: 5);
+
 /// Owns one bill and one payment attempt at a time. Side effects live in methods.
 /// A changed bill or disposal invalidates confirmation before it can start work.
 /// Only matching attempt events may advance processing; an acceptance error is
@@ -27,6 +31,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   StreamSubscription<PaymentProgress>? _progressSubscription;
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
+  Timer? _startupDeadline;
   int _confirmationGeneration = 0;
   PaymentConfirmationCancellation? _confirmationCancellation;
   String? _activeAttemptId;
@@ -54,6 +59,10 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     _details = details;
     state = const PaymentFlowIdle();
     _awaitingFirstProgress = true;
+    _startupDeadline = Timer(paymentStartupFirstEventDeadline, () {
+      if (!ref.mounted || !_awaitingFirstProgress) return;
+      state = const PaymentFlowUnavailable();
+    });
     _progressSubscription = ref
         .read(paymentRepositoryProvider)
         .watchProgress()
@@ -152,6 +161,12 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   /// for screen protection once more, in case that is why it was blocked.
   Future<void> retry() async {
     final current = state;
+    if (current is PaymentFlowUnavailable) {
+      final details = _details;
+      _details = null;
+      if (details != null) begin(details);
+      return;
+    }
     final canRetry =
         current is PaymentFlowFailure ||
         current is PaymentFlowCancelled ||
@@ -218,6 +233,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   void _onProgress(PaymentProgress progress) {
     if (!ref.mounted) return;
     if (_awaitingFirstProgress) {
+      _startupDeadline?.cancel();
       _awaitingFirstProgress = false;
       _onFirstProgress(progress);
       return;
@@ -297,6 +313,10 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   void _onFirstProgress(PaymentProgress progress) {
     final billId = _details?.id;
     switch (progress) {
+      case PaymentFailed()
+          when progress.attemptId == null || progress.paymentId == null:
+        state = const PaymentFlowUnavailable();
+        _awaitingFirstProgress = true;
       case PaymentInProgress(:final paymentId, :final percent)
           when paymentId == billId:
         _activeAttemptId = progress.attemptId;
@@ -311,6 +331,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _stopListening() {
+    _startupDeadline?.cancel();
+    _startupDeadline = null;
+    _awaitingFirstProgress = false;
     _reconciliation.stop();
     _confirmationCancellation?.cancel();
     _confirmationCancellation = null;

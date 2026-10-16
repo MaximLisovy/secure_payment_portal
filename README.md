@@ -347,9 +347,9 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 
 ## Known limitations
 
-- **Android only.** iOS compiles (a simulator build is checked) but has no native side: root detection resolves as
-  `unknown`, and the fail-closed policy blocks payment there by design. In a debug build, switch Device security to
-  *Simulated* to get a working screen on iOS or desktop.
+- **Android only.** iOS compiles (a simulator build was checked) but has no native side. A silent payment EventChannel
+  reaches a blocked, unavailable state after the 5 s startup deadline; security failures also block confirmation. This
+  makes startup fail closed rather than wait indefinitely. See the platform-channel contract for recovery behavior.
 - **Release APKs are debug-signed** (see [Release signing](#release-signing)).
 - **Root detection is heuristic** and can be bypassed (renamed packages, hiding tools); Play Integrity is out of scope.
 - **Screen recording detection needs Android 15.** Below it the state is `unknown` and allowed. It is **defense in depth**:

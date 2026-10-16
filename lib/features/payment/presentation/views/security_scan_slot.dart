@@ -24,6 +24,11 @@ class SecurityScanSlot extends ConsumerWidget {
         AppStrings.securityChecking,
         null,
       ),
+      PaymentFlowUnavailable() => (
+        ScanIndicatorStatus.blocked,
+        AppStrings.paymentStatusUnavailable,
+        null,
+      ),
       PaymentFlowBlocked(:final reason) => (
         ScanIndicatorStatus.blocked,
         AppStrings.message(reason.messageKey),
@@ -32,7 +37,8 @@ class SecurityScanSlot extends ConsumerWidget {
       _ => (ScanIndicatorStatus.verified, AppStrings.securityVerified, null),
     };
     final canRecheck =
-        state is PaymentFlowBlocked && state.reason.isRecoverable;
+        state is PaymentFlowUnavailable ||
+        (state is PaymentFlowBlocked && state.reason.isRecoverable);
 
     return SliverToBoxAdapter(
       child: Card(

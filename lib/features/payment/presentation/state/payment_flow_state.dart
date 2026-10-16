@@ -174,3 +174,12 @@ final class PaymentFlowCheckingStatus extends PaymentFlowState {
   @override
   List<Object?> get props => [expired, cancelRequested, cancellationFailure];
 }
+
+/// Progress could not initialize, so no payment can safely be confirmed.
+final class PaymentFlowUnavailable extends PaymentFlowState {
+  const PaymentFlowUnavailable();
+  @override
+  PaymentFlowPhase get phase => PaymentFlowPhase.review;
+  @override
+  List<Object?> get props => [];
+}

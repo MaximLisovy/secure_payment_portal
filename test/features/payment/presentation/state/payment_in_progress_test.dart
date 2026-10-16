@@ -29,6 +29,7 @@ void main() {
     // Every state of the flow, so a new one cannot be forgotten.
     final states = <PaymentFlowState, bool>{
       const PaymentFlowIdle(): false,
+      const PaymentFlowUnavailable(): false,
       const PaymentFlowSecurityCheck(): false,
       const PaymentFlowBlocked(SecurityBlockReason.rootDetected): false,
       const PaymentFlowReady(): false,

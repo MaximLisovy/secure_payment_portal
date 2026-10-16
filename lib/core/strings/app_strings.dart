@@ -56,6 +56,8 @@ abstract final class AppStrings {
   static const tryAgain = 'Try again';
   static const confirming = 'Starting payment…';
   static const processingTitle = 'Processing your payment';
+  static const paymentStatusUnavailable =
+      'Payment status is unavailable on this device, so payments are turned off.';
   static const checkingPaymentStatus = 'Checking payment status…';
   static const paymentStatusUnconfirmed =
       "We couldn't confirm the payment status";

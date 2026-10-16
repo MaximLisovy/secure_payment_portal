@@ -379,3 +379,11 @@ are bounded separately; expiry invalidates any outstanding reply. Running or idl
 snapshots do not prove completion. At expiry the UI says “We couldn't confirm the
 payment status”, advises checking payment history or contacting support, and keeps
 Cancel and late stream terminal recovery available without a payment retry.
+
+Before confirmation, the payment flow waits at most 5 s for the progress stream's
+first event. The native store normally replays immediately; the deadline tolerates
+activation delay but blocks unsupported platforms instead of scanning forever.
+Flutter reports a failed EventChannel activation through `FlutterError`, not the
+stream's `onError`; silence is therefore explicitly tested. Check again opens a
+fresh subscription and deadline. A late valid replay can also restore the current
+native attempt; mere silence never enables payment.

@@ -74,6 +74,16 @@ void main() {
       },
     );
   }
+  testWidgets('startup unavailable blocks Pay and offers a fresh check', (
+    tester,
+  ) async {
+    final flow = await _pumpIn(tester, const PaymentFlowUnavailable());
+    expect(find.text(AppStrings.paymentStatusUnavailable), findsOneWidget);
+    expect(_enabled(tester, _payButton()), isFalse);
+    expect(find.text(AppStrings.securityVerified), findsNothing);
+    await tester.tap(find.text(AppStrings.checkAgain));
+    expect(flow.calls, contains('retry'));
+  });
   group('review', () {
     testWidgets(
       'shows the scan while the device is being checked, pay disabled',
