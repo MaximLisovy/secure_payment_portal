@@ -7,7 +7,7 @@ import 'package:secure_payment_portal/features/payment/presentation/state/paymen
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 
 /// The pay action, pinned under the scrolling sections so it is always in
-/// reach, however long the bill. Enabled only when the device is verified.
+/// reach, however long the bill. Enabled only when security allows payment.
 class PayActionBar extends ConsumerWidget {
   const PayActionBar({super.key});
 

@@ -17,7 +17,7 @@ result, and a place for the outcome.
   manufacturer account). It holds the code of `90862ac`, so it **predates the last three code commits** (`086992c` request and
   brand layout, `d50d208` confirmation cancellation, `d572cff` invalidation when the host request changes). The run was not
   repeated on the final code. Both brands were looked at (a profile build has the brand switcher).
-- **Seen working:** the root check (the device was verified, Pay was enabled, payments went through); `FLAG_SECURE` (screenshots
+- **Seen working:** the root check ("No root indicators found" showed, Pay was enabled, payments went through); `FLAG_SECURE` (screenshots
   blocked by the system, the app blacked out in Recents, and the saved screen recording shows the app area black); the live progress notification and Cancel; backgrounding during a
   payment and returning (the progress was shown); both brands' look; the demo panel scenarios; no bugs noticed.
 - **Finding:** the phone's screen recorder did not make the app show a recording block, while the saved recording shows the app
@@ -75,13 +75,13 @@ the emulator window from outside the guest, so the payment screen shows.
 | # | Steps | Expected | Result |
 |---|---|---|---|
 | M4-1 | Open the demo panel (tune icon). Note the **Device reports** block: Root, Screen recording, Window protection. Close the panel. Open Quick Settings (swipe down twice), tap the **Screen record** tile (add it with the pencil icon if it is missing), choose **Record entire screen**, press **Start**. Go back to the app. Wait about two seconds. | The page shows **"Payment is paused while the screen is being recorded."** with the hint "This continues by itself when the recording stops.", and **Pay is disabled**. Reopen the panel: Screen recording says **Detected**. *Write down how many seconds it took.* | ❌ as written, and expected (see M4-5): with the system recorder running, nothing changed in the app and no recording block appeared. |
-| M4-2 | Stop the recording (status-bar chip, or the tile again). | Within about two seconds the page returns to **"This device is verified"** with Pay enabled, with no tap. The panel reads **Not detected**. | n/a: no block appeared, so there was nothing to clear. |
+| M4-2 | Stop the recording (status-bar chip, or the tile again). | Within about two seconds the page returns to **"No root indicators found"** with Pay enabled, with no tap. The panel reads **Not detected**. | n/a: no block appeared, so there was nothing to clear. |
 | M4-3 | Repeat M4-1 and M4-2 choosing **Record a single app** and picking the app. | Same as M4-1 and M4-2. *Write down whether it differs from entire-screen.* | *not tested*: which recording mode (entire screen or single app) was used was not noted. |
 | M4-4 | Open the recorded video (Photos or Files). | The app window is **black** in the video (`FLAG_SECURE`). The rest of the screen (status bar, shade) is visible. | ✅ The saved screen recording was checked on the phone: the app area is black. |
 | M4-5 | **If nothing changed in M4-1 and M4-3** (the readout stays Not detected the whole time): this is the finding "defense in depth". Report it as such. If it changed: report "verified". | The result decides the wording in the [platform contract](platform_channels.md#recording-callback-while-the-window-is-secure-defense-in-depth) and [Prompt Log highlight 3](ai/PROMPT_LOG.md#3-an-emulator-experiment-refuted-the-recording-hypothesis): *verified* (the callback fires with `FLAG_SECURE` on) or *defense in depth* (it never fires for a secure window; `FLAG_SECURE` already blacks the recording out). | **Defense in depth** (final). On Android 16 (ZTE RedMagic 10 Pro, the OEM recorder) the recording callback did not fire while `FLAG_SECURE` was set, and the saved recording shows the app area black (`M4-4`): `FLAG_SECURE` is **device-verified** against recording. The first hypothesis, that a secure window is left out of the callback, did **not** survive an emulator experiment: the stock recorder (Pixel_9, API 36) triggers the recording block with `FLAG_SECURE` on (4 of 4 runs) and off (3 of 3), while its capture of the secure window is black. So the silence on the phone more likely comes from the OEM recorder not being reported to the callback; that is **not proven** (it was not tried on the phone with a window without `FLAG_SECURE`). The detection stays as an extra layer that cannot be relied on across makers; `FLAG_SECURE` is the primary control. |
 | M4-6 | Press the hardware screenshot buttons on the payment screen. | The phone says it cannot take a screenshot because of the security policy (or saves a black image). The Recents (overview) card for the app is blank. | ✅ Screenshots are blocked by the system; the app is blacked out in Recents (swipe up). |
 | M4-7 | On a phone **below Android 15 (API 35)**, open the panel. | Screen recording reads **Unknown**, never Not detected. Starting a recording does **not** block the page. *Skip if the phone is on API 35 or above.* | n/a: the phone is on Android 16 (API 36). |
-| M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | ✅ Root: the device was verified, Pay was enabled and payments went through. The panel's Device reports block was not noted separately. |
+| M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | ✅ Root: "No root indicators found" showed, Pay was enabled and payments went through. The panel's Device reports block was not noted separately. |
 | M4-9 | Panel: switch **Device security** to *Simulated*, then back to *Real*. | The screen stays black in a screenshot attempt (M4-6) in both modes. Real shows the Device reports block again. | *not tested*: the demo panel scenarios worked, but the screenshot attempt in each source mode was not noted. |
 
 ## M5: payment foreground service
@@ -112,7 +112,7 @@ Covered by JVM tests only, not reproducible by hand: the refusal to start the se
 
 ## M6: the security scan
 
-What the emulator could check is in `docs/ai/AI_INSIGHT_REPORT.md` §4 (frame timing, profile mode) and in the tests (no
+What the emulator could check is in [the performance appendix](ai/appendix/performance.md#frame-timing) (frame timing, profile mode) and in the tests (no
 rebuilds, one repaint layer, the maths). `FLAG_SECURE` blacks out any screenshot of this page, so what the scan *looks like*
 in motion, and how it runs on real hardware, is for a person. Use a **profile** build
 (`flutter run --profile --flavor retail -d <phone>`; the demo panel is there). For a 120 Hz phone, check first that the display
@@ -120,7 +120,7 @@ really runs fast: `adb shell dumpsys display | grep -i "refreshRate\|fps"`, and 
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| M6-1 | **Retail.** Open the app (Retail flavor). Watch the security card from the moment the page appears. | A radar with a gold sweep turning clockwise and soft rings expanding from the centre. The sweep goes **all the way round once** (about 2.4 s), then fades into the shield and **"This device is verified"**, and Pay becomes enabled just then. No stutter, no flicker. | ✅ in part: both brands look right and no bug was noticed. The single revolution and the verdict timing were not itemised. |
+| M6-1 | **Retail.** Open the app (Retail flavor). Watch the security card from the moment the page appears. | A radar with a gold sweep turning clockwise and soft rings expanding from the centre. The sweep goes **all the way round once** (about 2.4 s), then fades into the shield and **"No root indicators found"**, and Pay becomes enabled just then. No stutter, no flicker. | ✅ in part: both brands look right and no bug was noticed. The single revolution and the verdict timing were not itemised. |
 | M6-2 | **Utility.** The same on the Utility flavor, or switch brand in the app bar. | The sky-blue sweep turns once in about 1.6 s with quicker rings. *Does it look frantic or fine? If it is too fast, say so: the minimum period is one constant.* | *not tested*: Utility's 1.6 s scan speed was not explicitly checked, so whether it looks frantic is still open. |
 | M6-3 | **Held scan.** Demo panel > Device security > **Simulated** > Device check takes **15 s**. Watch the card for the whole 15 s. | The sweep and the rings run smoothly for the whole time, with no stutter, no change in speed and no jump when the sweep passes the top. The grid, rings and ticks stay perfectly still. The verdict appears at the end of a revolution (up to a period after the 15 s). | *not tested*. |
 | M6-4 | **The loop has no seam.** During M6-3 watch at least three revolutions, looking at the top of the circle and at the centre. | No jump of the sweep when it passes 12 o'clock. A ring appears at the centre without popping and fades out at the rim without a visible cut. | *not tested*. |
@@ -175,7 +175,7 @@ These scenarios have automated coverage; the phone run of 2026-10-16 did not cov
 
 ### Requirements
 
-- Flutter 3.41.x (Dart 3.11.5, see `environment.sdk` in `pubspec.yaml`). CI pins 3.41.9.
+- Flutter 3.41.9 (Dart 3.11.5, see `environment.sdk` in `pubspec.yaml`), the version CI pins.
 - Android SDK 36.
 - **JDK 21** for Android builds: it is what CI and the author's machine use. The code targets Java 17 bytecode, but no
   other JDK was tried. JDK 25 is known to fail: Gradle configuration stops with `IllegalArgumentException: 25.0.1`
@@ -218,8 +218,8 @@ secrets), which is not part of this project.
 ```bash
 dart format --set-exit-if-changed lib test integration_test test_driver
 flutter analyze                                  # zero issues
-flutter test                                     # 888 Dart tests
-(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 226 Kotlin JVM tests
+flutter test                                     # 906 Dart tests
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 235 Kotlin JVM tests
 flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
 ```
 
@@ -252,7 +252,7 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
     ```bash
     python3 tool/test_payment_lifecycle.py --device emulator-5554
     ```
-  The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [the security scan](ai/appendix/performance.md#the-security-scan)) is a
+  The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [frame timing](ai/appendix/performance.md#frame-timing)) is a
   third device test, also outside CI.
 - **On a phone.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](MANUAL_QA.md).
   It was run once, on 2026-10-16, on a ZTE RedMagic 10 Pro (Android 16), with its results and the items *not tested* in the

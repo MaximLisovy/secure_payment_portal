@@ -6,9 +6,16 @@ A multi-tenant payment confirmation module built from one Flutter codebase, with
 apps. It combines configurable branding, native security checks, a foreground payment simulation and an isolated scan
 animation. There is no backend: payment APIs are simulated behind interfaces a real backend could implement.
 
-## Quickstart
+## Requirements
 
-Install Flutter 3.41.x, Android SDK 36 and JDK 21, then:
+- **JDK 21.** Point Flutter at it with `flutter config --jdk-dir="<path to JDK 21>"` and check `flutter doctor -v`. Raw Gradle
+  commands need `JAVA_HOME` set separately. Java bytecode targets 17, but builds were verified with JDK 21; JDK 25 fails
+  with the current Kotlin plugin.
+- **Flutter 3.41.9** (Dart 3.11.5), the version CI pins.
+- **Android SDK 36.**
+- `jq` for the packaging script; ImageMagick only to regenerate launcher icons.
+
+## Quickstart
 
 ```bash
 git clone https://github.com/MaximLisovy/secure_payment_portal.git
@@ -19,10 +26,7 @@ flutter run --flavor retail
 flutter run --flavor utility
 ```
 
-`--flavor` is required; there is no flavor-less APK. CI pins Flutter 3.41.9; the project uses Dart 3.11.5. Configure Flutter
-with `flutter config --jdk-dir="<path to JDK 21>"` and check `flutter doctor -v`. Raw Gradle commands need `JAVA_HOME`
-separately. Java bytecode targets 17, but builds were verified with JDK 21; JDK 25 fails with the current Kotlin plugin.
-The packaging script also needs `jq`; ImageMagick is needed only to regenerate launcher icons.
+`--flavor` is required; there is no flavor-less APK.
 
 To try the app without building, download your brand's APK from the
 [v1.0.0 GitHub Release](https://github.com/MaximLisovy/secure_payment_portal/releases/tag/v1.0.0).
@@ -141,7 +145,7 @@ flutter build apk --debug --flavor retail
 flutter build apk --debug --flavor utility
 ```
 
-Current validation includes 888 Dart tests and 226 Kotlin/JVM tests. Coverage spans domain policies, shared fake/channel
+Current validation includes 906 Dart tests and 235 Kotlin/JVM tests. Coverage spans domain policies, shared fake/channel
 contract suites, repository mapping, notifier races, widgets, every brand, native stores and lifecycle handling, manifest
 guards and documentation links. Targeted manual mutations found regression gaps that were fixed; no comprehensive mutation
 score is claimed.

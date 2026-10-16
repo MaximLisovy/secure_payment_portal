@@ -341,7 +341,7 @@ phone was observed by a person, not driven with `adb`; items marked *not tested*
 
 | Check | Result |
 |---|---|
-| Root check | the device was verified, Pay was enabled and payments went through |
+| Root check | “No root indicators found” showed, Pay was enabled and payments went through |
 | `FLAG_SECURE` | screenshots are blocked by the system; the app is blacked out in Recents |
 | Screen recording (the phone's own recorder) | no recording block appeared: **defense in depth**, see [above](#recording-callback-while-the-window-is-secure-defense-in-depth); the stock recorder on the emulator does trigger the block |
 | Saved screen recording | the app area is black: `FLAG_SECURE` is device-verified against recording |

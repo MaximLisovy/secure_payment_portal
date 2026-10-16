@@ -3,9 +3,9 @@
 Part of the [AI Insight Report](../AI_INSIGHT_REPORT.md). Numbers are from a Pixel_9 **emulator** (60 Hz). On a phone (ZTE RedMagic 10 Pro, Android 16) the performance overlay showed 120 FPS with no visible drops; the harness was not run there, so there are no phone numbers ([Manual QA](../../MANUAL_QA.md)).
 
 
-The security scan is a `CustomPainter` radar (a sweep and three staggered pulses) in `lib/core/design_system/scan/`. The goal: the display's own refresh rate, no widget rebuilt per frame, and nothing repainted outside the scan's own layer.
+The security scan is a `CustomPainter` radar (a sweep and three staggered pulses) in `lib/core/design_system/scan/`. Each brand's scan comes from its tokens with no brand check: glow, rings and pulse easing, and a period of four times `motion.slow` held between 1.6 s and 3 s (Retail 2.4 s with soft pulses, Utility 1.6 s with quick ones). The goal: the display's own refresh rate, no widget rebuilt per frame, and nothing repainted outside the scan's own layer.
 
-**What makes it cheap, and how each claim is checked.**
+## What makes it cheap, and how each claim is checked
 
 | Claim | How it is checked |
 |---|---|
@@ -18,7 +18,9 @@ The security scan is a `CustomPainter` radar (a sweep and three staggered pulses
 
 I ran mutation checks on the maths, the painters, the widget, the flow and the summary tool (change the code, see a test fail). Four mutants first survived and each got a test (the fractional part of a negative number, a painter rebuilt when only the reduced-motion setting changes, a timer left running after the page was left, a box whose size was read from the constant under test); one is left, and it is equivalent (it changes a condition that can never be true in the state it guards).
 
-**Frame timing.** `integration_test/scan_performance_test.dart`, `flutter drive --profile --no-dds`, every registered brand, each measured three times for 8 s after a 2 s warm-up, and the median reported. Four variants per brand: the real app with the scan running (`scan-in-app`), the scan alone on an empty page (`scan-alone`), Material's own `CircularProgressIndicator` alone on an empty page (`spinner-alone`, what a stock animated widget costs), and a layer that draws one dot per frame (`floor-alone`, the least any animating layer costs on this device, which the emulator needed to be read at all).
+## Frame timing
+
+`integration_test/scan_performance_test.dart`, run with `flutter drive --profile --no-dds` (below), every registered brand, each measured three times for 8 s after a 2 s warm-up, and the median reported. Four variants per brand: the real app with the scan running (`scan-in-app`), the scan alone on an empty page (`scan-alone`), Material's own `CircularProgressIndicator` alone on an empty page (`spinner-alone`, what a stock animated widget costs), and a layer that draws one dot per frame (`floor-alone`, the least any animating layer costs on this device, which the emulator needed to be read at all).
 
 | Brand | Variant | FPS | Build (ms): avg / p90 / worst | Raster (ms): avg / p90 / worst | Frames over 16.67 ms (build / raster) | New-gen GCs |
 |---|---|---|---|---|---|---|
@@ -33,6 +35,13 @@ I ran mutation checks on the maths, the painters, the widget, the flow and the s
 
 Pixel_9 emulator (Android 16, API 36, arm64, host GPU), **profile build**, 60 Hz display, 8 s recorded per run, median of 3 runs. `floor-alone` is a layer that repaints every frame and draws one dot: the least an animating layer can cost on this device.
 
+```bash
+flutter drive --profile --no-dds --flavor retail -d <device id> \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/scan_performance_test.dart \
+  --dart-define=DEVICE_NAME="<what to call the device>"      # about 6 minutes; writes build/scan_performance/summary.md
+```
+
 What the numbers say, and what they do not:
 
 - **UI thread.** The scan costs 1.07 to 1.18 ms per frame on average (p90 under 2 ms), against 0.92 to 1.08 ms for the one-dot floor and 1.40 ms for Material's own spinner. It adds about 0.1 to 0.2 ms to the least possible, and is cheaper than a stock widget. No frame went over the 16.67 ms budget on the UI thread in any run.
@@ -43,10 +52,13 @@ What the numbers say, and what they do not:
 - **Observed on a phone, not measured.** 120 FPS on the performance overlay, no visible drops, on a ZTE RedMagic 10 Pro (`M6-7`, qualitative). **Not claimed:** any frame-timing number for 90 or 120 Hz or a real GPU (the harness, `M6-6`, was not run on the phone), and anything about thermal behaviour or a low-power mode (`M6-9`, `M6-10`, not tested).
 
 
-**Unchanged verdict timing.** The flow reveals the verdict at the end of a scan revolution: at least one period,
-aligned to the current revolution, with the existing reduced-motion and final-confirmation exceptions. VerdictHold was not
-changed by the review fixes. The original decision is preserved in [the verdict-timing commit](https://github.com/MaximLisovy/secure_payment_portal/commit/8938a25).
+## Verdict timing
 
+The flow reveals the verdict at the end of a scan revolution: `max(how long the check took, one period)`, rounded up to the
+end of the revolution it finished in. Pay is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on a
+device that answers quickly. The wait is the brand's own period, so there is no number to configure. It is not applied with
+reduced motion (nothing sweeps), to the second check made when Pay is pressed, or in tests. The review fixes did not change
+it; the original decision is in [the verdict-timing commit](https://github.com/MaximLisovy/secure_payment_portal/commit/8938a25).
 
 ## Phone frame statistics
 
@@ -63,48 +75,3 @@ Hz and does not measure FPS. See the [manual steps](../../MANUAL_QA.md#in-app-fr
 
 These rows are placeholders for the developer's measurements. The earlier visual observation of 120 Hz is unchanged and
 is not substituted for timing data from this new readout.
-
-## The security scan
-
-While the device is being checked the security card shows a radar: a sweep that goes round once per period, with three
-pulses staggered a third of a period apart. It is a `CustomPainter` (`lib/core/design_system/scan/`), and all of its maths
-is a function of one number, the phase of the animation, documented in `scan_math.dart` (formulas, period, why it repeats
-without a seam).
-
-- **Each brand gets its own scan from its tokens, with no brand check.** `ScanStyle` reads the glow (`scanGlow`), the
-  rings (`outlineSubtle`) and the pulse easing (`motion.standard`), and sets the period to four times `motion.slow`, held
-  between 1.6 s and 3 s: Retail turns in 2.4 s with soft pulses, Utility in 1.6 s with quick ones.
-- **No rebuilds, one repaint layer.** A still backdrop and the moving part sit in two `RepaintBoundary`s; the moving painter
-  listens to the animation itself. `paint()` allocates nothing, and the ticker exists only while the scan is on screen.
-  With reduced motion the scan shows a still pose and nothing animates.
-- **The verdict waits for the sweep to go all the way round.** The flow holds the verdict until the end
-  of a revolution: `max(how long the check took, one period)`, rounded up to the end of the revolution it finished in. Pay
-  is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on any device that answers quickly. The wait is
-  the brand's own period, so there is no number to configure. It is not applied with reduced motion (nothing sweeps), not
-  to the second check made when Pay is pressed, and not in tests.
-
-### Performance
-
-Measured by `integration_test/scan_performance_test.dart` (`flutter drive --profile --no-dds`), per brand, median of three
-8 s runs, on a **Pixel_9 emulator** (profile build, 60 Hz). On a ZTE RedMagic 10 Pro (Android 16) the performance overlay
-showed 120 FPS with no visible drops: an observation, not a measurement, because the harness was not run on the phone, so
-there are no phone numbers ([docs/MANUAL_QA.md](../../MANUAL_QA.md)).
-
-| Variant | UI thread, avg (ms) | New-gen GCs in 8 s | Frames per second |
-|---|---|---|---|
-| the scan in the app, Retail | 1.15 | 2 | 60.3 |
-| the scan in the app, Utility | 1.18 | 2 | 59.1 |
-| a layer that draws one dot (the least possible) | 0.92 to 1.08 | 2 | 59.9 |
-| Material's own spinner | 1.40 | 6 | 59.4 to 59.9 |
-
-The scan costs about 0.1 to 0.2 ms more than the least an animating layer can cost, less than Material's spinner, and
-allocates as little as the floor. **Raster time on the emulator is not informative** (the one-dot layer also takes 13 to
-16 ms there, the emulator's swap path), so it is left out of the table; it and the whole method are in
-[the performance appendix](performance.md).
-
-```bash
-flutter drive --profile --no-dds --flavor retail -d <device id> \
-  --driver=test_driver/integration_test.dart \
-  --target=integration_test/scan_performance_test.dart \
-  --dart-define=DEVICE_NAME="<what to call the device>"      # about 6 minutes; writes build/scan_performance/summary.md
-```
