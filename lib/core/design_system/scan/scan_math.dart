@@ -13,7 +13,7 @@ import 'dart:math' as math;
 ///
 /// pulses    n = 3,  p_i(t) = frac(t + i/3)           progress of ring i, [0, 1)
 ///           radius_i  = R · clamp(ease(p_i), 0, 1)   ease = the brand's curve
-///           envelope  = (1 - p_i)² · smoothstep(0, 0.12, p_i)
+///           envelope  = (1 - p_i)² · smoothstep(0, 0.12, p_i)    (alpha = 0.8 · envelope)
 ///           stroke_i  = w · (1 - 0.5·p_i)
 /// ```
 ///
@@ -36,7 +36,7 @@ abstract final class ScanMath {
 
   /// Alpha of the sweep at its leading edge and of a pulse at its brightest.
   static const sweepPeakAlpha = 0.6;
-  static const pulsePeakAlpha = 0.55;
+  static const pulsePeakAlpha = 0.8;
 
   /// Share of its life a pulse spends fading in, so it never pops into view.
   static const pulseFadeIn = 0.12;

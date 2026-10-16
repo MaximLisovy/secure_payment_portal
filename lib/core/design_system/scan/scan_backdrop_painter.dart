@@ -40,7 +40,7 @@ class ScanBackdropPainter extends CustomPainter {
     }
     canvas
       ..drawPath(_marks, _trackPaint)
-      ..drawCircle(_center, _stroke * 1.5, _corePaint);
+      ..drawCircle(_center, _stroke * 1.25, _corePaint);
   }
 
   void _prepare(Size size) {
@@ -50,7 +50,7 @@ class ScanBackdropPainter extends CustomPainter {
     _stroke = side / 32;
     _radius = side / 2 - 2 * _stroke;
     _center = size.center(Offset.zero);
-    _trackPaint.strokeWidth = _stroke * 0.75;
+    _trackPaint.strokeWidth = _stroke * 0.5;
 
     _marks.reset();
     // The crosshair.
