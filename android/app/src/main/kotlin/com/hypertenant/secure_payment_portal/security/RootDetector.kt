@@ -4,6 +4,9 @@ import android.util.Log
 import com.hypertenant.secure_payment_portal.security.checks.CheckOutcome
 import com.hypertenant.secure_payment_portal.security.checks.RootCheck
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -11,7 +14,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -44,7 +46,11 @@ data class RootReport(
  * when no strong check completes conclusively, an otherwise clean result is UNKNOWN.
  * This may block a legitimate device whose strong probes are all unavailable.
  *
- * The checks run concurrently, so the whole call is bounded by one check's timeout.
+ * Probes run concurrently in a detector-owned IO scope, outside the awaiting scope.
+ * Each await is bounded by [perCheckTimeoutMillis], subject to caller scheduling.
+ * A blocking system call may keep its IO thread after timeout; its late result is
+ * abandoned, never joined into the reply. [close] cancels the probe scope on engine detach.
+ * This bounds waiting, not the lifetime of an uninterruptible operating-system call.
  */
 class RootDetector(
     private val checks: List<RootCheck>,
@@ -55,11 +61,13 @@ class RootDetector(
         Log.w(TAG, "root check $code failed: ${error.javaClass.simpleName}")
     },
 ) {
+    private val probes = CoroutineScope(SupervisorJob() + dispatcher)
+
+    fun close() = probes.cancel()
+
     suspend fun detect(): RootReport {
         val outcomes =
-            withContext(dispatcher) {
-                coroutineScope { checks.map { check -> async { runOne(check) } }.awaitAll() }
-            }
+            coroutineScope { checks.map { check -> async { runOne(check) } }.awaitAll() }
         val fired = checks.zip(outcomes).filter { (_, outcome) -> outcome == CheckOutcome.Fired }
         val state =
             when {
@@ -76,19 +84,26 @@ class RootDetector(
         )
     }
 
-    private suspend fun runOne(check: RootCheck): CheckOutcome =
-        try {
-            withTimeoutOrNull(perCheckTimeoutMillis) { check.run() } ?: CheckOutcome.Inconclusive
+    private suspend fun runOne(check: RootCheck): CheckOutcome {
+        // This worker is not a child of the caller: structured cancellation must
+        // not wait for a blocking File/PackageManager/process call to return.
+        val probe = probes.async { check.run() }
+        return try {
+            withTimeoutOrNull(perCheckTimeoutMillis) { probe.await() } ?: CheckOutcome.Inconclusive
         } catch (e: CancellationException) {
-            // Rethrown only if *we* were cancelled. A cancellation raised inside the check itself,
-            // such as its own withTimeout running out, is that check failing, nothing more.
+            // Caller cancellation propagates; a cancellation inside the probe
+            // (including its own timeout) is only an inconclusive check.
             currentCoroutineContext().ensureActive()
             onCheckFailed(check.code, e)
             CheckOutcome.Inconclusive
         } catch (e: Exception) {
             onCheckFailed(check.code, e)
             CheckOutcome.Inconclusive
+        } finally {
+            // cancel() does not join; a late blocking probe cannot extend waiting.
+            probe.cancel()
         }
+    }
 
     private companion object {
         const val TAG = "RootDetector"

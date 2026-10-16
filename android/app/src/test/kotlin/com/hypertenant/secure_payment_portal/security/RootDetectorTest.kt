@@ -2,6 +2,11 @@ package com.hypertenant.secure_payment_portal.security
 
 import com.hypertenant.secure_payment_portal.security.checks.CheckOutcome
 import com.hypertenant.secure_payment_portal.security.checks.RootCheck
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -15,6 +20,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.After
 
 private class FakeCheck(
     override val code: String,
@@ -29,6 +35,11 @@ private class FakeCheck(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RootDetectorTest {
+    private val detectors = mutableListOf<RootDetector>()
+
+    @After
+    fun closeDetectors() = detectors.forEach { it.close() }
+
     private val failures = mutableListOf<String>()
 
     private fun TestScope.detector(vararg checks: RootCheck, timeout: Long = 2_000) =
@@ -37,7 +48,37 @@ class RootDetectorTest {
             dispatcher = StandardTestDispatcher(testScheduler),
             perCheckTimeoutMillis = timeout,
             onCheckFailed = { code, error -> failures += "$code:${error.javaClass.simpleName}" },
+        ).also { detectors += it }
+
+    @Test(timeout = 5_000)
+    fun aTrulyBlockingProbeDoesNotExtendTheAwaitDeadline() = runBlocking {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val detector = RootDetector(
+            listOf(FakeCheck("blocking") {
+                entered.countDown()
+                // A finite safety limit makes a broken implementation fail,
+                // rather than hanging the test runner indefinitely.
+                release.await(2, TimeUnit.SECONDS)
+                CheckOutcome.Fired
+            }),
+            dispatcher = Dispatchers.IO,
+            perCheckTimeoutMillis = 200,
+            onCheckFailed = { _, _ -> },
         )
+        try {
+            lateinit var report: RootReport
+            val elapsed = measureTimeMillis { report = detector.detect() }
+            assertEquals(0L, entered.count)
+            assertEquals(RootReport(Detection.UNKNOWN, emptyList(), listOf("blocking")), report)
+            assertTrue("blocking probe extended waiting to ${elapsed}ms", elapsed < 1_000)
+            // The worker is still physically blocked when detection returns.
+            assertEquals(1L, release.count)
+        } finally {
+            release.countDown()
+            detector.close()
+        }
+    }
 
     @Test
     fun cleanWeakChecksWithInconclusiveStrongChecksAreUnknown() = runTest {

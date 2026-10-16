@@ -401,3 +401,10 @@ strong probe completes cleanly. Clean build tags/type alone yield `unknown`.
 `File.exists` cannot distinguish absent from inaccessible; counting false as a
 clean file check favors availability and may miss hidden root artifacts. The UI
 therefore says “No root indicators found”, not that the device is verified.
+
+Root probes run in a detector-owned IO scope outside the awaiting detection scope.
+Each wait times out after 2 s on the caller dispatcher; a blocking probe is
+abandoned without joining it, so it cannot extend the channel reply's wait.
+Late results do not change the returned report. Engine detach cancels the probe
+scope. A non-cooperative OS call may still occupy its IO thread until it returns:
+this deadline bounds waiting, not that call's physical lifetime.

@@ -31,6 +31,7 @@ class SecurityPlugin : FlutterPlugin, ActivityAware {
     private val windowController = SecureWindowController()
     private val recordingMonitor = ScreenRecordingMonitor()
     private var scope: CoroutineScope? = null
+    private var rootDetector: RootDetector? = null
     private var methods: MethodChannel? = null
     private var events: EventChannel? = null
 
@@ -38,6 +39,8 @@ class SecurityPlugin : FlutterPlugin, ActivityAware {
         val context = binding.applicationContext
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         this.scope = scope
+        val detector = RootDetector(defaultRootChecks(context))
+        rootDetector = detector
         val debuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
         methods =
@@ -45,7 +48,7 @@ class SecurityPlugin : FlutterPlugin, ActivityAware {
                 it.setMethodCallHandler(
                     SecurityMethodHandler(
                         scope = scope,
-                        rootDetector = RootDetector(defaultRootChecks(context)),
+                        rootDetector = detector,
                         windowController = windowController,
                         recordingMonitor = recordingMonitor,
                         // Debug builds only; the line holds states and reason codes, no user data.
@@ -67,6 +70,8 @@ class SecurityPlugin : FlutterPlugin, ActivityAware {
         recordingMonitor.stop()
         recordingMonitor.detach()
         windowController.detach()
+        rootDetector?.close()
+        rootDetector = null
         scope?.cancel()
         scope = null
     }
