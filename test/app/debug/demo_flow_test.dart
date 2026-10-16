@@ -13,8 +13,8 @@ import 'package:secure_payment_portal/features/payment/data/datasources/fake_pay
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
+import 'package:secure_payment_portal/features/security/domain/device_scenario.dart';
 import 'package:secure_payment_portal/features/security/domain/security_decision.dart';
-import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 
 import '../../helpers/fake_bills.dart';
 

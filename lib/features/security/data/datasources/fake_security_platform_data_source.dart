@@ -1,10 +1,11 @@
 import 'package:secure_payment_portal/core/async/replay_latest.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
+import 'package:secure_payment_portal/features/security/data/controls/security_scenario_control.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/screen_recording_dto.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/security_status_dto.dart';
-import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
+import 'package:secure_payment_portal/features/security/domain/device_scenario.dart';
 
 /// A scripted device: no platform channel. Deterministic: the same latency and
 /// state always give the same result. Use the `set…` methods to play a scenario

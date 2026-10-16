@@ -4,6 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
+import 'package:secure_payment_portal/features/payment/data/controls/payment_scenario_control.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';

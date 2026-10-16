@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
 
@@ -17,6 +18,7 @@ class SelectedPaymentId extends Notifier<String> {
   }
 
   /// Navigation or a host can supply any bill without changing the brand.
+  @visibleForTesting
   void select(String paymentId) {
     if (paymentId.trim().isEmpty) {
       throw ArgumentError.value(paymentId, 'paymentId', 'must not be empty');
@@ -25,6 +27,7 @@ class SelectedPaymentId extends Notifier<String> {
     state = paymentId;
   }
 
+  @visibleForTesting
   void useDemoDefault() {
     _explicitPaymentId = null;
     ref.invalidateSelf();

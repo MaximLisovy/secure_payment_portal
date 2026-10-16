@@ -7,17 +7,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.hypertenant.secure_payment_portal.bridge.NotificationPermissionWire
 import io.flutter.plugin.common.PluginRegistry
 import kotlinx.coroutines.CompletableDeferred
 
 /** The answer to a request for the notification permission. */
-enum class PermissionResult(val wire: String) {
-    GRANTED(NotificationPermissionWire.GRANTED),
-    DENIED(NotificationPermissionWire.DENIED),
+enum class PermissionResult {
+    GRANTED,
+    DENIED,
 
     /** Below API 33 there is no permission to ask for. */
-    NOT_REQUIRED(NotificationPermissionWire.NOT_REQUIRED),
+    NOT_REQUIRED,
 }
 
 interface NotificationPermission {

@@ -41,6 +41,7 @@ final class PaymentSectionRegistry {
     });
   }
 
+  @visibleForTesting
   bool supports(PaymentSectionSpec spec) =>
       _builders.containsKey(spec.runtimeType);
 

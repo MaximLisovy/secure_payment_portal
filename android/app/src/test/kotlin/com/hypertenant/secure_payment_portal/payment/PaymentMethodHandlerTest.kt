@@ -177,19 +177,14 @@ class PaymentMethodHandlerTest {
     }
 
     @Test
-    fun theNotificationPermissionAnswersWithTheWireValue() = runTest {
-        for ((answer, wire) in
-            listOf(
-                PermissionResult.GRANTED to "granted",
-                PermissionResult.DENIED to "denied",
-                PermissionResult.NOT_REQUIRED to "notRequired",
-            )) {
+    fun theNotificationPermissionReturnsCompletionWithoutSendingItsAnswer() = runTest {
+        for (answer in PermissionResult.entries) {
             val fresh = RecordingResult()
             handler(ScriptedPermission { answer })
                 .onMethodCall(MethodCall("requestNotificationPermission", null), fresh)
             advanceUntilIdle()
 
-            assertEquals(listOf("success($wire)"), fresh.replies)
+            assertEquals(listOf("success(null)"), fresh.replies)
         }
     }
 
@@ -203,7 +198,7 @@ class PaymentMethodHandlerTest {
         user.complete(PermissionResult.DENIED)
         advanceUntilIdle()
 
-        assertEquals(listOf("success(denied)"), result.replies)
+        assertEquals(listOf("success(null)"), result.replies)
     }
 
     @Test
@@ -211,7 +206,7 @@ class PaymentMethodHandlerTest {
         handler(ScriptedPermission { throw IllegalStateException("no activity") }).call("requestNotificationPermission")
         advanceUntilIdle()
 
-        assertEquals(listOf("success(denied)"), result.replies)
+        assertEquals(listOf("success(null)"), result.replies)
     }
 
     @Test
@@ -222,7 +217,7 @@ class PaymentMethodHandlerTest {
         advanceUntilIdle()
         handler.call("startPayment", startArgs())
 
-        assertEquals(listOf("success(denied)", "success(null)"), result.replies)
+        assertEquals(listOf("success(null)", "success(null)"), result.replies)
         assertTrue(store.state.value is PaymentProgress.Running)
     }
 

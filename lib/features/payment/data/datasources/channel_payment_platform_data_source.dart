@@ -98,11 +98,11 @@ final class ChannelPaymentPlatformDataSource
     return _progress.close();
   }
 
-  /// Asks, and ignores the answer. Not timed: the user may take a while.
+  /// Awaits interaction completion; no permission answer crosses the channel. Not timed: the user may take a while.
   @override
   Future<void> preparePayment() async {
     try {
-      await _methods.invokeMethod<Object?>(
+      await _methods.invokeMethod<void>(
         PaymentChannel.requestNotificationPermission,
       );
     } on PlatformException catch (error) {

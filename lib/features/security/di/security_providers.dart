@@ -1,17 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/security/data/controls/security_scenario_control.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/secure_window_controller_impl.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/security_status_repository_impl.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/domain/secure_window_controller.dart';
 import 'package:secure_payment_portal/features/security/domain/security_policy.dart';
-import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 import 'package:secure_payment_portal/features/security/domain/security_status_repository.dart';
 
-// The public providers of the security feature, all typed by domain
-// interfaces. Presentation and other features import these (through
-// `security.dart`) and never the data layer.
+export 'package:secure_payment_portal/features/security/data/controls/security_scenario_control.dart';
+
+// Repositories use domain interfaces. The simulation-only control is exposed
+// through DI for debug tooling; domain never imports it.
 
 final securityStatusRepositoryProvider = Provider<SecurityStatusRepository>(
   (ref) => SecurityStatusRepositoryImpl(

@@ -1,17 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/payment/data/controls/bill_backend_control.dart';
+import 'package:secure_payment_portal/features/payment/data/controls/payment_scenario_control.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_attempt_id.dart';
 import 'package:secure_payment_portal/features/payment/data/repositories/payment_repository_impl.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
-import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 import 'package:secure_payment_portal/features/payment/domain/confirm_payment.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
-import 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 import 'package:secure_payment_portal/features/payment/presentation/config/payment_screen_config.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
-// The public providers of the payment feature, typed by domain types.
+export 'package:secure_payment_portal/features/payment/data/controls/bill_backend_control.dart';
+export 'package:secure_payment_portal/features/payment/data/controls/payment_scenario_control.dart';
+
+// Repositories use domain interfaces; debug controls use simulation-only data contracts.
 
 /// The screen's layout. The feature never knows which brand it runs
 /// in: the composition root overrides this with the active brand's config.

@@ -77,7 +77,8 @@ const retailBrand = BrandConfig(
       SummarySpec(),
       PromoBannerSpec(
         headline: 'Welcome offer',
-        body: 'WELCOME10 is applied: 10% off your first order.',
+        body:
+            'Demo code WELCOME10. Any applied discount is included in the bill total.',
       ),
     ],
   ),

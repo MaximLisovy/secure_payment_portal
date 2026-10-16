@@ -57,9 +57,6 @@ final class NativePaymentSimulator {
 
   // --- What the "device" does. ---
 
-  /// What `requestNotificationPermission` answers.
-  String permissionAnswer = NotificationPermissionWire.granted;
-
   /// How long the permission prompt stays up before it is answered.
   Duration permissionDelay = Duration.zero;
 
@@ -100,7 +97,7 @@ final class NativePaymentSimulator {
         if (permissionFails) {
           throw PlatformException(code: 'INTERNAL', message: nativeCanary);
         }
-        return permissionAnswer;
+        return null;
       case PaymentChannel.startPayment:
         if (hangOnStart) return Completer<Object?>().future;
         final failure = startFailsWith;

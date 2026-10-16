@@ -86,34 +86,6 @@ void main() {
         });
       });
 
-      for (final answer in [
-        NotificationPermissionWire.granted,
-        NotificationPermissionWire.denied,
-        NotificationPermissionWire.notRequired,
-      ]) {
-        test('the payment starts when the answer is $answer', () {
-          fakeAsync((async) {
-            final service = _service()..permissionAnswer = answer;
-            final source = _source();
-            final events = <PaymentProgressDto>[];
-            source.watchProgress().listen(events.add);
-
-            final start = FutureProbe(
-              source.preparePayment().then(
-                (_) => source.startPayment(_request),
-              ),
-            );
-            async.flushMicrotasks();
-
-            expect(start.isDone && start.error == null, isTrue);
-            expect(events.last.state, PaymentChannel.stateRunning);
-            expect(service.calls, contains(PaymentChannel.startPayment));
-            unawaited(source.cancelPayment(attemptId: 'attempt-1'));
-            async.flushMicrotasks();
-          });
-        });
-      }
-
       test('a permission call that fails does not stop the payment', () {
         fakeAsync((async) {
           final service = _service()..permissionFails = true;

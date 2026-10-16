@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
+import 'package:secure_payment_portal/features/payment/data/controls/bill_backend_control.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
-import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 
 import '../../../../helpers/fake_bills.dart';
 

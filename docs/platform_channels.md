@@ -44,7 +44,7 @@ They never depend on the `applicationId`, which differs per flavor.
 | `…/payment` | Method | `startPayment` | map: `schemaVersion`, `paymentId`, `attemptId`, `amountMinor`, `currency` | `null` once processing was **accepted** | `ALREADY_RUNNING`, `START_NOT_ALLOWED`, `INVALID_ARGS` | Foreground service started from a user action while the app is visible. |
 | `…/payment` | Method | `getPaymentSnapshot` | map: `schemaVersion`, `attemptId` | progress map for the matching attempt, otherwise `idle` | `INVALID_ARGS`, `INTERNAL` | Reads the store once; no service start or mutation. |
 | `…/payment` | Method | `cancelPayment` | map: `schemaVersion`, `attemptId` | `null` | `INVALID_ARGS`, `INTERNAL` | A stale attempt ID is a no-op. |
-| `…/payment` | Method | `requestNotificationPermission` | none | string: `granted`, `denied` or `notRequired` | — (never fails) | Runtime permission from API 33; `notRequired` below. Called by the Dart data source before `startPayment`. |
+| `…/payment` | Method | `requestNotificationPermission` | none | `null` after interaction completes | — (never fails) | Runtime permission from API 33; no prompt below. Called by the Dart data source before `startPayment`. |
 | `…/payment/progress` | Event | payment progress | none | map: `schemaVersion`, `state`, plus the fields of that state | — | Fed by the service's process-wide state. |
 
 Unknown method → `notImplemented`. Bad arguments → `INVALID_ARGS`. The engine never crashes.
@@ -101,11 +101,12 @@ text is native resources (flavor `app_name` via `resValue`).
 
 ### `requestNotificationPermission` reply
 
-A string: `granted`, `denied`, or `notRequired` (below API 33). It never fails: with no Activity to
-show the prompt, or if anything goes wrong, the answer is `denied`. **Denial never stops a
-payment**: the foreground service runs without its notification being shown, and Dart still
-receives the progress. The use case calls repository preparation first, which asks through the data source, then makes a fresh security read before `startPayment`. It ignores the permission
-answer; the system decides whether a prompt appears (it stops showing one after repeated denials).
+The reply is `null` after interaction completes. Granted/denied/not-required stay
+inside native code; Dart does not use or receive the answer. With no Activity or
+a prompt failure the call still completes. Denial never stops processing: Android
+controls notification visibility while Dart continues receiving progress. Repository
+preparation awaits the interaction, then the use case makes a fresh security read
+before `startPayment`. The OS decides whether to show a prompt after repeated denials.
 
 ### Payment progress event
 

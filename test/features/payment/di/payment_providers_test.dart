@@ -222,7 +222,7 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(methods, (call) async {
             if (call.method == PaymentChannel.requestNotificationPermission) {
-              return NotificationPermissionWire.granted;
+              return null;
             }
             throw PlatformException(code: 'BROKEN', message: 'card 4111');
           });

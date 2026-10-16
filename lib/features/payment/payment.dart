@@ -6,10 +6,11 @@ export 'package:secure_payment_portal/features/payment/di/payment_data_source_pr
     show paymentSourceModeProvider;
 export 'package:secure_payment_portal/features/payment/di/payment_providers.dart'
     show
+        BillBackendControl,
+        PaymentScenarioControl,
         billBackendControlProvider,
         paymentScenarioControlProvider,
         paymentIdProvider;
-export 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 export 'package:secure_payment_portal/features/payment/domain/payment_details.dart'
     show BillLineItem, LineItemKind;
 export 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';

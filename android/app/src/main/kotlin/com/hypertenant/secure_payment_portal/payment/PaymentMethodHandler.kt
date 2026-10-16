@@ -76,15 +76,17 @@ class PaymentMethodHandler(
 
     private fun requestPermission(result: SafeResult) {
         scope.launch {
-            val answer =
-                try {
-                    permission.request()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    PermissionResult.DENIED
-                }
-            result.success(answer.wire)
+            try {
+                permission.request()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // An optional prompt failure also counts as interaction complete.
+                result.success(null)
+                return@launch
+            }
+            // Permission affects Android notifications only; Dart awaits completion.
+            result.success(null)
         }
     }
 
