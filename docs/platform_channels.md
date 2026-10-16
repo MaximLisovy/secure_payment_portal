@@ -308,4 +308,4 @@ battery saver and Doze.
 
 ## Validation after the attempt-isolation fix
 
-The v2 schema and service coordinator were verified by Dart contract tests, JVM tests and APK builds. The older device observations above describe the v1 implementation; the new rapid cancel/retry and stale-notification scenarios still require the manual run in [Manual QA](MANUAL_QA.md). No new 120 Hz or physical-device evidence is implied by the schema migration.
+The v2 schema and service coordinator were verified by Dart contract tests, JVM tests and debug/release APK builds for both brands. The older device observations above describe the v1 implementation; the new rapid cancel/retry and stale-notification scenarios still require the manual run in [Manual QA](MANUAL_QA.md). No new 120 Hz or physical-device evidence is implied by the schema migration.

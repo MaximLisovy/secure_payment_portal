@@ -351,3 +351,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 844 Dart tests, 220 JVM tests, zero-issue Flutter analysis, clean formatting and both rebuilt debug APKs. Android Lint: zero errors, only the two pre-existing pinned-version warnings. Commit: chore: clear the Android KTX lint warning.
 
 ---
+
+### 16. Validate release APKs after authorized plugin regeneration — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** resolve the release-validation blocker recorded in entry 13 and build current schema-v2 APKs for both brands.
+- **Prompt (key part, verbatim):**
+  > да, давай попробуем
+- **Context given:** explicit approval to let Flutter regenerate GeneratedPluginRegistrant.java through ordinary release builds; previous stale integration_test registration failure; Android native rules and review checklist.
+- **AI output (summary):** ran flutter build apk --release --flavor retail and the corresponding utility command without --no-pub. Flutter refreshed its own plugin registration; the release registrant no longer references the dev-only integration_test plugin. Both builds succeeded without manually editing generated files. Updated the current validation status in the AI Insight Report, review appendix and channel documentation; retained the earlier log entries as historical records.
+- **Assumptions & risks flagged by the agent:** these are locally built review APKs with the existing debug signing configuration. No signing settings, dependencies, iOS files or source code changed. Physical-device, rapid cancel/retry, stale-notification and high-refresh-rate checks remain pending in Manual QA; successful compilation does not establish those results.
+- **Corrections made (AI suggestion → problem → correction):** the initial --no-pub release attempt reused a stale dev-plugin registration → the developer authorized standard Flutter regeneration, and ordinary release build commands succeeded. No manual generated-file workaround was needed.
+- **Developer review:** explicitly approved the regeneration retry before execution.
+- **Result:** retail release APK: 45,345,302 bytes; utility release APK: 45,342,654 bytes, both under build/app/outputs/flutter-apk/. Release Android Lint: zero errors and the same two existing pinned-version warnings. Documentation links and anchors pass. The earlier 844 Dart tests, 220 JVM tests, format/analyze and debug-build checks remain the evidence for unchanged source code. Commit: docs: record successful release validation.
+
+---

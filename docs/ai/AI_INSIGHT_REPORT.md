@@ -24,7 +24,7 @@ Regressions cover late progress, success, failure and rollback after retry; stal
 
 The attempt ID is not server idempotency or durable recovery. The [production-payments appendix](appendix/payments-in-production.md) describes those unimplemented requirements. This task has no backend and moves no real money.
 
-Current follow-up validation: **844 Dart tests**, **220 Kotlin/JVM tests**, clean formatting and Flutter analysis, and Android Lint with no errors. Both schema-v2 debug APKs build; release validation remains pending after a stale generated integration-test registration blocked compilation and the regeneration retry was not approved. APK validation and the remaining device-only checks are recorded in the [Prompt Log](PROMPT_LOG.md) and [Manual QA](../MANUAL_QA.md).
+Current follow-up validation: **844 Dart tests**, **220 Kotlin/JVM tests**, clean formatting and Flutter analysis, and Android Lint with no errors. Both schema-v2 debug and release APKs build. After explicit permission to let Flutter regenerate plugin registration, ordinary release build commands resolved the earlier stale integration-test registration failure without manual generated-file edits. APK validation and the remaining device-only checks are recorded in the [Prompt Log](PROMPT_LOG.md) and [Manual QA](../MANUAL_QA.md).
 
 ## 4. Performance evidence
 
