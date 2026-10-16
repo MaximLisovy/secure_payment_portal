@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/debug/demo_scenarios_panel.dart';
+import 'package:secure_payment_portal/app/debug/performance_overlay_provider.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
@@ -127,6 +128,38 @@ void main() {
       expect(sources.security.recordingActive, isFalse);
     });
 
+    testWidgets('the check duration steers how long the device takes', (
+      tester,
+    ) async {
+      final sources = await _pumpPanel(tester);
+
+      await tester.tap(
+        find.text(AppStrings.demoSeconds(const Duration(seconds: 5))),
+      );
+      await tester.pump();
+
+      expect(sources.security.checkDuration, const Duration(seconds: 5));
+      expect(
+        tester
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '5 s'))
+            .selected,
+        isTrue,
+      );
+    });
+
+    testWidgets('the shortest duration offered is the simulation own pace', (
+      tester,
+    ) async {
+      final sources = await _pumpPanel(tester);
+
+      await tester.tap(
+        find.text(AppStrings.demoSeconds(fakeSecurityScanLatency)),
+      );
+      await tester.pump();
+
+      expect(sources.security.checkDuration, fakeSecurityScanLatency);
+    });
+
     testWidgets('a payment outcome steers the simulated processing', (
       tester,
     ) async {
@@ -149,6 +182,28 @@ void main() {
       await tester.pump();
 
       expect(sources.remote.online, isFalse);
+    });
+  });
+
+  group('the performance overlay', () {
+    testWidgets('is switched on and off from the panel', (tester) async {
+      await _pumpPanel(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(DemoScenariosPanel)),
+      );
+      final overlay = find.widgetWithText(
+        SwitchListTile,
+        AppStrings.demoPerformanceOverlay,
+      );
+      expect(container.read(showPerformanceOverlayProvider), isFalse);
+
+      await tester.tap(overlay);
+      await tester.pump();
+      expect(container.read(showPerformanceOverlayProvider), isTrue);
+
+      await tester.tap(overlay);
+      await tester.pump();
+      expect(container.read(showPerformanceOverlayProvider), isFalse);
     });
   });
 
@@ -242,6 +297,7 @@ void main() {
         expect(find.text(AppStrings.demoReportInactive), findsOneWidget);
         // Nothing to play on a real device.
         expect(find.text(AppStrings.demoDeviceRooted), findsNothing);
+        expect(find.text(AppStrings.demoCheckTakes), findsNothing);
       },
     );
 

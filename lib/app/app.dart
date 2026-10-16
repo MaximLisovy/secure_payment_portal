@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
 import 'package:secure_payment_portal/app/debug/brand_switcher.dart';
 import 'package:secure_payment_portal/app/debug/demo_scenarios_button.dart';
+import 'package:secure_payment_portal/app/debug/performance_overlay_provider.dart';
 import 'package:secure_payment_portal/app/debug/simulation_badge.dart';
 import 'package:secure_payment_portal/features/payment/payment.dart';
 
@@ -21,9 +22,11 @@ class App extends ConsumerWidget {
     final motion = ref.watch(
       activeBrandProvider.select((brand) => brand.tokens.motion),
     );
+    final showOverlay = ref.watch(showPerformanceOverlayProvider);
     return MaterialApp(
       title: title,
       theme: theme,
+      showPerformanceOverlay: showOverlay,
       themeAnimationDuration: motion.medium,
       themeAnimationCurve: motion.standard,
       debugShowCheckedModeBanner: false,

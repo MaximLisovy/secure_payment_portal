@@ -34,6 +34,9 @@ abstract final class AppStrings {
   static const demoPaymentEnds = 'Payment ends';
   static const demoBackendOnline = 'Backend online';
   static const demoRestart = 'Restart payment';
+  static const demoCheckTakes = 'Device check takes';
+  static const demoDisplaySection = 'Display';
+  static const demoPerformanceOverlay = 'Performance overlay';
 
   static const demoDeviceClean = 'Clean';
   static const demoDeviceRooted = 'Rooted';
@@ -69,6 +72,12 @@ abstract final class AppStrings {
   static String percentLabel(int percent) => '$percent%';
 
   static String progressSemantics(int percent) => '$percent percent complete';
+
+  /// A length of time for the demo panel: "5 s", "1.5 s".
+  static String demoSeconds(Duration duration) {
+    final seconds = duration.inMilliseconds / Duration.millisecondsPerSecond;
+    return '${seconds == seconds.roundToDouble() ? seconds.round() : seconds} s';
+  }
 
   /// Extra guidance under a block, for the reasons that lift by themselves.
   static String? blockedHint(String key) => switch (key) {

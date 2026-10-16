@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/debug/demo_device_report.dart';
 import 'package:secure_payment_portal/app/debug/demo_panel_widgets.dart';
+import 'package:secure_payment_portal/app/debug/performance_overlay_provider.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
 import 'package:secure_payment_portal/features/payment/payment.dart';
@@ -115,6 +116,17 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                     ),
                   ),
 
+                  // The scan stays on screen for at least a revolution whatever the
+                  // reading takes; a longer one holds it longer, for a recording.
+                  DemoChoice<Duration>(
+                    label: AppStrings.demoCheckTakes,
+                    values: _checkDurations,
+                    selected: security.checkDuration,
+                    nameOf: AppStrings.demoSeconds,
+                    onSelected: (duration) =>
+                        _apply(() => security.setCheckDuration(duration)),
+                  ),
+
                   // A reading, not the window: the real flag stays on. The status
                   // is read when the flow starts, so it restarts.
                   SwitchListTile(
@@ -172,6 +184,19 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                 ),
               ],
             ),
+            DemoSection(
+              title: AppStrings.demoDisplaySection,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(AppStrings.demoPerformanceOverlay),
+                  value: ref.watch(showPerformanceOverlayProvider),
+                  onChanged: (visible) => ref
+                      .read(showPerformanceOverlayProvider.notifier)
+                      .set(visible: visible),
+                ),
+              ],
+            ),
             SizedBox(height: density.spaceMd),
             OutlinedButton(
               onPressed: _restart,
@@ -183,6 +208,13 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
     );
   }
 }
+
+/// The readings a demo can pick: the simulation's own pace, then longer holds.
+const _checkDurations = [
+  Duration(milliseconds: 1500),
+  Duration(seconds: 5),
+  Duration(seconds: 15),
+];
 
 String _deviceLabel(DeviceScenario scenario) => switch (scenario) {
   DeviceScenario.clean => AppStrings.demoDeviceClean,

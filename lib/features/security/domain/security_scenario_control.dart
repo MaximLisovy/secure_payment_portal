@@ -34,4 +34,10 @@ abstract interface class SecurityScenarioControl {
   bool get screenProtectionAvailable;
 
   void setScreenProtectionAvailable({required bool available});
+
+  /// How long reading the device takes. A longer reading keeps the security
+  /// scan on screen longer, which a demo can use.
+  Duration get checkDuration;
+
+  void setCheckDuration(Duration duration);
 }

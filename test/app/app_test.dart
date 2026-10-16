@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/app.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
+import 'package:secure_payment_portal/app/debug/performance_overlay_provider.dart';
 import 'package:secure_payment_portal/app/di/root_overrides.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
@@ -86,6 +87,24 @@ void main() {
 
     expect(find.text('Invoice 2026-10'), findsOneWidget);
     expect(find.text('Order #1042'), findsNothing);
+  });
+
+  testWidgets('shows the performance overlay only when asked to', (
+    tester,
+  ) async {
+    final container = await _pumpApp(tester, retailBrand);
+    bool overlay() => tester
+        .widget<MaterialApp>(find.byType(MaterialApp))
+        .showPerformanceOverlay;
+    expect(overlay(), isFalse);
+
+    container.read(showPerformanceOverlayProvider.notifier).set(visible: true);
+    await tester.pump();
+    expect(overlay(), isTrue);
+
+    container.read(showPerformanceOverlayProvider.notifier).set(visible: false);
+    await tester.pump();
+    expect(overlay(), isFalse);
   });
 
   testWidgets('the brand switcher lists every registered brand and switches', (

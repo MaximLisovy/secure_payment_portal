@@ -40,7 +40,7 @@ final class FakeSecurityPlatformDataSource
   );
 
   /// How long `getSecurityStatus` takes. Lets a UI show a scan in progress.
-  final Duration latency;
+  Duration latency;
 
   /// How long `enableSecureWindow` takes to answer. Lets a test or a demo show a
   /// screen whose protection has been asked for but not yet confirmed.
@@ -86,6 +86,12 @@ final class FakeSecurityPlatformDataSource
   @override
   void setScreenProtectionAvailable({required bool available}) =>
       _windowProtectionWorks = available;
+
+  @override
+  Duration get checkDuration => latency;
+
+  @override
+  void setCheckDuration(Duration duration) => latency = duration;
 
   @override
   DeviceScenario get deviceScenario => _deviceScenario;

@@ -57,6 +57,20 @@ void main() {
     });
   });
 
+  group('AppStrings.demoSeconds', () {
+    test('writes whole seconds without a fraction', () {
+      expect(AppStrings.demoSeconds(const Duration(seconds: 5)), '5 s');
+      expect(AppStrings.demoSeconds(Duration.zero), '0 s');
+    });
+
+    test('keeps a fraction of a second', () {
+      expect(
+        AppStrings.demoSeconds(const Duration(milliseconds: 1500)),
+        '1.5 s',
+      );
+    });
+  });
+
   group('AppStrings.blockedHint', () {
     test('only reasons that lift by themselves have a hint', () {
       for (final reason in SecurityBlockReason.values) {

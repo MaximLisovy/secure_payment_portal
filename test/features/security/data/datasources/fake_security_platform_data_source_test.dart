@@ -223,6 +223,23 @@ void main() {
       });
     }
 
+    test('the check takes as long as the control says, and reports it', () {
+      fakeAsync((async) {
+        final fake = FakeSecurityPlatformDataSource();
+        expect(controlOf(fake).checkDuration, Duration.zero);
+
+        controlOf(fake).setCheckDuration(const Duration(seconds: 5));
+        expect(controlOf(fake).checkDuration, const Duration(seconds: 5));
+        var done = false;
+        unawaited(fake.getSecurityStatus().then((_) => done = true));
+
+        async.elapse(const Duration(seconds: 4));
+        expect(done, isFalse);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isTrue);
+      });
+    });
+
     test('every scenario is covered by the table above', () {
       expect(expectedRoot.keys, unorderedEquals(DeviceScenario.values));
     });
