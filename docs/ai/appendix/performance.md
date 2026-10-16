@@ -44,3 +44,20 @@ What the numbers say, and what they do not:
 
 
 **Design note: the verdict waits for a revolution.** A real device check takes a fraction of a second, so a scan that ran only for the check would be a flash that nobody sees, least of all in a release build with no demo panel. The payment flow therefore holds its verdict until the end of the current revolution of the sweep: `max(actual check time, one period)`, rounded up to the end of the revolution the check finished in. The wait is the brand's own period (four times `motion.slow`, held between 1.6 s and 3 s), so there is no number to configure and no brand check; the cost is that Pay is enabled 1.6 to 2.4 s after the check starts, and a check that takes 2.5 s on a 2.4 s period is shown at 4.8 s. A short, visible check is also a common way to make a security step feel real. Three limits keep it honest: it is not applied for a user who reduced motion (nothing sweeps), not to the second check made when Pay is pressed (the payment is not delayed), and not in tests. The hold lives in the flow's notifier as a timer, not in the animation: Pay and the card read the same state, so they can never disagree, and the tests need no real clock. The animation and the timer start within a frame of each other, and the sweep keeps turning through the fade, so the revolution completes on screen.
+
+
+## Phone frame statistics
+
+The debug/profile demo panel now collects SchedulerBinding frame timings without ADB. It uses a rolling 600-frame window,
+nearest-rank percentiles and independent build/raster distributions; Reset clears samples and count. Values update once per
+second in a small leaf, with no per-frame provider publication. Collection continues with the panel closed. These are whole-app
+measurements (including panel transitions), separate from the isolated on-device scan harness above. The display field reports
+Hz and does not measure FPS. See the [manual steps](../../MANUAL_QA.md#in-app-frame-statistics-without-adb-debugprofile).
+
+| Phone / OS | Flavor / scenario | Display Hz | Frames / window | Build p50 / p90 / p99 / worst (ms) | Raster p50 / p90 / p99 / worst (ms) |
+|---|---|---|---|---|---|
+| ZTE RedMagic 10 Pro / Android 16 | retail profile | not measured | not measured | not measured | not measured |
+| ZTE RedMagic 10 Pro / Android 16 | utility profile | not measured | not measured | not measured | not measured |
+
+These rows are placeholders for the developer's measurements. The earlier visual observation of 120 Hz is unchanged and
+is not substituted for timing data from this new readout.

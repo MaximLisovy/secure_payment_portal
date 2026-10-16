@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/app/debug/demo_device_report.dart';
 import 'package:secure_payment_portal/app/debug/demo_panel_widgets.dart';
+import 'package:secure_payment_portal/app/debug/frame_stats_readout.dart';
 import 'package:secure_payment_portal/app/debug/performance_overlay_provider.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
@@ -195,6 +196,7 @@ class _DemoScenariosPanelState extends ConsumerState<DemoScenariosPanel> {
                       .read(showPerformanceOverlayProvider.notifier)
                       .set(visible: visible),
                 ),
+                const FrameStatsReadout(),
               ],
             ),
             SizedBox(height: density.spaceMd),

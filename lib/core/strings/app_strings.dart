@@ -8,7 +8,7 @@ abstract final class AppStrings {
       'Some of this app is running on a simulation, not on real services.';
   static const demoScenarios = 'Demo scenarios';
   static const demoIntro =
-      'Debug builds only. Pick what is real and what is simulated, and play '
+      'Debug and profile builds. Pick what is real and what is simulated, and play '
       'situations the real device or backend would be hard to put in.';
   static const demoSourcesLocked =
       'Sources cannot be switched while a payment is in progress.';
@@ -37,6 +37,19 @@ abstract final class AppStrings {
   static const demoCheckTakes = 'Device check takes';
   static const demoDisplaySection = 'Display';
   static const demoPerformanceOverlay = 'Performance overlay';
+  static const frameStatsTitle = 'Frame timings · rolling window';
+  static const frameStatsBuild = 'Build';
+  static const frameStatsRaster = 'Raster';
+  static const frameStatsMs = 'ms';
+  static const frameStatsP50 = 'p50';
+  static const frameStatsP90 = 'p90';
+  static const frameStatsP99 = 'p99';
+  static const frameStatsWorst = 'Worst';
+  static const frameStatsReset = 'Reset frame statistics';
+  static String frameStatsCounts(int total, int window) =>
+      'Frames since reset: $total · Window: $window / 600';
+  static String frameStatsRefreshRate(double hz) =>
+      'Display reports: ${hz.toStringAsFixed(0)} Hz';
 
   static const demoDeviceClean = 'Clean';
   static const demoDeviceRooted = 'Rooted';

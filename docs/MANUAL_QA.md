@@ -154,3 +154,19 @@ These scenarios have automated coverage; the phone run of 2026-10-16 did not cov
 | On a fresh install leave the notification prompt open and start a recording before answering. | Security is read after preparation; a detected recording blocks native start. Callback behavior under FLAG_SECURE is the separate `M4-5` finding (defense in depth). | *not tested* on the phone. |
 | Change brand or leave the page during permission preparation or the final security read. | The obsolete confirmation never starts processing. Already accepted work follows the documented service lifecycle. | *not tested* on the phone. |
 | Attempt cancellation while the bridge is unavailable, then restore it. | A visible error accompanies continuing progress; retry cancels the matching attempt. | *not tested* on the phone. |
+
+
+## In-app frame statistics without ADB (debug/profile)
+
+1. Sideload the matching arm64 profile APK from `dist/`. Use profile for meaningful timing; debug adds framework overhead.
+2. Open the tune icon → **Display**. The readout shows frames since reset, samples in the rolling 600-frame window,
+   the display's reported refresh rate, and p50/p90/p99/worst build and raster milliseconds.
+3. Tap **Reset frame statistics**. For a longer scan, select simulated device security and a 15 s device check, then
+   restart the payment flow. Close the panel, observe the scenario, and reopen Display to read the values.
+4. Record both flavors, the phone/OS, display setting, frame count/window size and all eight timing numbers in the
+   [performance appendix](ai/appendix/performance.md#phone-frame-statistics). Repeat after resetting for each scenario.
+5. The collector stays active while the panel is closed and unregisters on app-widget disposal. Timings cover the whole
+   app, including panel transitions and its once-per-second readout updates; they are not an isolated scan benchmark.
+   Display Hz is the rate reported by Flutter's display, not a measured FPS value. Do not claim 120 FPS from that field alone.
+
+**Result:** not yet run on the phone. No new phone measurements are claimed.
