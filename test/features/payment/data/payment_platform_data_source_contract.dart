@@ -47,6 +47,43 @@ void paymentPlatformDataSourceContract(
   required Duration completionTime,
 }) {
   group('PaymentPlatformDataSource contract: $name', () {
+    test(
+      'snapshot is scoped and follows progress and every retained terminal',
+      () {
+        fakeAsync((async) {
+          final source = create();
+          PaymentProgressDto? snapshot;
+          void read(String id) {
+            unawaited(
+              source
+                  .getPaymentSnapshot(attemptId: id)
+                  .then((value) => snapshot = value),
+            );
+            async.flushMicrotasks();
+          }
+
+          read('attempt-1');
+          expect(snapshot, PaymentProgressDto.idle);
+          unawaited(source.startPayment(_request));
+          async.flushMicrotasks();
+          read('attempt-1');
+          expect(snapshot?.state, PaymentChannel.stateRunning);
+          read('other-attempt');
+          expect(snapshot, PaymentProgressDto.idle);
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
+          async.flushMicrotasks();
+          read('attempt-1');
+          expect(snapshot?.state, PaymentChannel.stateCancelled);
+          unawaited(source.startPayment(_request));
+          async.elapse(completionTime);
+          read('attempt-1');
+          expect(_terminalStates, contains(snapshot?.state));
+          expect(snapshot?.attemptId, 'attempt-1');
+          expectNoPendingTimers(async);
+        });
+      },
+    );
+
     test('a stale cancellation cannot cancel a retry of the same bill', () {
       fakeAsync((async) {
         final source = create();

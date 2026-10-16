@@ -88,6 +88,7 @@ abstract final class PaymentChannel {
 
   static const String startPayment = 'startPayment';
   static const String cancelPayment = 'cancelPayment';
+  static const String getPaymentSnapshot = 'getPaymentSnapshot';
 
   /// Asks for the notification permission (a runtime permission from API 33)
   /// and replies with a [NotificationPermissionWire] value. Never fails.

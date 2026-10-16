@@ -56,6 +56,16 @@ abstract final class AppStrings {
   static const tryAgain = 'Try again';
   static const confirming = 'Starting payment…';
   static const processingTitle = 'Processing your payment';
+  static const checkingPaymentStatus = 'Checking payment status…';
+  static const paymentStatusUnconfirmed =
+      "We couldn't confirm the payment status";
+  static const paymentStatusGuidance =
+      'Check your payment history or contact support before making another payment. '
+      'You can still request cancellation while we wait for an update.';
+  static const paymentStatusCheckingHint =
+      'The payment may still be processing. Please wait before paying again.';
+  static const cancellationStatusUnknown =
+      'We could not confirm cancellation. You can request cancellation again.';
   static const cancel = 'Cancel';
   static const cancelling = 'Cancelling…';
   static const cancellationFailed =
@@ -100,6 +110,7 @@ abstract final class AppStrings {
       'Something went wrong on this device. Please try again.',
     'error.unsupported' => 'This is not available on this device.',
     'error.unexpected' => 'Something unexpected happened. Please try again.',
+    'payment.outcome_unknown' => paymentStatusUnconfirmed,
     'payment.declined' => 'The payment was declined.',
     'payment.in_progress' => 'A payment is already in progress.',
     'payment.confirmation_obsolete' => 'This confirmation is no longer active.',

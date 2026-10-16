@@ -90,6 +90,7 @@ object PaymentChannel {
 
     const val START_PAYMENT = "startPayment"
     const val CANCEL_PAYMENT = "cancelPayment"
+    const val GET_PAYMENT_SNAPSHOT = "getPaymentSnapshot"
 
     /**
      * Asks for the notification permission (a runtime permission from API 33) and replies with a

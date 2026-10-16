@@ -93,6 +93,10 @@ ProviderContainer _container({
 /// A processing source whose progress stream fails with something no failure covers.
 class _BrokenProgressSource implements PaymentPlatformDataSource {
   @override
+  Future<PaymentProgressDto> getPaymentSnapshot({
+    required String attemptId,
+  }) async => PaymentProgressDto.idle;
+  @override
   Stream<PaymentProgressDto> watchProgress() =>
       Stream<PaymentProgressDto>.error(StateError('card 4111'));
 

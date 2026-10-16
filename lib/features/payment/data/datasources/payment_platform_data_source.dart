@@ -26,4 +26,8 @@ abstract interface class PaymentPlatformDataSource {
   /// `cancelled`) stays current until the next `startPayment`. Every listener
   /// gets that replay.
   Stream<PaymentProgressDto> watchProgress();
+
+  /// Current retained state for this attempt. Idle is absence, not rejection:
+  /// a delayed start may still arrive after this query.
+  Future<PaymentProgressDto> getPaymentSnapshot({required String attemptId});
 }

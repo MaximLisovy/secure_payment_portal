@@ -130,6 +130,12 @@ final class NativePaymentSimulator {
         );
         _timer = Timer.periodic(stepDelay, (_) => _tick());
         return null;
+      case PaymentChannel.getPaymentSnapshot:
+        final args = call.arguments as Map<Object?, Object?>;
+        return (_current.attemptId == args[PaymentChannel.keyAttemptId]
+                ? _current
+                : PaymentProgressDto.idle)
+            .toMap();
       case PaymentChannel.cancelPayment:
         final running = _running;
         final args = call.arguments as Map<Object?, Object?>;

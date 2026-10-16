@@ -135,10 +135,31 @@ void main() {
       (
         'an unsupported platform',
         const UnsupportedException(),
-        const UnsupportedFailure(),
+        const PaymentOutcomeUnknownFailure(),
       ),
-      ('a network error', const NetworkException(), const NetworkFailure()),
+      (
+        'a network error',
+        const NetworkException(),
+        const PaymentOutcomeUnknownFailure(),
+      ),
     ];
+    failures.addAll([
+      (
+        'UNAVAILABLE / timeout',
+        const PlatformCallException(ChannelErrorCodes.unavailable),
+        const PaymentOutcomeUnknownFailure(),
+      ),
+      (
+        'INTERNAL',
+        const PlatformCallException(ChannelErrorCodes.internal),
+        const PaymentOutcomeUnknownFailure(),
+      ),
+      (
+        'future native code',
+        const PlatformCallException('FUTURE'),
+        const PaymentOutcomeUnknownFailure(),
+      ),
+    ]);
     for (final (name, thrown, expected) in failures) {
       test('maps $name to $expected', () async {
         when(() => platform.startPayment(any())).thenThrow(thrown);

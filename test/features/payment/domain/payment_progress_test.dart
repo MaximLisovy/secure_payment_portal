@@ -112,6 +112,7 @@ void main() {
         InvalidPaymentFailure() => 'invalid',
         PaymentStartNotAllowedFailure() => 'not allowed',
         PaymentProcessingFailure() => 'processing',
+        PaymentOutcomeUnknownFailure() => 'unknown',
         PaymentConfirmationObsoleteFailure() => 'obsolete',
       };
 

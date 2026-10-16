@@ -48,11 +48,45 @@ final class PaymentRepositoryImpl implements PaymentRepository {
     PaymentDetails details, {
     required String attemptId,
   }) {
-    return _command(
-      () => _platform.startPayment(
+    return _startCommand(details, attemptId);
+  }
+
+  Future<Result<void>> _startCommand(
+    PaymentDetails details,
+    String attemptId,
+  ) async {
+    try {
+      await _platform.startPayment(
         PaymentDetailsMapper.toStartRequest(details, attemptId: attemptId),
-      ),
-    );
+      );
+      return Success.unit;
+    } on PlatformCallException catch (error) {
+      // Only these native replies prove this start was rejected. INTERNAL and
+      // UNAVAILABLE cannot prove whether the store accepted the attempt.
+      return Err(switch (error.code) {
+        ChannelErrorCodes.alreadyRunning => const PaymentInProgressFailure(),
+        ChannelErrorCodes.invalidArgs => const InvalidPaymentFailure(),
+        ChannelErrorCodes.startNotAllowed =>
+          const PaymentStartNotAllowedFailure(),
+        _ => const PaymentOutcomeUnknownFailure(),
+      });
+    } on Object catch (error, stackTrace) {
+      _failure(error, stackTrace);
+      return const Err(PaymentOutcomeUnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<PaymentProgress>> getPaymentSnapshot({
+    required String attemptId,
+  }) async {
+    try {
+      final dto = await _platform.getPaymentSnapshot(attemptId: attemptId);
+      return Success(PaymentProgressMapper.toEntity(dto));
+    } on Object catch (error, stackTrace) {
+      _failure(error, stackTrace);
+      return const Err(PaymentOutcomeUnknownFailure());
+    }
   }
 
   @override

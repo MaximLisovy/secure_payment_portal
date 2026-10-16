@@ -60,6 +60,37 @@ class PaymentMethodHandlerTest {
         )
 
     @Test
+    fun snapshotReturnsOnlyTheMatchingAttemptWithoutMutatingTheStore() = runTest {
+        val handler = handler()
+        handler.call("startPayment", startArgs())
+        store.reportProgress("attempt-1", 45)
+        handler.call("getPaymentSnapshot", mapOf("schemaVersion" to 2, "attemptId" to "attempt-1"))
+        assertTrue(result.replies.last().contains("state=running"))
+        assertTrue(result.replies.last().contains("percent=45"))
+        handler.call("getPaymentSnapshot", mapOf("schemaVersion" to 2, "attemptId" to "other"))
+        assertTrue(result.replies.last().contains("state=idle"))
+        assertEquals(PaymentProgress.Running("bill-1", 45, "attempt-1"), store.state.value)
+        handler.call("getPaymentSnapshot", null)
+        assertTrue(result.replies.last().startsWith("error(INVALID_ARGS,"))
+    }
+
+    @Test
+    fun snapshotReadsEveryRetainedTerminalAndNeverAnotherAttempt() = runTest {
+        val terminals = listOf<PaymentProgress>(
+            PaymentProgress.Succeeded("bill-1", "tx", 1100, "USD", 1700000000000, "attempt-1"),
+            PaymentProgress.Failed("declined", "bill-1", "attempt-1"),
+            PaymentProgress.Cancelled("bill-1", "attempt-1"),
+        )
+        for (terminal in terminals) {
+            val retained = PaymentProgressStore(terminal)
+            assertEquals(terminal, retained.snapshot("attempt-1"))
+            assertEquals(PaymentProgress.Idle, retained.snapshot("other"))
+            assertEquals(terminal, retained.state.value)
+        }
+        assertEquals(PaymentProgress.Idle, PaymentProgressStore().snapshot("attempt-1"))
+    }
+
+    @Test
     fun startPaymentIsAcceptedOnceTheServiceIsStarted() = runTest {
         handler().call("startPayment", startArgs())
 

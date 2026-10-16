@@ -583,6 +583,11 @@ void main() {
           (_) async =>
               const Err<void>(PlatformFailure(ChannelErrorCodes.internal)),
         );
+        when(
+          () => payments.getPaymentSnapshot(attemptId: 'attempt-1'),
+        ).thenAnswer(
+          (_) async => const Success<PaymentProgress>(PaymentIdle()),
+        );
         h.protectWindow(async);
         h.begin(async);
         progress.add(const PaymentIdle());
@@ -598,11 +603,12 @@ void main() {
 
         expect(
           h.states.last,
-          const PaymentFlowProcessing(
-            percent: 30,
+          const PaymentFlowCheckingStatus(
             cancellationFailure: PlatformFailure(ChannelErrorCodes.internal),
           ),
         );
+        h.container.dispose();
+        async.flushMicrotasks();
         unawaited(progress.close());
       });
     });

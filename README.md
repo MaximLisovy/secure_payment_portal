@@ -314,8 +314,9 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 - **Kotlin.** The ports, root checks, reply-once and threading, the secure window count, the payment store, session,
   notification throttle and handlers, and a guard over the manifest (permissions, one exported component, a
   `shortService`-only service, backups off).
-- **Mutation checks.** New logic was checked by breaking the code and seeing a test fail; the survivors are listed in the
-  [working log](docs/ai/appendix/working_log.md).
+- **Mutation checks.** These are targeted manual mutations, not a comprehensive mutation score. The review found two
+  surviving mutations (unscoped failure handling and the restart generation guard); regression tests now cover both.
+  Results and limits are recorded in the [working log](docs/ai/appendix/working_log.md).
 - **CI** (`.github/workflows/ci.yml`) runs the format check, analysis and both test suites on every push to `main` and every
   pull request, then builds a release APK per brand (the list comes from `android/brands.json`) and uploads it as an
   artifact. Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA.

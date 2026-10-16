@@ -4,7 +4,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_result.dar
 import 'package:secure_payment_portal/features/security/security_domain.dart';
 
 /// The three screens the flow can be on. The page swaps between them.
-enum PaymentFlowPhase { review, processing, result }
+enum PaymentFlowPhase { review, processing, checking, result }
 
 /// Where the payment flow stands. One state at a time.
 sealed class PaymentFlowState extends Equatable {
@@ -141,4 +141,36 @@ final class PaymentFlowCancelled extends PaymentFlowState {
 
   @override
   List<Object?> get props => [];
+}
+
+/// An accepted attempt may still be running. Expiry changes the guidance, never
+/// enables a payment retry; late terminal events can still resolve the attempt.
+final class PaymentFlowCheckingStatus extends PaymentFlowState {
+  const PaymentFlowCheckingStatus({
+    this.expired = false,
+    this.cancelRequested = false,
+    this.cancellationFailure,
+  });
+
+  final bool expired;
+  final bool cancelRequested;
+  final Failure? cancellationFailure;
+
+  PaymentFlowCheckingStatus copyWith({
+    bool? expired,
+    bool? cancelRequested,
+    Failure? cancellationFailure,
+    bool clearCancellationFailure = false,
+  }) => PaymentFlowCheckingStatus(
+    expired: expired ?? this.expired,
+    cancelRequested: cancelRequested ?? this.cancelRequested,
+    cancellationFailure: clearCancellationFailure
+        ? null
+        : cancellationFailure ?? this.cancellationFailure,
+  );
+
+  @override
+  PaymentFlowPhase get phase => PaymentFlowPhase.checking;
+  @override
+  List<Object?> get props => [expired, cancelRequested, cancellationFailure];
 }

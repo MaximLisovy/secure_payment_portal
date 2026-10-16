@@ -534,3 +534,17 @@ and the answers are in the entries.
 - **Result:** commits "docs: record that the saved recording is black on the phone", "docs: record the recording-callback experiment" and "docs: log the saved recording and the experiment". No code change, so no new build.
 
 ---
+
+### 26. Review fixes, batch 1: payment correctness — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** distinguish an unknown payment outcome from a confirmed failure, bound startup, and contain wire/mapping errors.
+- **Prompt (key part, verbatim):**
+  > Outcome unknown, not "failed". A startPayment timeout, an unreadable or error event, or any transport failure while an attempt may already be accepted must not show PaymentFlowFailure or clear the active attempt.
+  > Active reconciliation, not only passive waiting: add a getPaymentSnapshot(attemptId) method to the payment channel that returns the native store's current state for that attempt.
+- **Context given:** both reviewers' consolidated findings; approved three-commit batch plan; architecture, native bridge, testing and review rules; current attempt IDs, native store and test harnesses.
+- **AI output (summary):** Item 1 adds an attempt-scoped snapshot command across Kotlin, Dart, fake source, documentation and contract tests. Explicit native rejection codes are classified separately from uncertain transport outcomes. The checking state retains the attempt, stream and Cancel, queries immediately with capped backoff for 30 s, then shows unresolved-status guidance without a payment retry. Late stream terminal events still resolve it.
+- **Assumptions & risks flagged by the agent:** The native store is in memory and retains only its current attempt; idle is absence, never proof of rejection. The 30 s window covers the native 8.4 s script plus margin and is below the roughly three-minute shortService limit. No new Android API is used by the snapshot command: it reads the existing store on the channel's main thread. No device run is claimed. VerdictHold is unchanged.
+- **Corrections made (AI suggestion → problem → correction):** The first restart regression test still passed with its generation guard removed → sharing the secure-window await hid the race → an independently delayed retry now resolves after a replacement attempt has started. Both the restart-generation and unscoped-failure mutations are killed by the focused suite; this is targeted evidence, not a mutation score.
+- **Developer decision (recorded by the agent):** Approved batch 1 and required active snapshot reconciliation, an explicit tested classification table, and named deadlines with rationale; authorized batches 2–4 to continue without further approval stops and required a ready-to-push update per batch. No push authorized.
+- **Result:** Item 1: `fix: reconcile uncertain payment outcomes by attempt`. Full validation results are recorded below as each item completes.
+- **Item 1 validation:** format unchanged; analysis zero issues; all 872 Dart tests pass; Kotlin JVM tests pass under JDK 21; Retail and Utility debug APKs build. The focused suite kills both named mutations. Self-review: dependency boundaries, attempt identity filtering, timer/subscription disposal, main-thread snapshot reply and user-safe strings checked; recovery timing is isolated in `PaymentReconciliation`. The flow orchestrator is above the file-length guideline and remains the single owner of the flow; no verdict-hold refactor was made.

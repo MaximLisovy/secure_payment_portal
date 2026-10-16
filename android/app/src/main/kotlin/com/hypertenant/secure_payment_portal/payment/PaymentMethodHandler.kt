@@ -32,15 +32,19 @@ class PaymentMethodHandler(
         try {
             when (call.method) {
                 PaymentChannel.START_PAYMENT -> startPayment(call, result)
-                PaymentChannel.CANCEL_PAYMENT -> {
+                PaymentChannel.CANCEL_PAYMENT, PaymentChannel.GET_PAYMENT_SNAPSHOT -> {
                     val arguments = call.arguments as? Map<*, *>
                     val attemptId = arguments?.get(PaymentChannel.KEY_ATTEMPT_ID) as? String
                     if (attemptId.isNullOrBlank() || arguments[ChannelContract.KEY_SCHEMA_VERSION] != ChannelContract.SCHEMA_VERSION) {
-                        result.error(ChannelErrorCodes.INVALID_ARGS, "A cancellation needs an attempt identity.", null)
+                        result.error(ChannelErrorCodes.INVALID_ARGS, "The call needs an attempt identity.", null)
                         return
                     }
-                    store.cancelIfRunning(attemptId)
-                    result.success(null)
+                    if (call.method == PaymentChannel.GET_PAYMENT_SNAPSHOT) {
+                        result.success(PaymentProgressPayload.of(store.snapshot(attemptId)))
+                    } else {
+                        store.cancelIfRunning(attemptId)
+                        result.success(null)
+                    }
                 }
                 PaymentChannel.REQUEST_NOTIFICATION_PERMISSION -> requestPermission(result)
                 else -> result.notImplemented()

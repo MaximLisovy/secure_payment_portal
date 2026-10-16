@@ -38,3 +38,8 @@ final class PaymentConfirmationObsoleteFailure extends PaymentFailure {
   const PaymentConfirmationObsoleteFailure()
     : super('payment.confirmation_obsolete');
 }
+
+/// The start may have been accepted. Reconcile this attempt; never blindly retry.
+final class PaymentOutcomeUnknownFailure extends PaymentFailure {
+  const PaymentOutcomeUnknownFailure() : super('payment.outcome_unknown');
+}

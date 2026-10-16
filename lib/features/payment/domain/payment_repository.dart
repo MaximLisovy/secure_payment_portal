@@ -24,4 +24,9 @@ abstract interface class PaymentRepository {
   /// emits an error: anything unreadable becomes a [PaymentFailed]. Each call
   /// returns a new single-subscription stream.
   Stream<PaymentProgress> watchProgress();
+
+  /// Current retained state for the attempt. Idle never authorizes a retry.
+  Future<Result<PaymentProgress>> getPaymentSnapshot({
+    required String attemptId,
+  });
 }

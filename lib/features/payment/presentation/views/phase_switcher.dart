@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
+import 'package:secure_payment_portal/features/payment/presentation/views/checking_payment_status_view.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/processing_view.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/result_view.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/review_view.dart';
@@ -29,6 +30,7 @@ class PhaseSwitcher extends ConsumerWidget {
         child: switch (phase) {
           PaymentFlowPhase.review => const ReviewView(),
           PaymentFlowPhase.processing => const ProcessingView(),
+          PaymentFlowPhase.checking => const CheckingPaymentStatusView(),
           PaymentFlowPhase.result => const ResultView(),
         },
       ),

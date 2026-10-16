@@ -28,7 +28,9 @@ final paymentInProgressProvider = Provider.autoDispose<bool>(
   (ref) => ref.watch(
     paymentFlowProvider.select(
       (state) =>
-          state is PaymentFlowConfirming || state is PaymentFlowProcessing,
+          state is PaymentFlowConfirming ||
+          state is PaymentFlowProcessing ||
+          state is PaymentFlowCheckingStatus,
     ),
   ),
 );

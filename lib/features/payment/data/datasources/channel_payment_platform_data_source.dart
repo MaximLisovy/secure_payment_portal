@@ -30,7 +30,7 @@ import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_r
 /// latest state (a terminal one stays current until the next payment) and never
 /// one from before the subscription reopened. An event that cannot be read, or an
 /// error event, reaches the listeners as a typed error, which the repository turns
-/// into a failed payment.
+/// into an unknown outcome requiring reconciliation.
 final class ChannelPaymentPlatformDataSource
     implements PaymentPlatformDataSource {
   ChannelPaymentPlatformDataSource({
@@ -64,14 +64,26 @@ final class ChannelPaymentPlatformDataSource
   }
 
   @override
-  Future<void> cancelPayment({required String attemptId}) =>
-      _invoke(PaymentChannel.cancelPayment, {
-        ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
-        PaymentChannel.keyAttemptId: attemptId,
-      });
+  Future<void> cancelPayment({required String attemptId}) async {
+    await _invoke(PaymentChannel.cancelPayment, {
+      ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
+      PaymentChannel.keyAttemptId: attemptId,
+    });
+  }
 
   @override
   Stream<PaymentProgressDto> watchProgress() => _progress.stream;
+
+  @override
+  Future<PaymentProgressDto> getPaymentSnapshot({
+    required String attemptId,
+  }) async {
+    final raw = await _invoke(PaymentChannel.getPaymentSnapshot, {
+      ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
+      PaymentChannel.keyAttemptId: attemptId,
+    });
+    return PaymentProgressDto.fromMap(raw);
+  }
 
   /// Ends the shared stream and the native subscription behind it.
   Future<void> dispose() {
@@ -97,9 +109,9 @@ final class ChannelPaymentPlatformDataSource
     }
   }
 
-  Future<void> _invoke(String method, [Object? arguments]) async {
+  Future<Object?> _invoke(String method, [Object? arguments]) async {
     try {
-      await _methods
+      return await _methods
           .invokeMethod<Object?>(method, arguments)
           .timeout(callTimeout);
     } on PlatformException catch (error) {

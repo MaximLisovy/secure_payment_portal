@@ -35,6 +35,8 @@ void main() {
       const PaymentFlowConfirming(): true,
       const PaymentFlowProcessing(percent: 40): true,
       const PaymentFlowProcessing(percent: 40, cancelRequested: true): true,
+      const PaymentFlowCheckingStatus(): true,
+      const PaymentFlowCheckingStatus(expired: true): true,
       PaymentFlowSuccess(payment): false,
       const PaymentFlowFailure(NetworkFailure()): false,
       const PaymentFlowCancelled(): false,

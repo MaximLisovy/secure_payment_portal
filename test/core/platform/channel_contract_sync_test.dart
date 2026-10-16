@@ -124,6 +124,7 @@ void main() {
       expect(dart.length, greaterThan(40));
       expect(dart['SecurityChannel.METHODS'], isNotNull);
       expect(dart['PaymentChannel.FAILURE_PROCESSING'], isNotNull);
+      expect(dart['PaymentChannel.GET_PAYMENT_SNAPSHOT'], isNotNull);
       expect(
         parseKotlin(kotlinSource).keys.toSet(),
         dart.keys.toSet(),

@@ -11,8 +11,10 @@ import 'package:secure_payment_portal/features/payment/domain/payment_details.da
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
+import 'package:secure_payment_portal/features/payment/domain/payment_result.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
+import 'package:secure_payment_portal/features/payment/presentation/state/payment_reconciliation.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
 import '../../../../helpers/fake_async_helpers.dart';
@@ -36,6 +38,7 @@ class _Security implements SecurityStatusRepository {
   SecurityStatus status = _clean;
   Completer<Result<SecurityStatus>>? answer;
   int reads = 0;
+  int watches = 0;
   @override
   Future<Result<SecurityStatus>> getStatus() async {
     reads++;
@@ -43,7 +46,10 @@ class _Security implements SecurityStatusRepository {
   }
 
   @override
-  Stream<SecurityStatus> watchStatus() => Stream.value(status);
+  Stream<SecurityStatus> watchStatus() {
+    watches++;
+    return Stream.value(status);
+  }
 }
 
 class _Payments implements PaymentRepository {
@@ -53,6 +59,10 @@ class _Payments implements PaymentRepository {
   Completer<Result<void>>? preparation;
   Completer<Result<void>>? acceptance;
   Result<void> cancellation = Success.unit;
+  Result<void>? startAnswer;
+  Result<PaymentProgress> snapshot = const Success(PaymentIdle());
+  Completer<Result<PaymentProgress>>? snapshotAnswer;
+  final snapshots = <String>[];
   @override
   Future<Result<void>> preparePayment() async =>
       preparation?.future ?? Success.unit;
@@ -62,7 +72,7 @@ class _Payments implements PaymentRepository {
     required String attemptId,
   }) async {
     starts.add(attemptId);
-    return acceptance?.future ?? Success.unit;
+    return acceptance?.future ?? startAnswer ?? Success.unit;
   }
 
   @override
@@ -76,14 +86,34 @@ class _Payments implements PaymentRepository {
       Success(sampleDetails);
   @override
   Stream<PaymentProgress> watchProgress() => progress.stream;
+  @override
+  Future<Result<PaymentProgress>> getPaymentSnapshot({
+    required String attemptId,
+  }) async {
+    snapshots.add(attemptId);
+    return snapshotAnswer?.future ?? snapshot;
+  }
 }
 
-ProviderContainer _container(_Security security, _Payments payments) {
+class _DelayedRetryWindow extends SecureWindowNotifier {
+  final retryAnswer = Completer<void>();
+  @override
+  SecureWindowState build() => const SecureWindowProtected();
+  @override
+  Future<void> retry() => retryAnswer.future;
+}
+
+ProviderContainer _container(
+  _Security security,
+  _Payments payments, {
+  SecureWindowNotifier? window,
+}) {
   var sequence = 0;
   final container = ProviderContainer.test(
     overrides: [
       paymentIdProvider.overrideWith((ref) => ref.watch(_requestIdProvider)),
       securityStatusRepositoryProvider.overrideWithValue(security),
+      if (window != null) secureWindowProvider.overrideWith(() => window),
       paymentRepositoryProvider.overrideWithValue(payments),
       paymentAttemptIdFactoryProvider.overrideWithValue(
         () => 'attempt-${++sequence}',
@@ -95,6 +125,179 @@ ProviderContainer _container(_Security security, _Payments payments) {
 }
 
 void main() {
+  test(
+    'restart cannot overwrite a new attempt after its secure-window await',
+    () {
+      fakeAsync((async) {
+        final window = _DelayedRetryWindow();
+        final payments = _Payments()
+          ..startAnswer = const Err(PaymentStartNotAllowedFailure());
+        final container = _container(_Security(), payments, window: window);
+        final flow = container.read(paymentFlowProvider.notifier)
+          ..begin(sampleDetails);
+        async.flushMicrotasks();
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        expect(flow.state, isA<PaymentFlowFailure>());
+        unawaited(flow.retry());
+        async.flushMicrotasks();
+        flow.begin(detailsWith([usdItem(900)]));
+        async.flushMicrotasks();
+        flow.begin(sampleDetails);
+        async.flushMicrotasks();
+        payments.startAnswer = Success.unit;
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        expect(flow.state, const PaymentFlowProcessing(percent: 0));
+        window.retryAnswer.complete();
+        async.flushMicrotasks();
+        expect(flow.state, const PaymentFlowProcessing(percent: 0));
+        container.dispose();
+        async.flushMicrotasks();
+        expectNoPendingTimers(async);
+      });
+    },
+  );
+
+  for (final evidence in [
+    'start timeout / missing plugin',
+    'unscoped failure',
+    'stream error',
+  ]) {
+    test(
+      '$evidence keeps the attempt and reconciles immediately with backoff',
+      () {
+        fakeAsync((async) {
+          final payments = _Payments();
+          if (evidence == 'start timeout / missing plugin') {
+            payments.startAnswer = const Err(PaymentOutcomeUnknownFailure());
+          }
+          final container = _container(_Security(), payments);
+          final flow = container.read(paymentFlowProvider.notifier)
+            ..begin(sampleDetails);
+          async.flushMicrotasks();
+          unawaited(flow.confirm());
+          async.flushMicrotasks();
+          if (evidence == 'unscoped failure') {
+            payments.progress.add(const PaymentFailed(InvalidDataFailure()));
+          }
+          if (evidence == 'stream error') {
+            payments.progress.addError(StateError('wire failed'));
+          }
+          async.flushMicrotasks();
+          expect(flow.state, const PaymentFlowCheckingStatus());
+          expect(payments.snapshots, ['attempt-1']);
+          unawaited(flow.retry());
+          unawaited(flow.confirm());
+          async.flushMicrotasks();
+          expect(payments.starts, ['attempt-1']);
+          async.elapse(const Duration(milliseconds: 249));
+          expect(payments.snapshots, hasLength(1));
+          async.elapse(const Duration(milliseconds: 1));
+          expect(payments.snapshots, hasLength(2));
+          async.elapse(const Duration(milliseconds: 500));
+          expect(payments.snapshots, hasLength(3));
+          payments.progress.add(
+            const PaymentInProgress('bill-1', 50, attemptId: 'attempt-1'),
+          );
+          async.flushMicrotasks();
+          expect(flow.state, const PaymentFlowCheckingStatus());
+          payments.cancellation = const Err(PlatformFailure('UNAVAILABLE'));
+          unawaited(flow.cancel());
+          async.flushMicrotasks();
+          expect(payments.cancels, ['attempt-1']);
+          expect(
+            (flow.state as PaymentFlowCheckingStatus).cancelRequested,
+            isFalse,
+          );
+          async.elapse(paymentReconciliationWindow);
+          expect((flow.state as PaymentFlowCheckingStatus).expired, isTrue);
+          final reads = payments.snapshots.length;
+          unawaited(flow.retry());
+          async.elapse(paymentReconciliationWindow);
+          expect(payments.snapshots, hasLength(reads));
+          expect(payments.starts, hasLength(1));
+          payments.progress.add(
+            const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+          );
+          async.flushMicrotasks();
+          expect(flow.state, const PaymentFlowCancelled());
+          container.dispose();
+          async.flushMicrotasks();
+          expectNoPendingTimers(async);
+        });
+      },
+    );
+  }
+
+  for (final terminal in <PaymentProgress>[
+    PaymentSucceeded(
+      PaymentResult(
+        paymentId: 'bill-1',
+        attemptId: 'attempt-1',
+        transactionId: 'tx',
+        amount: sampleDetails.total,
+        completedAt: DateTime.utc(2026),
+      ),
+    ),
+    const PaymentFailed(
+      PaymentDeclinedFailure(),
+      paymentId: 'bill-1',
+      attemptId: 'attempt-1',
+    ),
+    const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+  ]) {
+    test('snapshot resolves ${terminal.runtimeType} after transport loss', () {
+      fakeAsync((async) {
+        final payments = _Payments()
+          ..startAnswer = const Err(PaymentOutcomeUnknownFailure());
+        final container = _container(_Security(), payments);
+        final flow = container.read(paymentFlowProvider.notifier)
+          ..begin(sampleDetails);
+        async.flushMicrotasks();
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        payments.snapshot = Success(terminal);
+        async.elapse(const Duration(milliseconds: 250));
+        expect(flow.state.phase, PaymentFlowPhase.result);
+        final reads = payments.snapshots.length;
+        async.elapse(paymentReconciliationWindow);
+        expect(payments.snapshots, hasLength(reads));
+        container.dispose();
+        async.flushMicrotasks();
+        expectNoPendingTimers(async);
+      });
+    });
+  }
+
+  test('expiry and bill replacement ignore an in-flight snapshot', () {
+    fakeAsync((async) {
+      final payments = _Payments()
+        ..startAnswer = const Err(PaymentOutcomeUnknownFailure())
+        ..snapshotAnswer = Completer<Result<PaymentProgress>>();
+      final container = _container(_Security(), payments);
+      final flow = container.read(paymentFlowProvider.notifier)
+        ..begin(sampleDetails);
+      async.flushMicrotasks();
+      unawaited(flow.confirm());
+      async.flushMicrotasks();
+      async.elapse(paymentReconciliationWindow);
+      payments.snapshotAnswer?.complete(
+        const Success(
+          PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+        ),
+      );
+      async.flushMicrotasks();
+      expect((flow.state as PaymentFlowCheckingStatus).expired, isTrue);
+      flow.begin(detailsWith([usdItem(900)]));
+      async.flushMicrotasks();
+      expect(flow.state, const PaymentFlowReady());
+      container.dispose();
+      async.flushMicrotasks();
+      expectNoPendingTimers(async);
+    });
+  });
+
   test(
     'a changed request invalidates confirmation before new details arrive',
     () {
@@ -261,7 +464,7 @@ void main() {
       async.flushMicrotasks();
       expect(payments.cancels, ['attempt-2']);
       expect(
-        (flow.state as PaymentFlowProcessing).cancellationFailure,
+        (flow.state as PaymentFlowCheckingStatus).cancellationFailure,
         const PlatformFailure('UNAVAILABLE'),
       );
     });

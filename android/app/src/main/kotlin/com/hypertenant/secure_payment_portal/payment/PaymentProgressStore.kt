@@ -33,6 +33,19 @@ class PaymentProgressStore(initial: PaymentProgress = PaymentProgress.Idle) {
 
     val state: StateFlow<PaymentProgress> = mutableState.asStateFlow()
 
+    /** Current state for this attempt only. Idle means no retained match, not proof of rejection. */
+    fun snapshot(attemptId: String): PaymentProgress {
+        val current = mutableState.value
+        val currentId = when (current) {
+            PaymentProgress.Idle -> null
+            is PaymentProgress.Running -> current.attemptId
+            is PaymentProgress.Succeeded -> current.attemptId
+            is PaymentProgress.Failed -> current.attemptId
+            is PaymentProgress.Cancelled -> current.attemptId
+        }
+        return if (currentId == attemptId) current else PaymentProgress.Idle
+    }
+
     /** Claims the payment unless one is already running. A terminal state is replaced. */
     fun tryStart(request: PaymentRequest): StartClaim {
         while (true) {

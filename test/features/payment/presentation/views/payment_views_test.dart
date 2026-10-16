@@ -51,6 +51,29 @@ bool _enabled(WidgetTester tester, Finder button) =>
     tester.widget<ButtonStyleButton>(button).onPressed != null;
 
 void main() {
+  for (final expired in [false, true]) {
+    testWidgets(
+      'unknown outcome (expired: $expired) keeps Cancel and has no retry',
+      (tester) async {
+        final flow = await _pumpIn(
+          tester,
+          PaymentFlowCheckingStatus(expired: expired),
+        );
+        expect(
+          find.text(
+            expired
+                ? AppStrings.paymentStatusUnconfirmed
+                : AppStrings.checkingPaymentStatus,
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(AppStrings.tryAgain), findsNothing);
+        await tester.tap(find.text(AppStrings.cancel));
+        expect(flow.calls, contains('cancel'));
+        expect(flow.calls, isNot(contains('retry')));
+      },
+    );
+  }
   group('review', () {
     testWidgets(
       'shows the scan while the device is being checked, pay disabled',

@@ -81,6 +81,14 @@ final class FakePaymentPlatformDataSource
   @override
   Stream<PaymentProgressDto> watchProgress() => _progress.stream;
 
+  @override
+  Future<PaymentProgressDto> getPaymentSnapshot({
+    required String attemptId,
+  }) async {
+    final current = _progress.latest;
+    return current.attemptId == attemptId ? current : PaymentProgressDto.idle;
+  }
+
   Future<void> dispose() {
     _timer?.cancel();
     _timer = null;

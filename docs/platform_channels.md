@@ -42,6 +42,7 @@ They never depend on the `applicationId`, which differs per flavor.
 | `…/security` | Method | `disableSecureWindow` | none | `null` | `UNAVAILABLE` | Balances `enableSecureWindow`; an extra call is ignored. |
 | `…/security/screen_recording` | Event | recording changes | none | map: `schemaVersion`, `screenRecording` | — | API 35+ detection callback; below that it emits `unknown`. |
 | `…/payment` | Method | `startPayment` | map: `schemaVersion`, `paymentId`, `attemptId`, `amountMinor`, `currency` | `null` once processing was **accepted** | `ALREADY_RUNNING`, `START_NOT_ALLOWED`, `INVALID_ARGS` | Foreground service started from a user action while the app is visible. |
+| `…/payment` | Method | `getPaymentSnapshot` | map: `schemaVersion`, `attemptId` | progress map for the matching attempt, otherwise `idle` | `INVALID_ARGS`, `INTERNAL` | Reads the store once; no service start or mutation. |
 | `…/payment` | Method | `cancelPayment` | map: `schemaVersion`, `attemptId` | `null` | `INVALID_ARGS`, `INTERNAL` | A stale attempt ID is a no-op. |
 | `…/payment` | Method | `requestNotificationPermission` | none | string: `granted`, `denied` or `notRequired` | — (never fails) | Runtime permission from API 33; `notRequired` below. Called by the Dart data source before `startPayment`. |
 | `…/payment/progress` | Event | payment progress | none | map: `schemaVersion`, `state`, plus the fields of that state | — | Fed by the service's process-wide state. |
@@ -353,3 +354,28 @@ phone was observed by a person, not driven with `adb`; items marked *not tested*
 ## Validation after the attempt-isolation fix
 
 The v2 schema and service coordinator were verified by Dart contract tests, JVM tests, the emulator device suites and debug/release APK builds for both brands. The older device observations above describe the v1 implementation. The phone run (2026-10-16) used a build that already had the v2 schema, but it did not test the rapid cancel/retry and stale-notification scenarios (see the review-fix table in [Manual QA](MANUAL_QA.md)); those rest on the automated suites. The only phone evidence for 120 Hz is the qualitative observation above.
+
+### Uncertain payment outcomes and reconciliation
+
+`getPaymentSnapshot` uses the same v2 progress payload as the event channel and requires
+an attempt ID. It returns only the current retained state for that attempt; another
+attempt, a rolled-back claim, or a process with no retained state returns `idle`.
+This is an observation, **not proof of rejection**: a delayed start can arrive later,
+and this in-memory simulation has no durable backend history.
+
+| Evidence | Classification | Payment retry |
+|---|---|---|
+| `ALREADY_RUNNING`, `INVALID_ARGS`, `START_NOT_ALLOWED` start reply | Confirmed rejection of this start | Allowed |
+| Security policy / invalid bill / obsolete confirmation before start | Confirmed no start | Subject to security policy |
+| Timeout (`UNAVAILABLE`), `INTERNAL`, unknown code, missing plugin | Unknown outcome | Reconcile; no blind retry |
+| Unreadable/unscoped event, stream error or unexpected stream end during an attempt | Unknown outcome | Reconcile; no blind retry |
+| Matching valid terminal event or snapshot | Confirmed terminal outcome | Only the appropriate explicit action |
+
+Dart retains the active attempt and stream listener, exposes Cancel, and queries a
+snapshot immediately, then after 250 ms, 500 ms, 1 s, and at most every 2 s (after
+each reply). The 30 s window covers the native 8.4 s simulation plus margin and is
+below the roughly three-minute Android `shortService` limit. Snapshot call timeouts
+are bounded separately; expiry invalidates any outstanding reply. Running or idle
+snapshots do not prove completion. At expiry the UI says “We couldn't confirm the
+payment status”, advises checking payment history or contacting support, and keeps
+Cancel and late stream terminal recovery available without a payment retry.
