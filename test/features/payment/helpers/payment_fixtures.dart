@@ -4,18 +4,18 @@ import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_r
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 
 /// A 11.00 USD bill: an item plus tax.
-const sampleDetails = PaymentDetails(
+final sampleDetails = PaymentDetails(
   id: 'bill-1',
   merchantName: 'Test Shop',
   reference: 'Order #1',
   currency: Currency.usd,
   lineItems: [
-    BillLineItem(
+    const BillLineItem(
       label: 'Item',
       amount: Money.minor(1000, Currency.usd),
       kind: LineItemKind.charge,
     ),
-    BillLineItem(
+    const BillLineItem(
       label: 'Tax',
       amount: Money.minor(100, Currency.usd),
       kind: LineItemKind.tax,

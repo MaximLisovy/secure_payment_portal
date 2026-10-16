@@ -270,3 +270,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** format and analyze pass; all 831 Dart tests pass (includes the following immutable-entity step). Commit: fix: serialize secure window ownership changes.
 
 ---
+
+### 11. Make entity collections immutable snapshots — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** prevent external collection mutation from changing a bill total or a root assessment.
+- **Prompt (key part, verbatim):**
+  > да, погнали
+- **Context given:** approved fix plan; domain entities, their mappers and fixtures.
+- **AI output (summary):** PaymentDetails copies lines into an unmodifiable list; RootDetected copies signals into an unmodifiable set. Updated only the affected const construction and fixtures, and tested both input aliasing and mutation through the entity.
+- **Assumptions & risks flagged by the agent:** these two constructors can no longer be const because copying collections executes at construction time. This exception to the const preference was explicitly included in the approved plan.
+- **Corrections made (AI suggestion → problem → correction):** final collection references were described as immutable entities → their contents and aliases remained writable → own immutable copies and verify the original collection can be cleared without changing the entity.
+- **Developer review:** covered by the approved fix plan.
+- **Result:** format and analyze pass; all 831 Dart tests pass. Commit: fix: protect domain entities from collection mutation.
+
+---

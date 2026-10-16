@@ -6,6 +6,14 @@ import 'package:secure_payment_portal/features/payment/domain/payment_details.da
 import '../helpers/payment_fixtures.dart';
 
 void main() {
+  test('bill lines are copied and cannot be changed through the entity', () {
+    final lines = [usdItem(100)];
+    final details = detailsWith(lines);
+    lines.clear();
+    expect(details.total, const Money.minor(100, Currency.usd));
+    expect(() => details.lineItems.clear(), throwsUnsupportedError);
+  });
+
   group('PaymentDetails.total', () {
     test('is the sum of the line items', () {
       expect(sampleDetails.total, const Money.minor(1100, Currency.usd));
@@ -86,18 +94,18 @@ void main() {
   });
 
   test('details compare by value', () {
-    const same = PaymentDetails(
+    final same = PaymentDetails(
       id: 'bill-1',
       merchantName: 'Test Shop',
       reference: 'Order #1',
       currency: Currency.usd,
       lineItems: [
-        BillLineItem(
+        const BillLineItem(
           label: 'Item',
           amount: Money.minor(1000, Currency.usd),
           kind: LineItemKind.charge,
         ),
-        BillLineItem(
+        const BillLineItem(
           label: 'Tax',
           amount: Money.minor(100, Currency.usd),
           kind: LineItemKind.tax,

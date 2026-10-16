@@ -43,18 +43,18 @@ void main() {
 
       expect(
         details,
-        const PaymentDetails(
+        PaymentDetails(
           id: 'bill-1',
           merchantName: 'Shop',
           reference: 'Order #1',
           currency: Currency.usd,
           lineItems: [
-            BillLineItem(
+            const BillLineItem(
               label: 'Item',
               amount: Money.minor(1000, Currency.usd),
               kind: LineItemKind.charge,
             ),
-            BillLineItem(
+            const BillLineItem(
               label: 'Tax',
               amount: Money.minor(100, Currency.usd),
               kind: LineItemKind.tax,

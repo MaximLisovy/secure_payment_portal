@@ -33,7 +33,7 @@ void main() {
     const policy = SecurityPolicy();
 
     // root x recording -> decision. Root is judged first.
-    const cases = <(String, RootAssessment, Detection, SecurityDecision)>[
+    final cases = <(String, RootAssessment, Detection, SecurityDecision)>[
       (
         'strong root, no recording',
         strongRoot,
@@ -79,26 +79,31 @@ void main() {
       ),
       (
         'root unknown, no recording',
-        RootUnknown(),
+        const RootUnknown(),
         Detection.notDetected,
         _rootUnverifiable,
       ),
       (
         'root unknown, recording',
-        RootUnknown(),
+        const RootUnknown(),
         Detection.detected,
         _rootUnverifiable,
       ),
-      ('root clear, recording', RootClear(), Detection.detected, _recording),
+      (
+        'root clear, recording',
+        const RootClear(),
+        Detection.detected,
+        _recording,
+      ),
       (
         'root clear, recording unknown',
-        RootClear(),
+        const RootClear(),
         Detection.unknown,
         _allowed,
       ),
       (
         'root clear, no recording',
-        RootClear(),
+        const RootClear(),
         Detection.notDetected,
         _allowed,
       ),

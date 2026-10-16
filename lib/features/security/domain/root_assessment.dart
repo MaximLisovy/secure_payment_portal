@@ -9,7 +9,7 @@ sealed class RootAssessment extends Equatable {
 /// At least one heuristic fired. [signals] says which, so the policy decides
 /// whether they are enough.
 final class RootDetected extends RootAssessment {
-  const RootDetected(this.signals);
+  RootDetected(Set<RootSignal> signals) : signals = Set.unmodifiable(signals);
 
   final Set<RootSignal> signals;
 

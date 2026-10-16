@@ -24,8 +24,8 @@ const cleanStatus = SecurityStatus(
   windowProtection: WindowProtection.active,
 );
 
-const strongRoot = RootDetected({RootSignal.suBinary});
-const weakRoot = RootDetected({
+final strongRoot = RootDetected({RootSignal.suBinary});
+final weakRoot = RootDetected({
   RootSignal.testKeys,
   RootSignal.debuggableBuild,
 });

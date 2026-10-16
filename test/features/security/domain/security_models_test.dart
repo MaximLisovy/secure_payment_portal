@@ -27,14 +27,22 @@ void main() {
   });
 
   group('RootAssessment', () {
+    test('detected signals are copied and cannot be removed', () {
+      final signals = {RootSignal.suBinary};
+      final root = RootDetected(signals);
+      signals.clear();
+      expect(root.signals, {RootSignal.suBinary});
+      expect(() => root.signals.clear(), throwsUnsupportedError);
+    });
+
     test('detected signals compare as a set, not as a list', () {
       expect(
-        const RootDetected({RootSignal.testKeys, RootSignal.suBinary}),
-        const RootDetected({RootSignal.suBinary, RootSignal.testKeys}),
+        RootDetected({RootSignal.testKeys, RootSignal.suBinary}),
+        RootDetected({RootSignal.suBinary, RootSignal.testKeys}),
       );
       expect(
-        const RootDetected({RootSignal.testKeys}),
-        isNot(const RootDetected({RootSignal.suBinary})),
+        RootDetected({RootSignal.testKeys}),
+        isNot(RootDetected({RootSignal.suBinary})),
       );
     });
 

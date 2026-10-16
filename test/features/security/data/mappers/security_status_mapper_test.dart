@@ -39,7 +39,7 @@ void main() {
 
       expect(
         status.root,
-        const RootDetected({RootSignal.suBinary, RootSignal.testKeys}),
+        RootDetected({RootSignal.suBinary, RootSignal.testKeys}),
       );
     });
 
@@ -152,7 +152,7 @@ void main() {
         _dto(root: DetectionWire.detected, signals: ['some_new_check']),
       );
 
-      expect(status.root, const RootDetected({RootSignal.unrecognized}));
+      expect(status.root, RootDetected({RootSignal.unrecognized}));
     });
   });
 

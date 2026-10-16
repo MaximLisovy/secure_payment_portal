@@ -80,7 +80,7 @@ void main() {
 
     test('weak root signals alone do not stop a payment by default', () async {
       deviceReads(
-        const SecurityStatus(
+        SecurityStatus(
           root: weakRoot,
           screenRecording: Detection.notDetected,
           windowProtection: WindowProtection.active,
@@ -110,7 +110,7 @@ void main() {
     final blocked = <(String, SecurityStatus, SecurityBlockReason)>[
       (
         'a strong root signal',
-        const SecurityStatus(
+        SecurityStatus(
           root: strongRoot,
           screenRecording: Detection.notDetected,
           windowProtection: WindowProtection.active,

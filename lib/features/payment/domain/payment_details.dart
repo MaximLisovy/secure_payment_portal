@@ -26,13 +26,13 @@ final class BillLineItem extends Equatable {
 /// A bill to pay: who gets paid, what for, and the line items that add up to
 /// the total. The total is derived, so it can never disagree with the lines.
 final class PaymentDetails extends Equatable {
-  const PaymentDetails({
+  PaymentDetails({
     required this.id,
     required this.merchantName,
     required this.reference,
     required this.currency,
-    required this.lineItems,
-  });
+    required List<BillLineItem> lineItems,
+  }) : lineItems = List.unmodifiable(lineItems);
 
   final String id;
   final String merchantName;
