@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
-import 'package:secure_payment_portal/app/brand/brand_registration.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/app/di/root_overrides.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
+import 'package:secure_payment_portal/brands/brand_registration.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/brands/utility/utility_brand.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_colors.dart';
