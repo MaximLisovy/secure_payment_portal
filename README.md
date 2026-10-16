@@ -2,6 +2,25 @@
 
 [![CI](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml)
 
+## Quickstart
+
+With Flutter 3.41.x, Android SDK 36 and JDK 21 installed:
+
+```bash
+git clone https://github.com/MaximLisovy/secure_payment_portal.git
+cd secure_payment_portal
+flutter pub get
+flutter run --flavor retail
+# Stop the first run before starting the other flavor:
+flutter run --flavor utility
+```
+
+To install without building, open the [v1.0.0 GitHub Release](https://github.com/MaximLisovy/secure_payment_portal/releases/tag/v1.0.0),
+download the APK for your brand, allow installation from your browser/files app when Android asks, and open the APK to install.
+The two flavors install side by side. A signing-key mismatch requires removing the older copy before installing.
+Release APKs show the normal happy path on a supported device; use the arm64 profile APKs in `dist/` and their demo panel
+for simulated blocked states, declines and failures. Real device security can also block a release build.
+
 A multi-tenant **payment confirmation module** built from one Flutter codebase. Two brands ship from it, each its own
 Android app:
 
@@ -119,20 +138,37 @@ The payment flow is one state machine in one notifier:
 ```mermaid
 stateDiagram-v2
   [*] --> Idle
-  Idle --> SecurityCheck: bill loaded
+  Idle --> SecurityCheck: initial progress replay
+  Idle --> Unavailable: first-event deadline (5 s)
+  Unavailable --> Idle: Check again
   SecurityCheck --> Ready: device allowed
   SecurityCheck --> Blocked: device blocked
   Blocked --> SecurityCheck: Check again
   Ready --> Confirming: Pay
   Confirming --> Processing: accepted
-  Confirming --> Blocked: device check fails now
+  Confirming --> Blocked: security policy refuses
+  Confirming --> Failure: confirmed start rejection
+  Confirming --> CheckingStatus: uncertain start
+  Processing --> CheckingStatus: transport unavailable
   Processing --> Success
   Processing --> Failure
-  Processing --> Cancelled: Cancel
+  Processing --> Cancelled: confirmed cancellation
+  CheckingStatus --> Success: matching terminal
+  CheckingStatus --> Failure: matching terminal
+  CheckingStatus --> Cancelled: matching terminal
+  CheckingStatus --> Unresolved: 30 s window expires
+  Unresolved --> Success: late matching stream terminal
+  Unresolved --> Failure: late matching stream terminal
+  Unresolved --> Cancelled: late matching stream terminal
   Failure --> SecurityCheck: Try again
   Cancelled --> SecurityCheck: Try again
-  Success --> SecurityCheck: New payment
+  Success --> SecurityCheck: Repeat demo payment
+
 ```
+
+An uncertain outcome retains its attempt ID and Cancel. Snapshot queries run immediately and with backoff alongside stream
+updates; window expiry changes the guidance and keeps payment retry unavailable. Idle snapshots never prove rejection.
+The [channel contract](docs/platform_channels.md#uncertain-payment-outcomes-and-reconciliation) records the classification table.
 
 And a payment crosses the bridge like this:
 
@@ -185,12 +221,15 @@ lib/app/brand/brand_registry.dart one line
 
 ### Add a brand
 
-1. `lib/brands/<id>/<id>_brand.dart`, a `const BrandConfig` (copy one and change the tokens). Name a bill the backend
-   knows (against the simulated backend, one in `FakeBills`; a brand may reuse one).
-2. One line in `lib/app/brand/brand_registry.dart`.
-3. One entry in `android/brands.json`. The flavor, its application id and its launcher label come from it; Gradle needs no edit.
-4. `android/app/src/<id>/res/`: copy another brand's, set the three colors in `values/ic_launcher_colors.xml`, edit the
-   glyph in `drawable/ic_launcher_foreground.xml`, run `python3 tool/make_launcher_icons.py` for the legacy PNGs.
+1. Add `lib/brands/<id>/<id>_brand.dart` with a `const BrandConfig` and a `const BrandRegistration`. Visual configuration
+   lives in BrandConfig; bill selection is `BrandRegistration.demoPaymentId`. Declare that brand's `DemoBill` data beside it
+   and include it in `demoBills`. The simulated backend receives the catalog from registrations through root DI.
+2. Import the registration in `lib/app/brand/brand_registry.dart` and add a const list entry:
+   `if (!kReleaseMode || appFlavor == '<id>') <id>Registration`. Debug/profile retain every registration; release retains its flavor.
+3. Add an entry to `android/brands.json`. The flavor, application ID suffix and launcher label come from it; Gradle needs no edit.
+4. Add `android/app/src/<id>/res/`: copy another brand's resources, set the three colors in `values/ic_launcher_colors.xml`, edit
+   the glyph in `drawable/ic_launcher_foreground.xml`, and run `python3 tool/make_launcher_icons.py` for the legacy PNGs.
+5. Run the checks and release isolation checker against each binary. Adding a brand or demo bill requires no feature edits.
 
 Tests and Gradle enforce each step: the manifest must match the registry, a brand without an icon fails the build, icon
 colors must equal the tokens, and every per-brand test (renders the page, contrast, tokens read, bill exists) picks the new
@@ -202,6 +241,15 @@ nothing changed under `lib/features` or `lib/core`.
 Kotlin logic uses small ports for JVM tests, and `MainActivity` only wires plugins. `SafeResult` guarantees at most one
 reply and sends it on the main thread; handlers supply the reply. Engine-detach cancellation may leave an abandoned call
 unanswered, and bounded Dart command deadlines handle unavailable replies.
+
+| Feature | Minimum supported Android API |
+|---|---|
+| App, root heuristics and secure-window protection | 24 (Android 7.0), the app minimum |
+| Foreground payment simulation | 24; modern foreground-service behavior from 26 |
+| Notification channels | 26 (Android 8.0) |
+| Notification runtime permission | 33 (Android 13); no prompt below |
+| `shortService` type rules and timeout callback | 34 (Android 14); compat behavior below |
+| Recording visibility callback | 35 (Android 15); `unknown` below |
 
 - **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
   `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
@@ -302,7 +350,9 @@ The tune icon in the app bar opens a panel where, per source (device security, p
 
 A **SIMULATED** badge sits in the app bar while any source is simulated, in every build mode. The simulation replaces the
 security *readings* only, never the window: `FLAG_SECURE` is applied through the real source in every mode. The panel's
-*Display* section turns on Flutter's performance overlay, and the app bar has the brand switcher. In Real mode the panel
+*Display* section has Flutter's performance overlay and rolling build/raster statistics with Reset; reported display Hz is
+not measured FPS. [Manual QA](docs/MANUAL_QA.md#in-app-frame-statistics-without-adb-debugprofile) explains ADB-free phone measurements.
+The app bar has the brand switcher. In Real mode the panel
 shows a read-only **Device reports** block (the root signals that fired, whether a recording is detected, whether the
 window is protected).
 
@@ -316,8 +366,8 @@ The artifact check is reproducible with `tool/check_release_brand_isolation.py`,
 ```bash
 dart format --set-exit-if-changed lib test integration_test test_driver
 flutter analyze                                  # zero issues
-flutter test                                     # 855 Dart tests
-(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 220 Kotlin JVM tests
+flutter test                                     # 887 Dart tests
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 226 Kotlin JVM tests
 flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
 ```
 

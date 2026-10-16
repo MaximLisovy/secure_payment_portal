@@ -98,8 +98,8 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 
 ## 4. Checklist: add a new brand
 
-1. `lib/brands/<id>/<id>_brand.dart` — a `const BrandConfig` with tokens + feature configs (+ assets once `BrandAssets` exists). Configuration only. Its payment config names a bill the backend knows; against the simulated backend that is one of the bills in `FakeBills` (a brand may reuse one), and a real backend needs nothing here.
-2. Register it in `brand_registry.dart` — one import and one list entry.
+1. `lib/brands/<id>/<id>_brand.dart` — a `const BrandConfig` with tokens + feature configs (+ assets once `BrandAssets` exists). Configuration only. Add its const BrandRegistration beside it: demoPaymentId selects the bill and demoBills supplies that tenant's DemoBill seeds. Feature defaults carry no tenant catalog; root DI supplies registration data. A real backend can omit demo seeds.
+2. Register it in `brand_registry.dart` — one import and one const list entry guarded by `!kReleaseMode || appFlavor == '<id>'`. Release includes only its matching registration; debug/profile keep all. Verify release artifacts with the strings checker.
 3. One entry in `android/brands.json` (`id`, `displayName`, `applicationIdSuffix`: `.<id>`). The flavor name must equal the brand id. Gradle needs no edit. Then the launcher icon: copy another brand's `android/app/src/<id>/res`, change the three colours to the new tokens and draw a new glyph, run `python3 tool/make_launcher_icons.py`.
 4. Once `BrandAssets` exists: `assets/brands/<id>/` + `pubspec.yaml` asset entry.
 5. Nothing in `features/` or `core/` changes. If something has to, the abstraction is leaking: stop and propose a fix to the abstraction first.
