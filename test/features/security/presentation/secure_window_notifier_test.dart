@@ -26,6 +26,55 @@ import '../helpers/gated_secure_window_controller.dart';
 
 void main() {
   group('SecureWindowNotifier', () {
+    test(
+      'an acquire during disable waits and protects the new holder',
+      () async {
+        final disabling = Completer<Result<void>>();
+        final gate = GatedSecureWindowController(disableAnswer: disabling);
+        final container = ProviderContainer.test(
+          overrides: [secureWindowControllerProvider.overrideWithValue(gate)],
+        );
+        final notifier = container.read(secureWindowProvider.notifier);
+        gate.answer.complete(Success.unit);
+        await notifier.acquire();
+
+        final releasing = notifier.release();
+        final acquiring = notifier.acquire();
+        expect(gate.enables, 1);
+        disabling.complete(Success.unit);
+        await Future.wait([releasing, acquiring]);
+
+        expect(gate.enables, 2);
+        expect(gate.disables, 1);
+        expect(
+          container.read(secureWindowProvider),
+          const SecureWindowProtected(),
+        );
+        await notifier.release();
+        expect(gate.disables, 2);
+      },
+    );
+
+    test(
+      'a failed disable does not stack another claim on reacquire',
+      () async {
+        final fake = FakeSecurityPlatformDataSource();
+        final (:container, :notifier) = _setup(fake);
+        await notifier.acquire();
+        fake.failWith(const NetworkException());
+        await notifier.release();
+        fake.failWith(null);
+
+        await notifier.acquire();
+        expect(fake.secureWindowCount, 1);
+        expect(
+          container.read(secureWindowProvider),
+          const SecureWindowProtected(),
+        );
+        await notifier.release();
+        expect(fake.secureWindowCount, 0);
+      },
+    );
     test('starts idle and protects on the first acquire', () async {
       final fake = FakeSecurityPlatformDataSource();
       final (:container, :notifier) = _setup(fake);
@@ -250,6 +299,38 @@ void main() {
       await pumpEventQueue();
 
       expect(gate.enables, 1);
+    });
+
+    test('retry shares an enable that is still pending', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+      final acquiring = notifier.acquire();
+      final retrying = notifier.retry();
+      expect(gate.enables, 1);
+
+      gate.answer.complete(Success.unit);
+      await Future.wait([acquiring, retrying]);
+      await notifier.release();
+
+      expect(gate.disables, 1);
+      expect(container.read(secureWindowProvider), const SecureWindowIdle());
+    });
+
+    test('a new holder arriving during enable reuses its claim', () async {
+      final (:container, :notifier, :gate) = setUpGate();
+      final first = notifier.acquire();
+      await notifier.release();
+      final second = notifier.acquire();
+      gate.answer.complete(Success.unit);
+      await Future.wait([first, second]);
+
+      expect(gate.enables, 1);
+      expect(gate.disables, 0);
+      expect(
+        container.read(secureWindowProvider),
+        const SecureWindowProtected(),
+      );
+      await notifier.release();
+      expect(gate.disables, 1);
     });
 
     test('leaving before the answer unprotects as soon as it comes', () async {

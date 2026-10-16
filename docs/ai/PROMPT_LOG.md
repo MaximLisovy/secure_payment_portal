@@ -256,3 +256,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 825 Dart tests pass; flutter analyze has zero issues; Dart formatting passes. Commit: docs: add the missing demo recording script.
 
 ---
+
+### 10. Serialize secure-window ownership — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** balance native acquisitions across overlapping acquire, release and retry calls.
+- **Prompt (key part, verbatim):**
+  > да, погнали
+- **Context given:** approved review-fix plan; the secure-window notifier, controller contract and regression probes.
+- **AI output (summary):** one reconciliation owns the in-flight platform command, retries share it, and holder changes are applied before the final state is published. A failed disable retains the native claim for a later holder instead of stacking another enable.
+- **Assumptions & risks flagged by the agent:** a platform timeout still cannot prove whether the native operation happened; the existing typed failure remains visible. No Android API changed.
+- **Corrections made (AI suggestion → problem → correction):** tracking the pending future without sharing it allowed duplicate enable calls → share the reconciliation and test overlapping retry, replacement during enable, replacement during disable and failed disable/reacquire.
+- **Developer review:** covered by the approved fix plan.
+- **Result:** format and analyze pass; all 831 Dart tests pass (includes the following immutable-entity step). Commit: fix: serialize secure window ownership changes.
+
+---

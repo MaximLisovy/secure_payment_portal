@@ -6,6 +6,9 @@ import 'package:secure_payment_portal/features/security/security.dart';
 /// A controller whose answer the test gives by hand, to hold a request for
 /// protection "in flight" for as long as it needs.
 class GatedSecureWindowController implements SecureWindowController {
+  GatedSecureWindowController({this.disableAnswer});
+
+  final Completer<Result<void>>? disableAnswer;
   final Completer<Result<void>> answer = Completer<Result<void>>();
   int enables = 0;
   int disables = 0;
@@ -19,6 +22,6 @@ class GatedSecureWindowController implements SecureWindowController {
   @override
   Future<Result<void>> disable() async {
     disables++;
-    return Success.unit;
+    return disableAnswer?.future ?? Success.unit;
   }
 }

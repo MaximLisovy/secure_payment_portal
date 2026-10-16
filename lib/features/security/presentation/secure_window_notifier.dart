@@ -52,43 +52,68 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
     if (_holders > 0 && !_enabled) await _enable();
   }
 
-  Future<void> _enable() {
-    final request = _askPlatform();
+  Future<void> _enable() => _reconcile();
+
+  Future<void> _disable() {
+    // Leaving while enable is pending must not block disposal. The in-flight
+    // reconciliation will balance the acquisition as soon as it succeeds.
+    if (!_enabled && _request != null) return Future<void>.value();
+    return _reconcile();
+  }
+
+  Future<void> _reconcile() {
+    final pending = _request;
+    if (pending != null) return pending;
+    final request = _applyDesiredProtection();
     _request = request;
     return request.whenComplete(() {
       if (identical(_request, request)) _request = null;
     });
   }
 
-  Future<void> _askPlatform() async {
-    // The request leaves now, even when this runs inside `initState`, so the
-    // window is being protected before the first frame is handed to the engine.
-    final answer = ref.read(secureWindowControllerProvider).enable();
-    var answered = false;
-    // `Pending` is shown one microtask later, outside the widget lifecycle.
-    scheduleMicrotask(() {
-      if (!answered && ref.mounted) state = const SecureWindowPending();
-    });
-    final result = await answer;
-    answered = true;
-    if (!ref.mounted) return;
-    switch (result) {
-      case Success<void>():
-        _enabled = true;
-        state = const SecureWindowProtected();
-        // Every screen left while the platform was still answering.
-        if (_holders == 0) await _disable();
-      case Err<void>(:final failure):
-        state = SecureWindowFailed(failure);
+  Future<void> _applyDesiredProtection() async {
+    final controller = ref.read(secureWindowControllerProvider);
+    while (ref.mounted) {
+      final wanted = _holders > 0;
+      if (wanted == _enabled) {
+        await Future<void>.value();
+        if (ref.mounted && (_holders > 0) == _enabled) {
+          state = _enabled
+              ? const SecureWindowProtected()
+              : const SecureWindowIdle();
+        }
+        return;
+      }
+      var answered = false;
+      final answer = wanted ? controller.enable() : controller.disable();
+      // The first acquisition runs from initState. Defer provider writes until
+      // outside the widget lifecycle, while sending the native request at once.
+      scheduleMicrotask(() {
+        if (!answered && ref.mounted) state = const SecureWindowPending();
+      });
+      final result = await answer;
+      answered = true;
+      if (!ref.mounted) {
+        if (wanted && result is Success<void>) await controller.disable();
+        return;
+      }
+      switch (result) {
+        case Success<void>():
+          _enabled = wanted;
+        case Err<void>(:final failure):
+          // A failed disable retains our native claim. A later screen reuses
+          // it instead of incrementing the platform's reference count again.
+          state = SecureWindowFailed(failure);
+          return;
+      }
+      // Holders may have changed during either command. Reconcile before
+      // publishing a final state, so an old disable never marks a new screen idle.
+      if ((_holders > 0) == _enabled) {
+        state = _enabled
+            ? const SecureWindowProtected()
+            : const SecureWindowIdle();
+        return;
+      }
     }
-  }
-
-  Future<void> _disable() async {
-    if (_enabled) {
-      _enabled = false;
-      // If this fails the window simply stays protected, which is the safe side.
-      await ref.read(secureWindowControllerProvider).disable();
-    }
-    if (ref.mounted) state = const SecureWindowIdle();
   }
 }
