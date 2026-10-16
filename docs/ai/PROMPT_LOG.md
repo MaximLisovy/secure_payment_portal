@@ -83,7 +83,8 @@ Milestone 6, [working log entry 08](appendix/working_log.md#08-the-security-scan
   arbitrary delay, the verdict waits until the sweep completes one full revolution, derived from the brand's own period; a
   short, visible security check is also a common trust-building pattern in payment apps. I clamped the period to 1.6–3 s,
   because 0.96 s would look frantic for the "professional" brand, and asked for a profile-mode spike before building the
-  measurement harness. Whether 1.6 s feels right is left open for the phone run.
+  measurement harness. Whether 1.6 s feels right is a subjective tuning point; the phone run confirmed the scan is smooth at
+  120 Hz but did not judge its speed, so I left the clamp as is.
 - **Outcome.** The hold is a timer in the payment flow, off for reduced motion, so Pay and the card never disagree. Rather
   than report only the half of the measurement that looked good, the AI added two references to the harness, Material's
   spinner and a layer that draws one dot, which showed the same raster numbers: that is the emulator's swap path, not the

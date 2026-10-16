@@ -269,16 +269,18 @@ On Android 16 (ZTE RedMagic 10 Pro, the phone's own screen recorder) the callbac
 not fire: nothing changed in the app and no recording block appeared. The finding is
 **defense in depth**.
 
-- **Likely reason, a hypothesis and not proven:** a secure window is excluded from the
-  capture, so the app is not "visible in the recording" and the callback has nothing to
-  report. This run cannot rule out another explanation, that this maker's recorder is not
-  reported to the callback at all; telling the two apart would need a recording of a
-  window without `FLAG_SECURE`, and none was made.
+- **Why the callback stays silent, a hypothesis and not proven:** the saved recording
+  shows the app area black (`M4-4`), so the window was left out of the capture, and the
+  silent callback is consistent with that: the app is not "visible in the recording" and
+  the callback has nothing to report. This run cannot rule out another explanation, that
+  this maker's recorder is not reported to the callback at all; telling the two apart
+  would need a recording of a window without `FLAG_SECURE` that the callback does or does
+  not report, and none was made on the phone.
 - **What stays:** the detection, as an extra layer. `FLAG_SECURE` is the primary control.
   The recording block is not to be relied on.
-- **Not seen:** that the saved recording shows the app black was not checked (`M4-4`), so
-  that is expected from `FLAG_SECURE`, not observed on this phone. The panel's Screen
-  recording readout during the recording was not noted either.
+- **Device-verified:** the saved screen recording was checked on the phone and the app area
+  is black (`M4-4`), so `FLAG_SECURE` keeps the page out of a recording. Not noted: the
+  panel's Screen recording readout during the recording.
 - **Scope:** one phone, one recorder, Android 16.
 
 ## Verified on a device (payment)
@@ -326,12 +328,13 @@ phone was observed by a person, not driven with `adb`; items marked *not tested*
 | Root check | the device was verified, Pay was enabled and payments went through |
 | `FLAG_SECURE` | screenshots are blocked by the system; the app is blacked out in Recents |
 | Screen recording (the phone's own recorder) | no recording block appeared: **defense in depth**, see [above](#recording-callback-while-the-window-is-secure-defense-in-depth) |
+| Saved screen recording | the app area is black: `FLAG_SECURE` is device-verified against recording |
 | Live progress notification | seen |
 | Cancel | works; which path (the notification's or the app's) was not recorded each time |
 | Home during a payment, then back | the progress was shown |
 | Both brands, demo panel scenarios | look right and work; no bug noticed |
 | Frame rate | 120 FPS on the performance overlay, no visible drops: qualitative, the frame-timing harness was not run |
-| **Not tested** | the notification permission prompt, which Cancel path each time, Utility's 1.6 s scan speed, the saved recording video, and the other items marked so in [`MANUAL_QA.md`](MANUAL_QA.md) |
+| **Not tested** | the notification permission prompt, which Cancel path each time, Utility's 1.6 s scan speed, and the other items marked so in [`MANUAL_QA.md`](MANUAL_QA.md) |
 
 ## Validation after the attempt-isolation fix
 

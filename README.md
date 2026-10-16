@@ -353,8 +353,9 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 - **Root detection is heuristic** and can be bypassed (renamed packages, hiding tools); Play Integrity is out of scope.
 - **Screen recording detection needs Android 15.** Below it the state is `unknown` and allowed. Whether the callback fires
   for a window that is itself `FLAG_SECURE` did not happen on a ZTE RedMagic 10 Pro (Android 16, the phone's own recorder):
-  no recording block appeared, so the detection is **defense in depth** and `FLAG_SECURE` is the primary control. The likely
-  reason, that a secure window is left out of the capture, is a hypothesis (`M4-5`, [details](docs/platform_channels.md)).
+  no recording block appeared, so the detection is **defense in depth**. `FLAG_SECURE` is the primary control, and the saved
+  recording on that phone shows the app area black. The silent callback is consistent with the window being left out of the
+  capture, which is a hypothesis and not proven (`M4-5`, [details](docs/platform_channels.md)).
 - **Payments are simulated.** The native processing always succeeds; declines and failures are simulated scenarios. A killed
   process loses an in-flight payment (the state is in memory, the service is not sticky): a real backend would need an
   idempotency key and reconciliation, described in [the appendix](docs/ai/appendix/payments-in-production.md).
