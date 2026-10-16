@@ -4,6 +4,8 @@ import 'package:secure_payment_portal/app/brand/brand_registration.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/brands/utility/utility_brand.dart';
+import 'package:secure_payment_portal/features/payment/payment.dart'
+    show DemoBill;
 
 /// Thrown when the running flavor cannot be mapped to a registered brand. It is
 /// a build/configuration mistake, not a runtime condition, so it fails fast.
@@ -23,11 +25,8 @@ class BrandRegistry {
 
   /// The brands shipped by this app.
   static const standard = BrandRegistry([
-    BrandRegistration(brand: retailBrand, demoPaymentId: 'retail-order-1042'),
-    BrandRegistration(
-      brand: utilityBrand,
-      demoPaymentId: 'utility-bill-2026-10',
-    ),
+    if (!kReleaseMode || appFlavor == 'retail') retailRegistration,
+    if (!kReleaseMode || appFlavor == 'utility') utilityRegistration,
   ], defaultBrandId: 'retail');
 
   final List<BrandRegistration> _registrations;
@@ -35,6 +34,9 @@ class BrandRegistry {
   /// Used when no flavor is given outside release (`flutter test`, iOS, a run
   /// without `--flavor`).
   final String defaultBrandId;
+
+  Iterable<DemoBill> get demoBills =>
+      _registrations.expand((entry) => entry.demoBills);
 
   Iterable<BrandConfig> get all => _registrations.map((entry) => entry.brand);
 

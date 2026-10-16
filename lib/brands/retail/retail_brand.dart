@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
+import 'package:secure_payment_portal/brands/brand_registration.dart';
+import 'package:secure_payment_portal/brands/retail/retail_demo_bill.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_colors.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_density.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_motion.dart';
@@ -79,4 +81,10 @@ const retailBrand = BrandConfig(
       ),
     ],
   ),
+);
+
+const retailRegistration = BrandRegistration(
+  brand: retailBrand,
+  demoPaymentId: retailDemoPaymentId,
+  demoBills: [retailDemoBill],
 );

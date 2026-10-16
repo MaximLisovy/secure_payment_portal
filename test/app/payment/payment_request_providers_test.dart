@@ -5,8 +5,9 @@ import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/app/di/root_overrides.dart';
 import 'package:secure_payment_portal/app/payment/payment_request_providers.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
+
+import '../../helpers/fake_bills.dart';
 
 ProviderContainer _container() =>
     ProviderContainer.test(overrides: rootOverrides(initialBrand: retailBrand));

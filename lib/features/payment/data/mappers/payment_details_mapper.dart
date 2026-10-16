@@ -31,6 +31,22 @@ abstract final class PaymentDetailsMapper {
     );
   }
 
+  /// Host-supplied demo configuration becomes a backend DTO at the boundary.
+  static PaymentDetailsDto toDto(PaymentDetails details) => PaymentDetailsDto(
+    id: details.id,
+    merchantName: details.merchantName,
+    reference: details.reference,
+    currency: details.currency.code,
+    lineItems: [
+      for (final item in details.lineItems)
+        BillLineItemDto(
+          label: item.label,
+          amountMinor: item.amount.minorUnits,
+          kind: item.kind.name,
+        ),
+    ],
+  );
+
   /// The request the platform needs to process [details].
   static StartPaymentRequestDto toStartRequest(
     PaymentDetails details, {

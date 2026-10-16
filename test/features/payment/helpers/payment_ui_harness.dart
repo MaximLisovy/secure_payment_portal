@@ -15,6 +15,7 @@ import 'package:secure_payment_portal/features/payment/presentation/state/paymen
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 
+import '../../../helpers/fake_bills.dart';
 import '../../../helpers/pump_app.dart';
 
 /// A flow that sits in one state and records what the screen asks of it, so a
@@ -74,7 +75,7 @@ List<Override> instantBackend({
     return fake;
   }),
   paymentRemoteDataSourceProvider.overrideWithValue(
-    remote ?? FakePaymentRemoteDataSource(),
+    remote ?? FakePaymentRemoteDataSource(bills: FakeBills.all),
   ),
 ];
 

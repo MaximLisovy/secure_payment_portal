@@ -10,7 +10,6 @@ import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_request_dto.dart';
@@ -19,6 +18,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_failures.d
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 
 import '../../../../helpers/fake_async_helpers.dart';
+import '../../../../helpers/fake_bills.dart';
 import '../../../../helpers/recording_logger.dart';
 import '../../helpers/native_payment_simulator.dart';
 import '../payment_platform_data_source_contract.dart';
@@ -548,7 +548,7 @@ void main() {
       PaymentRepositoryImpl repositoryOn(
         ChannelPaymentPlatformDataSource source,
       ) => PaymentRepositoryImpl(
-        remote: FakePaymentRemoteDataSource(),
+        remote: FakePaymentRemoteDataSource(bills: FakeBills.all),
         platform: source,
         logger: const SilentLogger(),
       );
@@ -557,7 +557,7 @@ void main() {
         fakeAsync((async) {
           _service();
           final repository = repositoryOn(_source());
-          const details = FakeBills.retailOrder;
+          final details = FakeBills.retailOrder;
           Result<void>? second;
 
           unawaited(

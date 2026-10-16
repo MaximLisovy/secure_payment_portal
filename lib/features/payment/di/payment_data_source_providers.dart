@@ -9,6 +9,8 @@ import 'package:secure_payment_portal/features/payment/data/datasources/fake_pay
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
+import 'package:secure_payment_portal/features/payment/data/mappers/payment_details_mapper.dart';
+import 'package:secure_payment_portal/features/payment/presentation/config/demo_bill.dart';
 
 /// How long fetching a bill takes, so the UI has a loading state to show.
 const Duration fakeBillLatency = Duration(milliseconds: 600);
@@ -21,11 +23,20 @@ final fakePaymentConfigProvider = Provider<FakePaymentConfig>(
   (ref) => const FakePaymentConfig(),
 );
 
+/// The host supplies demo data; features carry no tenant catalog.
+final demoBillCatalogProvider = Provider<List<DemoBill>>((ref) => const []);
+
 /// The bill backend stays a fake for good: there is no backend. Typed as the
 /// fake because it is also the [BillBackendControl].
 final fakePaymentRemoteDataSourceProvider =
     Provider<FakePaymentRemoteDataSource>(
-      (ref) => FakePaymentRemoteDataSource(latency: fakeBillLatency),
+      (ref) => FakePaymentRemoteDataSource(
+        latency: fakeBillLatency,
+        bills: {
+          for (final bill in ref.watch(demoBillCatalogProvider))
+            bill.id: PaymentDetailsMapper.toDto(bill.toDetails()),
+        },
+      ),
     );
 
 final paymentRemoteDataSourceProvider = Provider<PaymentRemoteDataSource>(

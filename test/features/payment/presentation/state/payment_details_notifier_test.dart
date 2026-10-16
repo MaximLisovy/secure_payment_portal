@@ -7,7 +7,6 @@ import 'package:secure_payment_portal/app/payment/payment_request_providers.dart
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/failure_exception.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
@@ -15,6 +14,7 @@ import 'package:secure_payment_portal/features/payment/di/payment_data_source_pr
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 
+import '../../../../helpers/fake_bills.dart';
 import '../../helpers/flow_harness.dart';
 import '../../helpers/payment_fixtures.dart';
 
@@ -24,7 +24,9 @@ class _CountingRemote implements PaymentRemoteDataSource {
   @override
   Future<PaymentDetailsDto> fetchPaymentDetails(String paymentId) async {
     calls.add(paymentId);
-    return FakePaymentRemoteDataSource().fetchPaymentDetails(paymentId);
+    return FakePaymentRemoteDataSource(
+      bills: FakeBills.all,
+    ).fetchPaymentDetails(paymentId);
   }
 }
 

@@ -303,6 +303,11 @@ security *readings* only, never the window: `FLAG_SECURE` is applied through the
 shows a read-only **Device reports** block (the root signals that fired, whether a recording is detected, whether the
 window is protected).
 
+Release registry entries are selected with compile-time `kReleaseMode`/`appFlavor` conditions;
+only that brand's demo catalog is supplied to the feature. Debug/profile retain all brands.
+The artifact check is reproducible with `tool/check_release_brand_isolation.py`, which runs
+`strings` on each AOT library and also scans decompressed APK entries for forbidden markers.
+
 ## Tests and CI
 
 ```bash

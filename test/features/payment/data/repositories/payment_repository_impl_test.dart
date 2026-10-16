@@ -9,7 +9,6 @@ import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
@@ -19,6 +18,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_details.da
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 
+import '../../../../helpers/fake_bills.dart';
 import '../../../../helpers/recording_logger.dart';
 import '../../helpers/payment_fixtures.dart';
 

@@ -15,6 +15,7 @@ import 'package:secure_payment_portal/features/security/data/datasources/fake_se
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
+import '../../helpers/fake_bills.dart';
 import '../../helpers/pump_app.dart';
 
 typedef _Sources = ({
@@ -40,7 +41,7 @@ Future<_Sources> _pumpPanel(
   final sources = (
     security: FakeSecurityPlatformDataSource(scriptedWindow: true),
     payments: FakePaymentPlatformDataSource(),
-    remote: FakePaymentRemoteDataSource(),
+    remote: FakePaymentRemoteDataSource(bills: FakeBills.all),
   );
   await tester.pumpApp(
     const Scaffold(body: DemoScenariosPanel()),

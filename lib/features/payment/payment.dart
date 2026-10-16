@@ -10,7 +10,10 @@ export 'package:secure_payment_portal/features/payment/di/payment_providers.dart
         paymentScenarioControlProvider,
         paymentIdProvider;
 export 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
+export 'package:secure_payment_portal/features/payment/domain/payment_details.dart'
+    show BillLineItem, LineItemKind;
 export 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
+export 'package:secure_payment_portal/features/payment/presentation/config/demo_bill.dart';
 export 'package:secure_payment_portal/features/payment/presentation/config/payment_screen_config.dart';
 export 'package:secure_payment_portal/features/payment/presentation/config/payment_section_spec.dart';
 export 'package:secure_payment_portal/features/payment/presentation/pages/payment_confirmation_page.dart';

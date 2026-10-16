@@ -1,5 +1,4 @@
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
 import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
@@ -12,7 +11,7 @@ enum FakeRemoteOutcome { success, networkError }
 final class FakePaymentRemoteDataSource
     implements PaymentRemoteDataSource, BillBackendControl {
   FakePaymentRemoteDataSource({
-    this.bills = FakeBills.all,
+    this.bills = const {},
     this.latency = Duration.zero,
     this.outcome = FakeRemoteOutcome.success,
   });

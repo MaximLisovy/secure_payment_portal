@@ -4,12 +4,12 @@ import 'package:integration_test/integration_test.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/app/payment/payment_request_providers.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 
+import '../test/helpers/fake_bills.dart';
 import 'helpers/native_payment_harness.dart';
 
 /// The payment flow on a device, through the real Kotlin plugin and foreground

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
+import 'package:secure_payment_portal/brands/brand_registration.dart';
+import 'package:secure_payment_portal/brands/utility/utility_demo_bill.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_colors.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_density.dart';
 import 'package:secure_payment_portal/core/design_system/tokens/brand_motion.dart';
@@ -66,4 +68,10 @@ const utilityBrand = BrandConfig(
     ),
   ),
   payment: PaymentScreenConfig(sections: [SummarySpec(), BillBreakdownSpec()]),
+);
+
+const utilityRegistration = BrandRegistration(
+  brand: utilityBrand,
+  demoPaymentId: utilityDemoPaymentId,
+  demoBills: [utilityDemoBill],
 );

@@ -12,6 +12,7 @@ import 'package:secure_payment_portal/features/payment/payment.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 import 'package:secure_payment_portal/features/security/security_domain.dart';
 
+import '../../../../helpers/fake_bills.dart';
 import '../../../../helpers/pump_app.dart';
 import '../../helpers/payment_ui_harness.dart';
 
@@ -287,6 +288,7 @@ void main() {
           fixedFlowOverride(flow),
           ...instantBackend(
             remote: FakePaymentRemoteDataSource(
+              bills: FakeBills.all,
               latency: const Duration(seconds: 1),
             ),
           ),
@@ -310,6 +312,7 @@ void main() {
       tester,
     ) async {
       final remote = FakePaymentRemoteDataSource(
+        bills: FakeBills.all,
         outcome: FakeRemoteOutcome.networkError,
       );
       await _pumpIn(tester, const PaymentFlowIdle(), remote: remote);

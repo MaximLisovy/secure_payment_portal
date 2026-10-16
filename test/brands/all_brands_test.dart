@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/presentation/sections/bill_line_item_tile.dart';
 import 'package:secure_payment_portal/features/payment/presentation/sections/payment_section_registry.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/pay_action_bar.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/payment_body.dart';
 
 import '../features/payment/helpers/payment_ui_harness.dart';
+import '../helpers/fake_bills.dart';
 
 Finder _payButton() => find.descendant(
   of: find.byType(PayActionBar),

@@ -11,7 +11,6 @@ import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
@@ -29,6 +28,7 @@ import 'package:secure_payment_portal/features/security/di/security_data_source_
 import 'package:secure_payment_portal/features/security/security.dart';
 
 import '../../../helpers/fake_async_helpers.dart';
+import '../../../helpers/fake_bills.dart';
 import '../../../helpers/recording_logger.dart';
 import '../helpers/payment_fixtures.dart';
 
@@ -43,7 +43,7 @@ ProviderContainer _container({
   return ProviderContainer.test(
     overrides: [
       paymentRemoteDataSourceProvider.overrideWithValue(
-        FakePaymentRemoteDataSource(),
+        FakePaymentRemoteDataSource(bills: FakeBills.all),
       ),
       fakePaymentConfigProvider.overrideWithValue(
         FakePaymentConfig(stepDelay: _step, steps: 2, scenario: outcome),

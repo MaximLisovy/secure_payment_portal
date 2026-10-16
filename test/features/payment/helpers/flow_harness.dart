@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
@@ -19,6 +18,7 @@ import 'package:secure_payment_portal/features/security/data/datasources/fake_se
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
+import '../../../helpers/fake_bills.dart';
 import 'payment_fixtures.dart';
 
 /// Step between progress updates of the harness's fake payment, and how many.

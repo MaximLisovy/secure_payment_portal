@@ -11,6 +11,7 @@ import 'package:secure_payment_portal/features/payment/data/repositories/payment
 import 'package:secure_payment_portal/features/payment/domain/confirm_payment.dart';
 import 'package:secure_payment_portal/features/security/security_domain.dart';
 
+import '../../../../helpers/fake_bills.dart';
 import '../../helpers/native_payment_simulator.dart';
 import '../../helpers/payment_fixtures.dart';
 
@@ -48,7 +49,7 @@ void main() {
         final useCase = ConfirmPayment(
           security: security,
           payments: PaymentRepositoryImpl(
-            remote: FakePaymentRemoteDataSource(),
+            remote: FakePaymentRemoteDataSource(bills: FakeBills.all),
             platform: source,
             logger: const SilentLogger(),
           ),

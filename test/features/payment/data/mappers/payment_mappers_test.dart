@@ -3,7 +3,6 @@ import 'package:secure_payment_portal/core/domain/currency.dart';
 import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
-import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
 import 'package:secure_payment_portal/features/payment/data/mappers/payment_details_mapper.dart';
@@ -12,6 +11,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_details.da
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 
+import '../../../../helpers/fake_bills.dart';
 import '../../helpers/payment_fixtures.dart';
 
 Matcher get _malformed => throwsA(isA<MalformedPayloadException>());

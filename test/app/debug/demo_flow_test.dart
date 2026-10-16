@@ -16,6 +16,8 @@ import 'package:secure_payment_portal/features/security/di/security_data_source_
 import 'package:secure_payment_portal/features/security/domain/security_decision.dart';
 import 'package:secure_payment_portal/features/security/domain/security_scenario_control.dart';
 
+import '../../helpers/fake_bills.dart';
+
 typedef _Env = ({
   FakeSecurityPlatformDataSource simulatedDevice,
   FakeSecurityPlatformDataSource? realDevice,
@@ -36,7 +38,7 @@ Future<_Env> _pumpApp(
   final env = (
     simulatedDevice: FakeSecurityPlatformDataSource(scriptedWindow: true),
     realDevice: withRealSources ? FakeSecurityPlatformDataSource() : null,
-    remote: FakePaymentRemoteDataSource(),
+    remote: FakePaymentRemoteDataSource(bills: FakeBills.all),
   );
   final payments = FakePaymentPlatformDataSource(
     config: const FakePaymentConfig(stepDelay: Duration(milliseconds: 100)),
