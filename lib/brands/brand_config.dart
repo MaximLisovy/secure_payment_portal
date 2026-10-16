@@ -18,7 +18,7 @@ class BrandConfig extends Equatable {
   final String displayName;
   final BrandTokens tokens;
 
-  /// Which bill the payment screen shows and which sections it has.
+  /// Which sections the payment screen has, independent of the selected bill.
   final PaymentScreenConfig payment;
 
   @override

@@ -5,7 +5,10 @@
 export 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart'
     show paymentSourceModeProvider;
 export 'package:secure_payment_portal/features/payment/di/payment_providers.dart'
-    show billBackendControlProvider, paymentScenarioControlProvider;
+    show
+        billBackendControlProvider,
+        paymentScenarioControlProvider,
+        paymentIdProvider;
 export 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
 export 'package:secure_payment_portal/features/payment/domain/payment_scenario.dart';
 export 'package:secure_payment_portal/features/payment/presentation/config/payment_screen_config.dart';

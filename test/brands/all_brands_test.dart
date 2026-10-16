@@ -32,15 +32,19 @@ void main() {
         }
       });
 
-      test('the bill it names exists on the backend', () {
-        expect(FakeBills.all, contains(brand.payment.paymentId));
+      test('the app registration names an available demo bill', () {
+        expect(
+          FakeBills.all,
+          contains(BrandRegistry.standard.demoPaymentIdFor(brand.id)),
+        );
       });
 
       testWidgets('renders its bill without errors', (tester) async {
         await tester.pumpPaymentPage(brand: brand);
 
         expect(tester.takeException(), isNull);
-        final bill = FakeBills.all[brand.payment.paymentId]!;
+        final bill =
+            FakeBills.all[BrandRegistry.standard.demoPaymentIdFor(brand.id)]!;
         expect(find.text(bill.merchantName), findsOneWidget);
         expect(find.text(bill.reference), findsOneWidget);
         expect(_payButton(), findsOneWidget);

@@ -71,7 +71,6 @@ const retailBrand = BrandConfig(
     ),
   ),
   payment: PaymentScreenConfig(
-    paymentId: 'retail-order-1042',
     sections: [
       SummarySpec(),
       PromoBannerSpec(

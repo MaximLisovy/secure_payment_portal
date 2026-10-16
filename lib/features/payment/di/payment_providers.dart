@@ -13,11 +13,18 @@ import 'package:secure_payment_portal/features/security/security.dart';
 
 // The public providers of the payment feature, typed by domain types.
 
-/// The screen's layout and bill. The feature never knows which brand it runs
+/// The screen's layout. The feature never knows which brand it runs
 /// in: the composition root overrides this with the active brand's config.
 final paymentScreenConfigProvider = Provider<PaymentScreenConfig>(
   (ref) => throw UnimplementedError(
     'paymentScreenConfigProvider must be overridden by the app.',
+  ),
+);
+
+/// The host supplies a request independently of theme and section configuration.
+final paymentIdProvider = Provider<String>(
+  (ref) => throw UnimplementedError(
+    'paymentIdProvider must be overridden by the host.',
   ),
 );
 

@@ -66,11 +66,9 @@ final class FlowHarness {
     final container = ProviderContainer.test(
       overrides: [
         paymentAttemptIdFactoryProvider.overrideWithValue(() => 'attempt-1'),
+        paymentIdProvider.overrideWithValue(sampleDetails.id),
         paymentScreenConfigProvider.overrideWithValue(
-          PaymentScreenConfig(
-            paymentId: sampleDetails.id,
-            sections: const [SummarySpec()],
-          ),
+          const PaymentScreenConfig(sections: [SummarySpec()]),
         ),
         realSecurityPlatformDataSourceProvider.overrideWithValue(device),
         paymentPlatformDataSourceProvider.overrideWithValue(payments),

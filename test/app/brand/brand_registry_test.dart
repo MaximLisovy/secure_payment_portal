@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:secure_payment_portal/app/brand/brand_registration.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
 import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
@@ -7,10 +8,7 @@ import 'package:secure_payment_portal/features/payment/payment.dart';
 
 import '../../helpers/token_fixtures.dart';
 
-const _payment = PaymentScreenConfig(
-  paymentId: 'bill-1',
-  sections: [SummarySpec()],
-);
+const _payment = PaymentScreenConfig(sections: [SummarySpec()]);
 
 const _alpha = BrandConfig(
   id: 'alpha',
@@ -24,6 +22,9 @@ const _beta = BrandConfig(
   tokens: sampleTokensB,
   payment: _payment,
 );
+
+const _alphaEntry = BrandRegistration(brand: _alpha, demoPaymentId: 'bill-1');
+const _betaEntry = BrandRegistration(brand: _beta, demoPaymentId: 'bill-2');
 
 void main() {
   group('BrandRegistry.standard', () {
@@ -54,7 +55,10 @@ void main() {
   });
 
   group('BrandRegistry.byId', () {
-    const registry = BrandRegistry([_alpha, _beta], defaultBrandId: 'alpha');
+    const registry = BrandRegistry([
+      _alphaEntry,
+      _betaEntry,
+    ], defaultBrandId: 'alpha');
 
     test('returns the matching brand', () {
       expect(registry.byId('beta'), _beta);
@@ -66,7 +70,10 @@ void main() {
   });
 
   group('BrandRegistry.resolve', () {
-    const registry = BrandRegistry([_alpha, _beta], defaultBrandId: 'alpha');
+    const registry = BrandRegistry([
+      _alphaEntry,
+      _betaEntry,
+    ], defaultBrandId: 'alpha');
 
     for (final strict in [false, true]) {
       test('returns the brand for a known flavor (strict: $strict)', () {
@@ -108,7 +115,7 @@ void main() {
     });
 
     test('throws when the default brand is not registered', () {
-      const broken = BrandRegistry([_beta], defaultBrandId: 'alpha');
+      const broken = BrandRegistry([_betaEntry], defaultBrandId: 'alpha');
 
       expect(
         () => broken.resolve(flavor: null, strict: false),

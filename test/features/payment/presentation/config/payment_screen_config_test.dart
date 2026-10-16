@@ -36,16 +36,14 @@ void main() {
   });
 
   group('PaymentScreenConfig', () {
-    test('compares by bill id and ordered sections', () {
+    test('compares by ordered sections independently of a bill', () {
       const a = PaymentScreenConfig(
-        paymentId: 'bill',
         sections: [SummarySpec(), BillBreakdownSpec()],
       );
 
       expect(
         a,
         const PaymentScreenConfig(
-          paymentId: 'bill',
           sections: [SummarySpec(), BillBreakdownSpec()],
         ),
       );
@@ -53,21 +51,12 @@ void main() {
         a,
         isNot(
           const PaymentScreenConfig(
-            paymentId: 'bill',
             sections: [BillBreakdownSpec(), SummarySpec()],
           ),
         ),
         reason: 'order matters: it is the layout',
       );
-      expect(
-        a,
-        isNot(
-          const PaymentScreenConfig(
-            paymentId: 'other',
-            sections: [SummarySpec(), BillBreakdownSpec()],
-          ),
-        ),
-      );
+      expect(a, isNot(const PaymentScreenConfig(sections: [SummarySpec()])));
     });
   });
 }

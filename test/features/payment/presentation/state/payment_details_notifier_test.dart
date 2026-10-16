@@ -1,17 +1,32 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:secure_payment_portal/app/brand/brand_providers.dart';
+import 'package:secure_payment_portal/app/di/root_overrides.dart';
+import 'package:secure_payment_portal/app/payment/payment_request_providers.dart';
+import 'package:secure_payment_portal/brands/retail/retail_brand.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/failure_exception.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_details_dto.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
-import 'package:secure_payment_portal/features/payment/payment.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 
 import '../../helpers/flow_harness.dart';
 import '../../helpers/payment_fixtures.dart';
+
+class _CountingRemote implements PaymentRemoteDataSource {
+  final calls = <String>[];
+
+  @override
+  Future<PaymentDetailsDto> fetchPaymentDetails(String paymentId) async {
+    calls.add(paymentId);
+    return FakePaymentRemoteDataSource().fetchPaymentDetails(paymentId);
+  }
+}
 
 ProviderContainer _container(
   FakePaymentRemoteDataSource remote, {
@@ -19,12 +34,7 @@ ProviderContainer _container(
 }) {
   final container = ProviderContainer.test(
     overrides: [
-      paymentScreenConfigProvider.overrideWithValue(
-        PaymentScreenConfig(
-          paymentId: paymentId,
-          sections: const [SummarySpec()],
-        ),
-      ),
+      paymentIdProvider.overrideWithValue(paymentId),
       paymentRemoteDataSourceProvider.overrideWithValue(remote),
     ],
   );
@@ -38,7 +48,45 @@ Failure _failureOf(AsyncValue<Object?> value) =>
 
 void main() {
   group('PaymentDetailsNotifier', () {
-    test('loads the bill named by the screen config', () {
+    test(
+      'changing the request reloads; changing layout preserves an explicit request',
+      () {
+        fakeAsync((async) {
+          final remote = _CountingRemote();
+          final container = ProviderContainer.test(
+            overrides: [
+              ...rootOverrides(initialBrand: retailBrand),
+              paymentRemoteDataSourceProvider.overrideWithValue(remote),
+            ],
+          );
+          container.listen(paymentDetailsProvider, (_, _) {});
+          async.flushMicrotasks();
+          final selection = container.read(selectedPaymentIdProvider.notifier);
+          selection.select(FakeBills.utilityBillId);
+          async.elapse(Duration.zero);
+          expect(
+            container.read(paymentDetailsProvider).value?.id,
+            FakeBills.utilityBillId,
+          );
+          expect(remote.calls, [
+            FakeBills.retailOrderId,
+            FakeBills.utilityBillId,
+          ]);
+
+          container.read(activeBrandProvider.notifier).select('utility');
+          async.elapse(Duration.zero);
+          expect(
+            container.read(paymentDetailsProvider).value?.id,
+            FakeBills.utilityBillId,
+          );
+          expect(remote.calls, [
+            FakeBills.retailOrderId,
+            FakeBills.utilityBillId,
+          ]);
+        });
+      },
+    );
+    test('loads the bill supplied by the host', () {
       fakeAsync((async) {
         final container = _container(
           FakePaymentRemoteDataSource(bills: {'bill-1': harnessBillDto}),

@@ -391,3 +391,16 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** no application changes. Recorded the architecture assessment and checked documentation links. Commit: docs: record follow-up architecture assessment.
 
 ---
+
+### 19. Separate payment requests from brand layout — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** let the host select an order independently of white-label presentation.
+- **Prompt (key part, verbatim):**
+  > давай
+- **Context given:** approved architecture-completion plan; branding, testing and review rules.
+- **AI output (summary):** PaymentScreenConfig now contains only sections. App-owned BrandRegistration holds the initial demo request; selectedPaymentIdProvider exposes explicit host selection through the feature's independent paymentIdProvider. Default requests follow demo brand switching, while an explicit request survives a theme/layout switch and does not reload unnecessarily. Adapted existing fixtures and added request-selection/data-loading regressions.
+- **Assumptions & risks flagged by the agent:** app demo defaults still differ by registration, but features and BrandConfig contain no order selection. An explicit order is not replaced when the user changes the demo brand. Documentation explaining the previous wiring will be synchronized in the final approved step.
+- **Developer review:** approved the concrete plan before implementation.
+- **Result:** 849 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: separate payment requests from brand layout.
+
+---

@@ -65,8 +65,5 @@ const utilityBrand = BrandConfig(
       ),
     ),
   ),
-  payment: PaymentScreenConfig(
-    paymentId: 'utility-bill-2026-10',
-    sections: [SummarySpec(), BillBreakdownSpec()],
-  ),
+  payment: PaymentScreenConfig(sections: [SummarySpec(), BillBreakdownSpec()]),
 );

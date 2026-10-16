@@ -20,10 +20,7 @@ BrandConfig _retailWith(List<PaymentSectionSpec> sections) => BrandConfig(
   id: retailBrand.id,
   displayName: retailBrand.displayName,
   tokens: retailBrand.tokens,
-  payment: PaymentScreenConfig(
-    paymentId: retailBrand.payment.paymentId,
-    sections: sections,
-  ),
+  payment: PaymentScreenConfig(sections: sections),
 );
 
 void main() {

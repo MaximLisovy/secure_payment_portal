@@ -5,14 +5,14 @@ import 'package:secure_payment_portal/features/payment/di/payment_providers.dart
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 
 /// Loads the bill once. A load is an idempotent read, so reloading (the retry
-/// button, a changed brand) is safe.
+/// button, a changed request) is safe.
 ///
-/// It watches the screen config, so a different bill id loads a different bill.
+/// Layout changes do not reload a bill. Only a different request does.
 /// A failure is held as an `AsyncError` carrying the typed `Failure`.
 class PaymentDetailsNotifier extends AsyncNotifier<PaymentDetails> {
   @override
   Future<PaymentDetails> build() async {
-    final paymentId = ref.watch(paymentScreenConfigProvider).paymentId;
+    final paymentId = ref.watch(paymentIdProvider);
     final result = await ref
         .watch(paymentRepositoryProvider)
         .getPaymentDetails(paymentId);

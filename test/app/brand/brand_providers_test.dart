@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/app/brand/brand_providers.dart';
+import 'package:secure_payment_portal/app/brand/brand_registration.dart';
 import 'package:secure_payment_portal/app/brand/brand_registry.dart';
 import 'package:secure_payment_portal/app/di/root_overrides.dart';
 import 'package:secure_payment_portal/brands/brand_config.dart';
@@ -81,7 +82,13 @@ void main() {
         overrides: [
           ...rootOverrides(initialBrand: retailBrand),
           brandRegistryProvider.overrideWithValue(
-            BrandRegistry([retailBrand, twin], defaultBrandId: 'retail'),
+            BrandRegistry([
+              const BrandRegistration(
+                brand: retailBrand,
+                demoPaymentId: 'bill-1',
+              ),
+              BrandRegistration(brand: twin, demoPaymentId: 'bill-1'),
+            ], defaultBrandId: 'retail'),
           ),
         ],
       );
