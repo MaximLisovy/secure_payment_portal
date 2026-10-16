@@ -3,6 +3,7 @@ import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
+import 'package:secure_payment_portal/core/platform/wire_reader.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
@@ -65,11 +66,20 @@ abstract final class PaymentProgressMapper {
         attemptId: _required(dto.attemptId, 'attemptId'),
         transactionId: _required(dto.transactionId, 'transactionId'),
         amount: Money.minor(
-          _required(dto.amountMinor, 'amountMinor'),
+          WireReader.validatedInt(
+            _required(dto.amountMinor, 'amountMinor'),
+            field: 'amountMinor',
+            min: 1,
+          ),
           currency,
         ),
         completedAt: DateTime.fromMillisecondsSinceEpoch(
-          _required(dto.completedAtMillis, 'completedAtMillis'),
+          WireReader.validatedInt(
+            _required(dto.completedAtMillis, 'completedAtMillis'),
+            field: 'completedAtMillis',
+            min: -WireReader.maxEpochMilliseconds,
+            max: WireReader.maxEpochMilliseconds,
+          ),
           isUtc: true,
         ),
       ),
@@ -77,7 +87,7 @@ abstract final class PaymentProgressMapper {
   }
 
   static T _required<T>(T? value, String field) {
-    if (value == null) {
+    if (value == null || (value is String && value.trim().isEmpty)) {
       throw MalformedPayloadException('payment progress: missing "$field"');
     }
     return value;

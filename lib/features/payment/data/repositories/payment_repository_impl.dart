@@ -35,7 +35,7 @@ final class PaymentRepositoryImpl implements PaymentRepository {
     try {
       final dto = await _remote.fetchPaymentDetails(paymentId);
       return Success(PaymentDetailsMapper.toEntity(dto));
-    } on DataSourceException catch (error, stackTrace) {
+    } on Object catch (error, stackTrace) {
       return Err(_failure(error, stackTrace));
     }
   }
@@ -95,14 +95,19 @@ final class PaymentRepositoryImpl implements PaymentRepository {
 
   @override
   Stream<PaymentProgress> watchProgress() {
-    return _platform
-        .watchProgress()
+    final Stream<PaymentProgressDto> source;
+    try {
+      source = _platform.watchProgress();
+    } on Object catch (error, stackTrace) {
+      return Stream.value(PaymentFailed(_failure(error, stackTrace)));
+    }
+    return source
         .transform(
           StreamTransformer<PaymentProgressDto, PaymentProgress>.fromHandlers(
             handleData: (dto, sink) {
               try {
                 sink.add(PaymentProgressMapper.toEntity(dto));
-              } on DataSourceException catch (error, stackTrace) {
+              } on Object catch (error, stackTrace) {
                 sink.add(PaymentFailed(_failure(error, stackTrace)));
               }
             },
@@ -119,7 +124,7 @@ final class PaymentRepositoryImpl implements PaymentRepository {
       return Success.unit;
     } on PlatformCallException catch (error) {
       return Err(_failureForPlatformCode(error));
-    } on DataSourceException catch (error, stackTrace) {
+    } on Object catch (error, stackTrace) {
       return Err(_failure(error, stackTrace));
     }
   }

@@ -202,7 +202,12 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     _statusSubscription = ref
         .read(securityStatusRepositoryProvider)
         .watchStatus()
-        .listen(_onStatus);
+        .listen(
+          _onStatus,
+          onError: (Object error, StackTrace stackTrace) {
+            _onStatus(SecurityStatus.unknown);
+          },
+        );
   }
 
   void _onStatus(SecurityStatus status) {

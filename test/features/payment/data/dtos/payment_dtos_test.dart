@@ -121,6 +121,48 @@ void main() {
     });
   });
 
+  test('numeric wire fields and attempt identities reject unusable values', () {
+    const receipt = PaymentProgressDto.succeeded(
+      paymentId: 'bill-1',
+      attemptId: 'attempt-1',
+      transactionId: 'tx',
+      amountMinor: 1100,
+      currency: 'USD',
+      completedAtMillis: 1760000000000,
+    );
+    for (final (key, value) in <(String, Object)>[
+      (PaymentChannel.keyCompletedAtMillis, 9223372036854775807),
+      (PaymentChannel.keyAmountMinor, 0),
+      (PaymentChannel.keyAmountMinor, -1),
+      (PaymentChannel.keyAttemptId, ''),
+      (PaymentChannel.keyPaymentId, '  '),
+    ]) {
+      expect(
+        () => PaymentProgressDto.fromMap({...receipt.toMap(), key: value}),
+        _malformed,
+      );
+    }
+    for (final percent in [-1, 101, 9223372036854775807]) {
+      expect(
+        () => PaymentProgressDto.fromMap(
+          PaymentProgressDto.running(
+            'bill-1',
+            percent,
+            attemptId: 'attempt-1',
+          ).toMap(),
+        ),
+        _malformed,
+      );
+    }
+    expect(
+      () => StartPaymentRequestDto.fromMap({
+        ...sampleRequest.toMap(),
+        PaymentChannel.keyAmountMinor: 0,
+      }),
+      _malformed,
+    );
+  });
+
   group('PaymentProgressDto.fromMap', () {
     final valid = <String, PaymentProgressDto>{
       'idle': PaymentProgressDto.idle,
@@ -236,19 +278,5 @@ void main() {
         expect(() => PaymentProgressDto.fromMap('idle'), _malformed);
       },
     );
-
-    test('does not validate values: that is the mapper\'s job', () {
-      // 150 percent is structurally an int.
-      expect(
-        PaymentProgressDto.fromMap(
-          _event(PaymentChannel.stateRunning, {
-            PaymentChannel.keyPaymentId: 'x',
-            PaymentChannel.keyAttemptId: 'attempt-1',
-            PaymentChannel.keyPercent: 150,
-          }),
-        ).percent,
-        150,
-      );
-    });
   });
 }

@@ -83,10 +83,13 @@ void main() {
       );
     });
 
-    test('does not swallow a programming error', () async {
+    test('maps an unexpected exception to a typed failure', () async {
       when(() => dataSource.getSecurityStatus()).thenThrow(StateError('bug'));
 
-      await expectLater(repository.getStatus(), throwsStateError);
+      expect(
+        (await repository.getStatus()).failureOrNull,
+        const UnexpectedFailure(),
+      );
     });
   });
 

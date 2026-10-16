@@ -29,10 +29,10 @@ final class WireReader {
     }
   }
 
-  String requireString(String key) {
+  String requireString(String key, {bool nonEmpty = false}) {
     final value = _map[key];
-    if (value is String) return value;
-    throw _bad(key, 'a string');
+    if (value is String && (!nonEmpty || value.trim().isNotEmpty)) return value;
+    throw _bad(key, nonEmpty ? 'a non-empty string' : 'a string');
   }
 
   String? optionalString(String key) {
@@ -42,16 +42,47 @@ final class WireReader {
     throw _bad(key, 'a string or absent');
   }
 
-  int requireInt(String key) {
+  static const minSignedInt = -9223372036854775808;
+  static const maxSignedInt = 9223372036854775807;
+
+  // DateTime supports at most 100,000,000 days either side of the Unix epoch.
+  // https://api.dart.dev/dart-core/DateTime-class.html
+  static const maxEpochMilliseconds = 8640000000000000;
+
+  /// Also used by mappers for DTOs constructed without going through a map.
+  static int validatedInt(
+    int value, {
+    required String field,
+    int min = minSignedInt,
+    int max = maxSignedInt,
+  }) {
+    if (value < min || value > max) {
+      throw MalformedPayloadException('"$field" is outside its valid range');
+    }
+    return value;
+  }
+
+  int requireEpochMilliseconds(String key) =>
+      requireInt(key, min: -maxEpochMilliseconds, max: maxEpochMilliseconds);
+
+  int requireInt(String key, {int min = minSignedInt, int max = maxSignedInt}) {
     final value = _map[key];
-    if (value is int) return value;
+    if (value is int) {
+      return validatedInt(value, field: key, min: min, max: max);
+    }
     throw _bad(key, 'an int');
   }
 
-  int? optionalInt(String key) {
+  int? optionalInt(
+    String key, {
+    int min = minSignedInt,
+    int max = maxSignedInt,
+  }) {
     final value = _map[key];
     if (value == null) return null;
-    if (value is int) return value;
+    if (value is int) {
+      return validatedInt(value, field: key, min: min, max: max);
+    }
     throw _bad(key, 'an int or absent');
   }
 

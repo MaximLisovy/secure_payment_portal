@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure_mapper.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/logging/logger.dart';
@@ -22,7 +21,7 @@ final class SecurityStatusRepositoryImpl implements SecurityStatusRepository {
     try {
       final dto = await _dataSource.getSecurityStatus();
       return Success(SecurityStatusMapper.toEntity(dto));
-    } on DataSourceException catch (error, stackTrace) {
+    } on Object catch (error, stackTrace) {
       return Err(
         failureFromError(error, logger: _logger, stackTrace: stackTrace),
       );
@@ -70,14 +69,21 @@ final class SecurityStatusRepositoryImpl implements SecurityStatusRepository {
   /// Recording states, with anything unreadable (an error event, a malformed
   /// payload) turned into `unknown` instead of an error.
   Stream<Detection> _recordingStates() {
-    return _dataSource.watchScreenRecording().transform(
+    final Stream<ScreenRecordingDto> source;
+    try {
+      source = _dataSource.watchScreenRecording();
+    } on Object catch (error, stackTrace) {
+      failureFromError(error, logger: _logger, stackTrace: stackTrace);
+      return Stream.value(Detection.unknown);
+    }
+    return source.transform(
       StreamTransformer<ScreenRecordingDto, Detection>.fromHandlers(
         handleData: (dto, sink) {
           try {
             sink.add(
               SecurityStatusMapper.detectionFromWire(dto.screenRecording),
             );
-          } on DataSourceException {
+          } on Object {
             sink.add(Detection.unknown);
           }
         },

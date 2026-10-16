@@ -115,7 +115,7 @@ answer; the system decides whether a prompt appears (it stops showing one after 
 |---|---|
 | `idle` | none (nothing running, nothing finished) |
 | `running` | `paymentId`, `attemptId` (strings), `percent` (int, 0 to 100) |
-| `succeeded` | `paymentId`, `attemptId`, `transactionId` (string), `amountMinor` (int), `currency` (string), `completedAtMillis` (int, epoch milliseconds) |
+| `succeeded` | `paymentId`, `attemptId`, `transactionId` (string), `amountMinor` (positive signed 64-bit int), `currency` (string), `completedAtMillis` (int, epoch milliseconds in −8640000000000000…8640000000000000) |
 | `failed` | `paymentId`, `attemptId`, `errorCode`: `declined` or `processing_failed`. An unknown code is shown as a processing failure. |
 | `cancelled` | `paymentId`, `attemptId` (strings) |
 
@@ -387,3 +387,11 @@ Flutter reports a failed EventChannel activation through `FlutterError`, not the
 stream's `onError`; silence is therefore explicitly tested. Check again opens a
 fresh subscription and deadline. A late valid replay can also restore the current
 native attempt; mere silence never enables payment.
+
+Numeric fields are validated by `WireReader` before mapping: schema version must
+match exactly, progress is 0…100, start/receipt amounts are positive signed 64-bit
+minor units, and timestamps fit Dart's [DateTime range](https://api.dart.dev/dart-core/DateTime-class.html).
+Mappers apply the same bounds to directly constructed DTOs. Malformed or unexpected
+mapping failures become typed failures for reads, an unknown start/snapshot outcome,
+or an unscoped uncertainty event for an active progress stream; they never fabricate
+a payment decline. Both notifier subscriptions handle stream errors explicitly.

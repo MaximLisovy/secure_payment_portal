@@ -64,9 +64,12 @@ void main() {
     });
   }
 
-  test('does not swallow a programming error', () async {
+  test('maps an unexpected exception to a typed failure', () async {
     when(() => dataSource.enableSecureWindow()).thenThrow(StateError('bug'));
 
-    await expectLater(controller.enable(), throwsStateError);
+    expect(
+      (await controller.enable()).failureOrNull,
+      const UnexpectedFailure(),
+    );
   });
 }

@@ -4,7 +4,8 @@ import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/platform/wire_reader.dart';
 
 /// One event of the payment progress `EventChannel`. Which fields are present
-/// depends on [state]; `fromMap` enforces that, and the mapper checks values.
+/// depends on [state]; `fromMap` checks the shape and numeric wire ranges.
+/// The mapper also validates directly constructed DTOs.
 final class PaymentProgressDto extends Equatable {
   const PaymentProgressDto({
     required this.state,
@@ -80,31 +81,55 @@ final class PaymentProgressDto extends Equatable {
         return PaymentProgressDto(state: state);
       case PaymentChannel.stateCancelled:
         return PaymentProgressDto.cancelled(
-          paymentId: reader.requireString(PaymentChannel.keyPaymentId),
-          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
+          paymentId: reader.requireString(
+            PaymentChannel.keyPaymentId,
+            nonEmpty: true,
+          ),
+          attemptId: reader.requireString(
+            PaymentChannel.keyAttemptId,
+            nonEmpty: true,
+          ),
         );
       case PaymentChannel.stateRunning:
         return PaymentProgressDto.running(
-          reader.requireString(PaymentChannel.keyPaymentId),
-          reader.requireInt(PaymentChannel.keyPercent),
-          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
+          reader.requireString(PaymentChannel.keyPaymentId, nonEmpty: true),
+          reader.requireInt(PaymentChannel.keyPercent, min: 0, max: 100),
+          attemptId: reader.requireString(
+            PaymentChannel.keyAttemptId,
+            nonEmpty: true,
+          ),
         );
       case PaymentChannel.stateSucceeded:
         return PaymentProgressDto.succeeded(
-          paymentId: reader.requireString(PaymentChannel.keyPaymentId),
-          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
-          transactionId: reader.requireString(PaymentChannel.keyTransactionId),
-          amountMinor: reader.requireInt(PaymentChannel.keyAmountMinor),
+          paymentId: reader.requireString(
+            PaymentChannel.keyPaymentId,
+            nonEmpty: true,
+          ),
+          attemptId: reader.requireString(
+            PaymentChannel.keyAttemptId,
+            nonEmpty: true,
+          ),
+          transactionId: reader.requireString(
+            PaymentChannel.keyTransactionId,
+            nonEmpty: true,
+          ),
+          amountMinor: reader.requireInt(PaymentChannel.keyAmountMinor, min: 1),
           currency: reader.requireString(PaymentChannel.keyCurrency),
-          completedAtMillis: reader.requireInt(
+          completedAtMillis: reader.requireEpochMilliseconds(
             PaymentChannel.keyCompletedAtMillis,
           ),
         );
       case PaymentChannel.stateFailed:
         return PaymentProgressDto.failed(
           reader.requireString(PaymentChannel.keyErrorCode),
-          paymentId: reader.requireString(PaymentChannel.keyPaymentId),
-          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
+          paymentId: reader.requireString(
+            PaymentChannel.keyPaymentId,
+            nonEmpty: true,
+          ),
+          attemptId: reader.requireString(
+            PaymentChannel.keyAttemptId,
+            nonEmpty: true,
+          ),
         );
       default:
         throw const MalformedPayloadException(

@@ -82,7 +82,14 @@ final class ChannelPaymentPlatformDataSource
       ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
       PaymentChannel.keyAttemptId: attemptId,
     });
-    return PaymentProgressDto.fromMap(raw);
+    try {
+      return PaymentProgressDto.fromMap(raw);
+    } on MalformedPayloadException {
+      _logger.warning(
+        'A payment snapshot was malformed; its outcome is unknown.',
+      );
+      rethrow;
+    }
   }
 
   /// Ends the shared stream and the native subscription behind it.
@@ -134,9 +141,13 @@ final class ChannelPaymentPlatformDataSource
       (event) {
         try {
           _progress.add(PaymentProgressDto.fromMap(event));
-        } on MalformedPayloadException catch (error) {
+        } on Object catch (error) {
           _logger.warning('A payment progress event was malformed.');
-          _progress.addError(error);
+          _progress.addError(
+            error is DataSourceException
+                ? error
+                : const MalformedPayloadException('Unreadable payment event.'),
+          );
         }
       },
       onError: (Object error) {

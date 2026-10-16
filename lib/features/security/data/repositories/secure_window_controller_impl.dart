@@ -1,4 +1,3 @@
-import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure_mapper.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/logging/logger.dart';
@@ -24,7 +23,7 @@ final class SecureWindowControllerImpl implements SecureWindowController {
     try {
       await action();
       return Success.unit;
-    } on DataSourceException catch (error, stackTrace) {
+    } on Object catch (error, stackTrace) {
       return Err(
         failureFromError(error, logger: _logger, stackTrace: stackTrace),
       );

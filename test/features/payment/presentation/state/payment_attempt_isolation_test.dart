@@ -39,6 +39,7 @@ class _Security implements SecurityStatusRepository {
   Completer<Result<SecurityStatus>>? answer;
   int reads = 0;
   int watches = 0;
+  Stream<SecurityStatus>? events;
   @override
   Future<Result<SecurityStatus>> getStatus() async {
     reads++;
@@ -48,7 +49,7 @@ class _Security implements SecurityStatusRepository {
   @override
   Stream<SecurityStatus> watchStatus() {
     watches++;
-    return Stream.value(status);
+    return events ?? Stream.value(status);
   }
 }
 
@@ -158,6 +159,21 @@ void main() {
       });
     },
   );
+
+  test('security subscription errors fail closed instead of escaping', () {
+    fakeAsync((async) {
+      final security = _Security()
+        ..events = Stream<SecurityStatus>.error(StateError('status mapping'));
+      final container = _container(security, _Payments());
+      final flow = container.read(paymentFlowProvider.notifier)
+        ..begin(sampleDetails);
+      async.flushMicrotasks();
+      expect(flow.state, isA<PaymentFlowBlocked>());
+      container.dispose();
+      async.flushMicrotasks();
+      expectNoPendingTimers(async);
+    });
+  });
 
   for (final evidence in [
     'start timeout / missing plugin',

@@ -94,12 +94,15 @@ void main() {
       );
     });
 
-    test('does not swallow a programming error', () async {
+    test('maps an unexpected exception to a typed failure', () async {
       when(
         () => remote.fetchPaymentDetails(any()),
       ).thenThrow(StateError('bug'));
 
-      await expectLater(repository.getPaymentDetails('x'), throwsStateError);
+      expect(
+        (await repository.getPaymentDetails('x')).failureOrNull,
+        const UnexpectedFailure(),
+      );
     });
   });
 
@@ -170,6 +173,56 @@ void main() {
         );
       });
     }
+  });
+
+  group('getPaymentSnapshot', () {
+    test('maps a matching native snapshot', () async {
+      when(
+        () => platform.getPaymentSnapshot(attemptId: 'attempt-1'),
+      ).thenAnswer(
+        (_) async => const PaymentProgressDto.running(
+          'bill-1',
+          40,
+          attemptId: 'attempt-1',
+        ),
+      );
+      expect(
+        await repository.getPaymentSnapshot(attemptId: 'attempt-1'),
+        const Success<PaymentProgress>(
+          PaymentInProgress('bill-1', 40, attemptId: 'attempt-1'),
+        ),
+      );
+    });
+    test(
+      'an unreadable timestamp is unknown, never a failed payment',
+      () async {
+        when(
+          () => platform.getPaymentSnapshot(attemptId: 'attempt-1'),
+        ).thenAnswer(
+          (_) async => const PaymentProgressDto.succeeded(
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+            transactionId: 'tx',
+            amountMinor: 1100,
+            currency: 'USD',
+            completedAtMillis: 9223372036854775807,
+          ),
+        );
+        expect(
+          await repository.getPaymentSnapshot(attemptId: 'attempt-1'),
+          const Err<PaymentProgress>(PaymentOutcomeUnknownFailure()),
+        );
+      },
+    );
+    test('an unexpected snapshot error is unknown', () async {
+      when(
+        () => platform.getPaymentSnapshot(attemptId: 'attempt-1'),
+      ).thenThrow(RangeError('mapping'));
+      expect(
+        await repository.getPaymentSnapshot(attemptId: 'attempt-1'),
+        const Err<PaymentProgress>(PaymentOutcomeUnknownFailure()),
+      );
+    });
   });
 
   group('cancelPayment', () {
@@ -269,6 +322,24 @@ void main() {
       source.add(dto);
       await pumpEventQueue();
     }
+
+    test(
+      'out-of-range completedAtMillis is an unscoped uncertainty event',
+      () async {
+        await send(
+          const PaymentProgressDto.succeeded(
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+            transactionId: 'tx',
+            amountMinor: 1100,
+            currency: 'USD',
+            completedAtMillis: 9223372036854775807,
+          ),
+        );
+        expect(emitted, [const PaymentFailed(InvalidDataFailure())]);
+        expect(emitted.single.attemptId, isNull);
+      },
+    );
 
     test('maps every state of the run in order', () async {
       await send(PaymentProgressDto.idle);

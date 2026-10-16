@@ -17,9 +17,15 @@ final class StartPaymentRequestDto extends Equatable {
     final reader = WireReader(raw, what: 'start payment request')
       ..requireSchemaVersion();
     return StartPaymentRequestDto(
-      paymentId: reader.requireString(PaymentChannel.keyPaymentId),
-      attemptId: reader.requireString(PaymentChannel.keyAttemptId),
-      amountMinor: reader.requireInt(PaymentChannel.keyAmountMinor),
+      paymentId: reader.requireString(
+        PaymentChannel.keyPaymentId,
+        nonEmpty: true,
+      ),
+      attemptId: reader.requireString(
+        PaymentChannel.keyAttemptId,
+        nonEmpty: true,
+      ),
+      amountMinor: reader.requireInt(PaymentChannel.keyAmountMinor, min: 1),
       currency: reader.requireString(PaymentChannel.keyCurrency),
     );
   }

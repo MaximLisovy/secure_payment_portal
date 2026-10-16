@@ -13,6 +13,51 @@ Matcher _malformed([Matcher? message]) => throwsA(
 
 void main() {
   group('WireReader', () {
+    test('validates inclusive numeric ranges without echoing values', () {
+      for (final value in [-1, 101, 9223372036854775807]) {
+        final reader = WireReader({'percent': value}, what: 'event');
+        expect(
+          () => reader.requireInt('percent', min: 0, max: 100),
+          _malformed(allOf(contains('percent'), isNot(contains('$value')))),
+        );
+      }
+      for (final value in [0, 100]) {
+        final reader = WireReader({'percent': value}, what: 'event');
+        expect(reader.requireInt('percent', min: 0, max: 100), value);
+      }
+      final reader = WireReader({'percent': -1}, what: 'event');
+      expect(() => reader.optionalInt('percent', min: 0), _malformed());
+    });
+
+    test('epoch milliseconds fit DateTime on both sides of the epoch', () {
+      for (final value in [
+        -WireReader.maxEpochMilliseconds,
+        WireReader.maxEpochMilliseconds,
+      ]) {
+        final reader = WireReader({'completedAtMillis': value}, what: 'event');
+        expect(reader.requireEpochMilliseconds('completedAtMillis'), value);
+        expect(
+          DateTime.fromMillisecondsSinceEpoch(
+            value,
+            isUtc: true,
+          ).millisecondsSinceEpoch,
+          value,
+        );
+      }
+      for (final value in [
+        -WireReader.maxEpochMilliseconds - 1,
+        WireReader.maxEpochMilliseconds + 1,
+        9223372036854775807,
+      ]) {
+        expect(
+          () => WireReader({
+            'completedAtMillis': value,
+          }, what: 'event').requireEpochMilliseconds('completedAtMillis'),
+          _malformed(),
+        );
+      }
+    });
+
     test('rejects a payload that is not a map', () {
       expect(
         () => WireReader('x', what: 'status'),
