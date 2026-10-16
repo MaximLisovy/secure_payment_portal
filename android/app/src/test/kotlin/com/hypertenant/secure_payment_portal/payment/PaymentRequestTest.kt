@@ -6,7 +6,7 @@ import org.junit.Test
 
 class PaymentRequestTest {
     private fun args(
-        schemaVersion: Any? = 1,
+        schemaVersion: Any? = 2,
         paymentId: Any? = "bill-1",
         amountMinor: Any? = 1100,
         currency: Any? = "USD",
@@ -14,19 +14,20 @@ class PaymentRequestTest {
         mapOf(
             "schemaVersion" to schemaVersion,
             "paymentId" to paymentId,
+            "attemptId" to "attempt-1",
             "amountMinor" to amountMinor,
             "currency" to currency,
         )
 
     @Test
     fun readsTheDocumentedArguments() {
-        assertEquals(PaymentRequest("bill-1", 1100, "USD"), PaymentRequest.fromArguments(args()))
+        assertEquals(PaymentRequest("bill-1", 1100, "USD", "attempt-1"), PaymentRequest.fromArguments(args()))
     }
 
     @Test
     fun aDartIntMayArriveAsAnIntOrALong() {
         assertEquals(
-            PaymentRequest("bill-1", 5_000_000_000, "USD"),
+            PaymentRequest("bill-1", 5_000_000_000, "USD", "attempt-1"),
             PaymentRequest.fromArguments(args(amountMinor = 5_000_000_000)),
         )
         assertEquals(1100L, PaymentRequest.fromArguments(args(amountMinor = 1100))!!.amountMinor)
@@ -56,8 +57,16 @@ class PaymentRequestTest {
     }
 
     @Test
+    fun aMissingBlankOrWrongTypeAttemptIdIsInvalid() {
+        assertNull(PaymentRequest.fromArguments(args() - "attemptId"))
+        for (id in listOf(null, "", "  ", 7)) {
+            assertNull(PaymentRequest.fromArguments(args() + ("attemptId" to id)))
+        }
+    }
+
+    @Test
     fun anotherSchemaVersionIsInvalid() {
-        assertNull(PaymentRequest.fromArguments(args(schemaVersion = 2)))
+        assertNull(PaymentRequest.fromArguments(args(schemaVersion = 99)))
         assertNull(PaymentRequest.fromArguments(args(schemaVersion = null)))
     }
 
@@ -71,9 +80,9 @@ class PaymentRequestTest {
 
     @Test
     fun theIntentEntranceFollowsTheSameRule() {
-        assertEquals(PaymentRequest("a", 1, "EUR"), PaymentRequest.of("a", 1, "EUR"))
-        assertNull(PaymentRequest.of(null, 1, "EUR"))
-        assertNull(PaymentRequest.of("a", 0, "EUR"))
-        assertNull(PaymentRequest.of("a", 1, null))
+        assertEquals(PaymentRequest("a", 1, "EUR", "attempt-1"), PaymentRequest.of("a", 1, "EUR", "attempt-1"))
+        assertNull(PaymentRequest.of(null, 1, "EUR", "attempt-1"))
+        assertNull(PaymentRequest.of("a", 0, "EUR", "attempt-1"))
+        assertNull(PaymentRequest.of("a", 1, null, "attempt-1"))
     }
 }

@@ -12,7 +12,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private fun running(percent: Int) = PaymentProgress.Running("bill-1", percent)
+private fun running(percent: Int) = PaymentProgress.Running("bill-1", percent, "attempt-1")
 
 class NotificationSpecTest {
     @Test
@@ -31,8 +31,8 @@ class NotificationSpecTest {
 
     @Test
     fun aSuccessAndAFailureAreLeftOnScreenWithoutProgressOrCancel() {
-        val done = NotificationSpec.forState(PaymentProgress.Succeeded("a", "t", 1, "USD", 1))!!
-        val failed = NotificationSpec.forState(PaymentProgress.Failed("declined"))!!
+        val done = NotificationSpec.forState(PaymentProgress.Succeeded("a", "t", 1, "USD", 1, "attempt-1"))!!
+        val failed = NotificationSpec.forState(PaymentProgress.Failed("declined", "bill-1", "attempt-1"))!!
 
         assertEquals(NotificationKind.COMPLETE, done.kind)
         assertEquals(NotificationKind.FAILED, failed.kind)
@@ -43,7 +43,7 @@ class NotificationSpecTest {
 
     @Test
     fun aCancelAndAnIdleStoreShowNothing() {
-        assertNull(NotificationSpec.forState(PaymentProgress.Cancelled))
+        assertNull(NotificationSpec.forState(PaymentProgress.Cancelled("bill-1", "attempt-1")))
         assertNull(NotificationSpec.forState(PaymentProgress.Idle))
     }
 }
@@ -134,9 +134,9 @@ class NotificationUpdaterTest {
         val job = launch { NotificationUpdater().run(states) { post(it) } }
         runCurrent()
 
-        states.value = PaymentProgress.Succeeded("a", "t", 1, "USD", 1)
+        states.value = PaymentProgress.Succeeded("a", "t", 1, "USD", 1, "attempt-1")
         advanceTimeBy(1_000)
-        states.value = PaymentProgress.Cancelled
+        states.value = PaymentProgress.Cancelled("bill-1", "attempt-1")
         advanceTimeBy(1_000)
 
         assertTrue(posts.isEmpty())

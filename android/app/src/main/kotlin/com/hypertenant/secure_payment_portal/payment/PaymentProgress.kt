@@ -10,7 +10,7 @@ sealed interface PaymentProgress {
     /** Nothing running and nothing finished. */
     data object Idle : PaymentProgress
 
-    data class Running(val paymentId: String, val percent: Int) : PaymentProgress
+    data class Running(val paymentId: String, val percent: Int, val attemptId: String) : PaymentProgress
 
     data class Succeeded(
         val paymentId: String,
@@ -18,12 +18,13 @@ sealed interface PaymentProgress {
         val amountMinor: Long,
         val currency: String,
         val completedAtMillis: Long,
+        val attemptId: String,
     ) : PaymentProgress
 
     /** [errorCode] is a `PaymentChannel.FAILURE_*` value. */
-    data class Failed(val errorCode: String) : PaymentProgress
+    data class Failed(val errorCode: String, val paymentId: String, val attemptId: String) : PaymentProgress
 
-    data object Cancelled : PaymentProgress
+    data class Cancelled(val paymentId: String, val attemptId: String) : PaymentProgress
 }
 
 val PaymentProgress.isTerminal: Boolean

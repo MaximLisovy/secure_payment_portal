@@ -22,7 +22,7 @@ sealed interface StartClaim {
  * not in the service or the plugin.
  *
  * Every transition is one atomic compare-and-set, and a terminal state can only be reached from
- * `Running` of the same payment. So of a cancel and a finish that race, the first wins and the
+ * `Running` of the same attempt, not merely the same bill. So of a cancel and a finish that race, the first wins and the
  * other is a no-op; and a second start while one runs is refused without disturbing it.
  *
  * It is in memory on purpose: a killed process loses an in-flight payment (see
@@ -38,7 +38,7 @@ class PaymentProgressStore(initial: PaymentProgress = PaymentProgress.Idle) {
         while (true) {
             val current = mutableState.value
             if (current is PaymentProgress.Running) return StartClaim.AlreadyRunning
-            val running = PaymentProgress.Running(request.paymentId, percent = 0)
+            val running = PaymentProgress.Running(request.paymentId, percent = 0, request.attemptId)
             if (mutableState.compareAndSet(current, running)) {
                 return StartClaim.Accepted(request, previous = current)
             }
@@ -51,20 +51,20 @@ class PaymentProgressStore(initial: PaymentProgress = PaymentProgress.Idle) {
      */
     fun rollback(claim: StartClaim.Accepted) {
         mutableState.compareAndSet(
-            PaymentProgress.Running(claim.request.paymentId, percent = 0),
+            PaymentProgress.Running(claim.request.paymentId, percent = 0, claim.request.attemptId),
             claim.previous,
         )
     }
 
     /**
-     * Raises the percent of [paymentId]. It never goes down. Returns whether that payment is still
+     * Raises the percent of [attemptId]. It never goes down. Returns whether that payment is still
      * running, so the work knows to stop once it is not.
      */
-    fun reportProgress(paymentId: String, percent: Int): Boolean {
+    fun reportProgress(attemptId: String, percent: Int): Boolean {
         val target = percent.coerceIn(0, 100)
         return transition { current ->
-            if (current is PaymentProgress.Running && current.paymentId == paymentId) {
-                if (target > current.percent) PaymentProgress.Running(paymentId, target) else current
+            if (current is PaymentProgress.Running && current.attemptId == attemptId) {
+                if (target > current.percent) PaymentProgress.Running(current.paymentId, target, attemptId) else current
             } else {
                 null
             }
@@ -72,28 +72,29 @@ class PaymentProgressStore(initial: PaymentProgress = PaymentProgress.Idle) {
     }
 
     fun succeed(
-        paymentId: String,
+        attemptId: String,
         transactionId: String,
         amountMinor: Long,
         currency: String,
         completedAtMillis: Long,
     ): Boolean =
-        finish(paymentId) {
-            PaymentProgress.Succeeded(paymentId, transactionId, amountMinor, currency, completedAtMillis)
+        finish(attemptId) { current ->
+            PaymentProgress.Succeeded(current.paymentId, transactionId, amountMinor, currency, completedAtMillis, attemptId)
         }
 
-    fun fail(paymentId: String, errorCode: String): Boolean =
-        finish(paymentId) { PaymentProgress.Failed(errorCode) }
+    fun fail(attemptId: String, errorCode: String): Boolean =
+        finish(attemptId) { current -> PaymentProgress.Failed(errorCode, current.paymentId, attemptId) }
 
-    /** Cancels the running payment. With nothing running it does nothing. */
-    fun cancelIfRunning(): Boolean =
+    /** Cancels only the matching attempt. A stale notification is a no-op. */
+    fun cancelIfRunning(attemptId: String): Boolean =
         transition { current ->
-            if (current is PaymentProgress.Running) PaymentProgress.Cancelled else null
+            if (current is PaymentProgress.Running && current.attemptId == attemptId)
+                PaymentProgress.Cancelled(current.paymentId, attemptId) else null
         }
 
-    private fun finish(paymentId: String, terminal: () -> PaymentProgress): Boolean =
+    private fun finish(attemptId: String, terminal: (PaymentProgress.Running) -> PaymentProgress): Boolean =
         transition { current ->
-            if (current is PaymentProgress.Running && current.paymentId == paymentId) terminal() else null
+            if (current is PaymentProgress.Running && current.attemptId == attemptId) terminal(current) else null
         }
 
     /** Applies [next] atomically. Null means "not applicable": nothing changes and it returns false. */

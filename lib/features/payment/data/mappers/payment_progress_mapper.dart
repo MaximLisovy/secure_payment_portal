@@ -18,8 +18,13 @@ abstract final class PaymentProgressMapper {
       PaymentChannel.stateSucceeded => _succeeded(dto),
       PaymentChannel.stateFailed => PaymentFailed(
         failureFromCode(_required(dto.errorCode, 'errorCode')),
+        paymentId: _required(dto.paymentId, 'paymentId'),
+        attemptId: _required(dto.attemptId, 'attemptId'),
       ),
-      PaymentChannel.stateCancelled => const PaymentCancelled(),
+      PaymentChannel.stateCancelled => PaymentCancelled(
+        paymentId: _required(dto.paymentId, 'paymentId'),
+        attemptId: _required(dto.attemptId, 'attemptId'),
+      ),
       _ => throw const MalformedPayloadException(
         'payment progress has an unknown state',
       ),
@@ -39,7 +44,11 @@ abstract final class PaymentProgressMapper {
     if (percent < 0 || percent > 100) {
       throw const MalformedPayloadException('payment progress: percent range');
     }
-    return PaymentInProgress(_required(dto.paymentId, 'paymentId'), percent);
+    return PaymentInProgress(
+      _required(dto.paymentId, 'paymentId'),
+      percent,
+      attemptId: _required(dto.attemptId, 'attemptId'),
+    );
   }
 
   static PaymentProgress _succeeded(PaymentProgressDto dto) {
@@ -53,6 +62,7 @@ abstract final class PaymentProgressMapper {
     return PaymentSucceeded(
       PaymentResult(
         paymentId: _required(dto.paymentId, 'paymentId'),
+        attemptId: _required(dto.attemptId, 'attemptId'),
         transactionId: _required(dto.transactionId, 'transactionId'),
         amount: Money.minor(
           _required(dto.amountMinor, 'amountMinor'),

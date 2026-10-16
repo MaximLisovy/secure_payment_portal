@@ -9,7 +9,7 @@ private class NotAllowedHere : IllegalStateException("app is in the background")
 class PaymentStarterTest {
     private val store = PaymentProgressStore()
     private val launched = mutableListOf<PaymentRequest>()
-    private val request = PaymentRequest("bill-1", 1100, "USD")
+    private val request = PaymentRequest("bill-1", 1100, "USD", "attempt-1")
 
     private fun starter(launcher: ServiceLauncher = ServiceLauncher { launched += it }) =
         PaymentStarter(store, launcher)
@@ -20,7 +20,7 @@ class PaymentStarterTest {
 
         assertEquals(StartResult.Accepted, result)
         assertEquals(listOf(request), launched)
-        assertEquals(PaymentProgress.Running("bill-1", 0), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -29,19 +29,19 @@ class PaymentStarterTest {
 
         starter { seenByService = store.state.value }.start(request)
 
-        assertEquals(PaymentProgress.Running("bill-1", 0), seenByService)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), seenByService)
     }
 
     @Test
     fun aSecondStartWhileOneRunsIsRefusedWithoutStartingAnything() {
         starter().start(request)
-        store.reportProgress("bill-1", 40)
+        store.reportProgress("attempt-1", 40)
 
-        val second = starter().start(PaymentRequest("bill-2", 5, "EUR"))
+        val second = starter().start(PaymentRequest("bill-2", 5, "EUR", "attempt-1"))
 
         assertEquals(StartResult.AlreadyRunning, second)
         assertEquals(1, launched.size)
-        assertEquals(PaymentProgress.Running("bill-1", 40), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 40, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -56,10 +56,10 @@ class PaymentStarterTest {
     @Test
     fun aRollbackRestoresWhatWasThereBeforeNotJustIdle() {
         starter().start(request)
-        store.succeed("bill-1", "TX", 1100, "USD", 1L)
+        store.succeed("attempt-1", "TX", 1100, "USD", 1L)
         val finished = store.state.value
 
-        starter { throw NotAllowedHere() }.start(PaymentRequest("bill-2", 5, "USD"))
+        starter { throw NotAllowedHere() }.start(PaymentRequest("bill-2", 5, "USD", "attempt-1"))
 
         assertEquals(finished, store.state.value)
     }
@@ -76,13 +76,13 @@ class PaymentStarterTest {
     fun aCancelThatWonWhileTheServiceWasBeingStartedStands() {
         val result =
             starter {
-                    store.cancelIfRunning()
+                    store.cancelIfRunning("attempt-1")
                     throw NotAllowedHere()
                 }
                 .start(request)
 
         assertEquals(StartResult.NotAllowed, result)
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
     }
 
     @Test

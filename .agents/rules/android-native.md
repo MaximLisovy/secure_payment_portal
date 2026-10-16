@@ -92,14 +92,14 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
   - `setForegroundServiceBehavior(FOREGROUND_SERVICE_IMMEDIATE)`.
   - A content `PendingIntent` with `FLAG_IMMUTABLE`.
   - **Throttle** updates to at most about 2 per second; the system rate-limits them anyway.
-  - **The Cancel action is a `PendingIntent.getBroadcast` (`FLAG_IMMUTABLE`) to a non-exported `BroadcastReceiver`** that calls `store.cancelIfRunning()`. It does not depend on the service being alive and is not a service start, so no background-start restriction applies. Keep the manifest guard test in step when a component is added.
-- `POST_NOTIFICATIONS` (API 33+) is requested before starting, through its own bridge method (`requestNotificationPermission`, called by the Dart data source before `startPayment`, with no timeout on the prompt). If it is denied, processing still works and Dart still receives progress.
+  - **The Cancel action is a `PendingIntent.getBroadcast` (`FLAG_IMMUTABLE`) to a non-exported `BroadcastReceiver`** that carries its attempt ID and calls `store.cancelIfRunning(attemptId)`. It does not depend on the service being alive and is not a service start, so no background-start restriction applies. Keep the manifest guard test in step when a component is added.
+- `POST_NOTIFICATIONS` (API 33+) is requested before starting, through its own bridge method (`requestNotificationPermission`, called through repository preparation before the final security read and `startPayment`, with no timeout on the prompt). If it is denied, processing still works and Dart still receives progress.
 - Lifecycle:
   - Return `START_NOT_STICKY`: a payment must never silently restart.
   - Ignore or reject a duplicate start while a payment is running (idempotent).
   - Work runs in a service-owned coroutine scope that is cancelled in `onDestroy`.
   - On finish, publish the terminal state, then call `ServiceCompat.stopForeground(this, STOP_FOREGROUND_REMOVE)` and `stopSelf(startId)`. To leave a final "Payment complete" notification, **detach first, then post it**: while it is still the foreground notification the system keeps it non-cancellable and drops its `AUTO_CANCEL` flag (seen on a device), so posting it before `DETACH` gives a notification that cannot be tapped away.
-  - Support cancel. Of a cancel and a finish that race, the first wins; the service fails only the payment it ran, never "whatever is running".
+  - Support cancel. Of a cancel and a finish for the same attempt that race, the first wins; the service fails only the attempt it ran. Every execution has an `attemptId` distinct from the bill ID, and old workers, results and notifications cannot affect its retry. A replacement cancels and joins retired work; duplicate delivery updates the latest stop startId.
 - Service → Dart: the service publishes to `PaymentProgressStore` (`StateFlow`), the process-wide coordination point: the plugin claims in it, the service runs against it, a cancel from the app or the notification writes to it, and every transition is one atomic step. `PaymentServicePlugin` collects it while the EventChannel is listened to. The service never references `FlutterEngine` or `Activity`.
 
 ## 5. Gradle and compliance

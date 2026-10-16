@@ -7,9 +7,11 @@ import android.content.Intent
 /** What a cancel request does, without Android: it asks the store to cancel, nothing more. */
 class PaymentCancelAction(private val store: PaymentProgressStore) {
     /** Returns whether a running payment was cancelled. Anything else is ignored. */
-    fun handle(action: String?): Boolean = action == ACTION_CANCEL && store.cancelIfRunning()
+    fun handle(action: String?, attemptId: String?): Boolean =
+        action == ACTION_CANCEL && !attemptId.isNullOrBlank() && store.cancelIfRunning(attemptId)
 
     companion object {
+        const val EXTRA_ATTEMPT_ID = "attemptId"
         const val ACTION_CANCEL = "com.hypertenant.secure_payment_portal.payment.CANCEL"
     }
 }
@@ -24,6 +26,6 @@ class PaymentCancelAction(private val store: PaymentProgressStore) {
  */
 class PaymentCancelReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        PaymentCancelAction(PaymentProgressStore.shared).handle(intent.action)
+        PaymentCancelAction(PaymentProgressStore.shared).handle(intent.action, intent.getStringExtra(PaymentCancelAction.EXTRA_ATTEMPT_ID))
     }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/payment_attempt_id.dart';
 import 'package:secure_payment_portal/features/payment/data/repositories/payment_repository_impl.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/bill_backend_control.dart';
@@ -49,4 +50,9 @@ final paymentScenarioControlProvider = Provider<PaymentScenarioControl?>(
 /// The controls of the bill backend, which is simulated for good.
 final billBackendControlProvider = Provider<BillBackendControl>(
   (ref) => ref.watch(fakePaymentRemoteDataSourceProvider),
+);
+
+/// A fresh execution ID for each user confirmation; override with a sequence in tests.
+final paymentAttemptIdFactoryProvider = Provider<String Function()>(
+  (ref) => createPaymentAttemptId,
 );

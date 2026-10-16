@@ -80,6 +80,7 @@ void main() {
             amountMinor: 1100,
             currency: 'USD',
             completedAtMillis: _clock.millisecondsSinceEpoch,
+            attemptId: 'attempt-1',
           ),
         );
       });
@@ -142,7 +143,7 @@ void main() {
         unawaited(source.startPayment(sampleRequest));
         async.elapse(_step * 2);
 
-        unawaited(source.cancelPayment());
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
         async.elapse(_config.totalDuration);
 
         expect(events, [
@@ -163,7 +164,7 @@ void main() {
         unawaited(source.startPayment(sampleRequest));
         async.elapse(_config.totalDuration);
 
-        unawaited(source.cancelPayment());
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
         async.flushMicrotasks();
 
         expect(events.last, 'succeeded');
@@ -183,6 +184,7 @@ void main() {
               paymentId: 'bill-1',
               amountMinor: 0,
               currency: 'USD',
+              attemptId: 'attempt-1',
             ),
           ),
         );

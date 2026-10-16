@@ -11,7 +11,7 @@ object ChannelContract {
     const val NAMESPACE = "com.hypertenant.secure_payment_portal"
 
     /** Bumped when a payload changes incompatibly. A reader rejects any other. */
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
     const val KEY_SCHEMA_VERSION = "schemaVersion"
 }
 
@@ -97,6 +97,7 @@ object PaymentChannel {
      */
     const val REQUEST_NOTIFICATION_PERMISSION = "requestNotificationPermission"
 
+    const val KEY_ATTEMPT_ID = "attemptId"
     const val KEY_PAYMENT_ID = "paymentId"
     const val KEY_AMOUNT_MINOR = "amountMinor"
     const val KEY_CURRENCY = "currency"

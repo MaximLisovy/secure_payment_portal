@@ -14,6 +14,7 @@ const _request = StartPaymentRequestDto(
   paymentId: 'bill-1',
   amountMinor: 1100,
   currency: 'USD',
+  attemptId: 'attempt-1',
 );
 
 const _terminalStates = {
@@ -46,6 +47,37 @@ void paymentPlatformDataSourceContract(
   required Duration completionTime,
 }) {
   group('PaymentPlatformDataSource contract: $name', () {
+    test('a stale cancellation cannot cancel a retry of the same bill', () {
+      fakeAsync((async) {
+        final source = create();
+        final events = _record(source);
+        unawaited(source.startPayment(_request));
+        async.flushMicrotasks();
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
+        async.flushMicrotasks();
+        unawaited(
+          source.startPayment(
+            const StartPaymentRequestDto(
+              paymentId: 'bill-1',
+              attemptId: 'attempt-2',
+              amountMinor: 1100,
+              currency: 'USD',
+            ),
+          ),
+        );
+        async.flushMicrotasks();
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
+        async.flushMicrotasks();
+        expect(events.last.state, PaymentChannel.stateRunning);
+        expect(events.last.attemptId, 'attempt-2');
+        unawaited(source.cancelPayment(attemptId: 'attempt-2'));
+        async.flushMicrotasks();
+        expect(events.last.state, PaymentChannel.stateCancelled);
+        expect(events.last.attemptId, 'attempt-2');
+        expectNoPendingTimers(async);
+      });
+    });
+
     test('is idle before any payment', () {
       fakeAsync((async) {
         final events = _record(create());
@@ -66,7 +98,7 @@ void paymentPlatformDataSourceContract(
         expect(events.last.state, PaymentChannel.stateRunning);
         expect(events.last.paymentId, _request.paymentId);
         expect(events.last.percent, 0);
-        unawaited(source.cancelPayment());
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
         async.flushMicrotasks();
         expectNoPendingTimers(async);
       });
@@ -124,7 +156,7 @@ void paymentPlatformDataSourceContract(
             hasLength(1),
             reason: 'the rejected start must not restart the run',
           );
-          unawaited(source.cancelPayment());
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
           expectNoPendingTimers(async);
         });
@@ -143,6 +175,7 @@ void paymentPlatformDataSourceContract(
                 paymentId: 'bill-1',
                 amountMinor: amount,
                 currency: 'USD',
+                attemptId: 'attempt-1',
               ),
             ),
           );
@@ -162,14 +195,14 @@ void paymentPlatformDataSourceContract(
         unawaited(source.startPayment(_request));
         async.flushMicrotasks();
 
-        unawaited(source.cancelPayment());
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
         async.flushMicrotasks();
         expect(events.last.state, PaymentChannel.stateCancelled);
 
         unawaited(source.startPayment(_request));
         async.flushMicrotasks();
         expect(events.last.state, PaymentChannel.stateRunning);
-        unawaited(source.cancelPayment());
+        unawaited(source.cancelPayment(attemptId: 'attempt-1'));
         async.flushMicrotasks();
         expectNoPendingTimers(async);
       });
@@ -180,7 +213,9 @@ void paymentPlatformDataSourceContract(
         final source = create();
         final events = _record(source);
 
-        final cancel = FutureProbe(source.cancelPayment());
+        final cancel = FutureProbe(
+          source.cancelPayment(attemptId: 'attempt-1'),
+        );
         async.flushMicrotasks();
 
         expect(cancel.isDone, isTrue);

@@ -7,6 +7,9 @@ import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_r
 ///
 /// Failures are thrown as `DataSourceException`s, never as platform types.
 abstract interface class PaymentPlatformDataSource {
+  /// Completes user interaction, such as the optional notification prompt.
+  Future<void> preparePayment();
+
   /// Returns once processing was accepted, not once it finished.
   ///
   /// Throws `PlatformCallException(ALREADY_RUNNING)` while a payment is running
@@ -14,9 +17,9 @@ abstract interface class PaymentPlatformDataSource {
   /// (a non-positive amount).
   Future<void> startPayment(StartPaymentRequestDto request);
 
-  /// Cancels the running payment and reports `cancelled`. With nothing running
-  /// it does nothing and does not throw.
-  Future<void> cancelPayment();
+  /// Cancels only the matching attempt and reports `cancelled`. A stale ID
+  /// or nothing running is a successful no-op.
+  Future<void> cancelPayment({required String attemptId});
 
   /// Emits the current state as soon as it is listened to (`idle` before any
   /// payment), then each change. A terminal state (`succeeded`, `failed`,

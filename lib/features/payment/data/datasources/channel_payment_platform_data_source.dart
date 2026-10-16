@@ -19,11 +19,10 @@ import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_r
 /// `PlatformCallException(UNAVAILABLE)` after [callTimeout], so a hang is an
 /// explicit failure.
 ///
-/// **Notification permission.** [startPayment] first asks for it through the
-/// bridge, and does not wait on it with a timeout: the system prompt can take as
-/// long as the user does. Whatever the answer, and even if asking fails, the
-/// payment starts: a denial only means the notification is not shown. Only
-/// `startPayment` itself is timed, and it is quick (the work runs in the service).
+/// **Notification permission.** [preparePayment] asks without a timeout: the
+/// system prompt may take as long as the user does. Denial does not block a
+/// payment. ConfirmPayment completes preparation before its final security read;
+/// [startPayment] contains no further user interaction and is timed separately.
 ///
 /// **One native listener.** The progress `EventChannel` keeps a single active
 /// sink, so however many Dart listeners there are, one native subscription is
@@ -61,12 +60,15 @@ final class ChannelPaymentPlatformDataSource
 
   @override
   Future<void> startPayment(StartPaymentRequestDto request) async {
-    await _askNotificationPermission();
     await _invoke(PaymentChannel.startPayment, request.toMap());
   }
 
   @override
-  Future<void> cancelPayment() => _invoke(PaymentChannel.cancelPayment);
+  Future<void> cancelPayment({required String attemptId}) =>
+      _invoke(PaymentChannel.cancelPayment, {
+        ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
+        PaymentChannel.keyAttemptId: attemptId,
+      });
 
   @override
   Stream<PaymentProgressDto> watchProgress() => _progress.stream;
@@ -78,16 +80,17 @@ final class ChannelPaymentPlatformDataSource
   }
 
   /// Asks, and ignores the answer. Not timed: the user may take a while.
-  Future<void> _askNotificationPermission() async {
+  @override
+  Future<void> preparePayment() async {
     try {
       await _methods.invokeMethod<Object?>(
         PaymentChannel.requestNotificationPermission,
       );
     } on PlatformException catch (error) {
-      // Denial, or no way to ask, only means no notification. Start anyway, and say so.
+      // Denial only affects notifications; the domain still makes a fresh check.
       _logger.warning(
         'Asking for the notification permission failed with ${error.code}; '
-        'starting the payment anyway.',
+        'confirmation may continue without notifications.',
       );
     } on MissingPluginException {
       // No native side: startPayment fails as unsupported right after.

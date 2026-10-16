@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -51,8 +52,8 @@ class PaymentNotificationFactory(private val context: Context) {
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         openAppIntent()?.let(builder::setContentIntent)
         if (spec.showsProgress) builder.setProgress(PERCENT_MAX, spec.percent, false)
-        if (spec.showsCancel) {
-            builder.addAction(0, context.getString(R.string.payment_notification_cancel), cancelIntent())
+        if (spec.showsCancel && spec.attemptId != null) {
+            builder.addAction(0, context.getString(R.string.payment_notification_cancel), cancelIntent(spec.attemptId))
         }
         return builder.build()
     }
@@ -67,9 +68,14 @@ class PaymentNotificationFactory(private val context: Context) {
         )
     }
 
-    private fun cancelIntent(): PendingIntent {
+    private fun cancelIntent(attemptId: String): PendingIntent {
         val intent =
-            Intent(context, PaymentCancelReceiver::class.java).setAction(PaymentCancelAction.ACTION_CANCEL)
+            Intent(context, PaymentCancelReceiver::class.java)
+                .setAction(PaymentCancelAction.ACTION_CANCEL)
+                // Intent data (API 1) makes each PendingIntent identity distinct. Extras alone
+                // do not: an old notification must never cancel a replacement attempt.
+                .setData(Uri.parse("payment-cancel:$attemptId"))
+                .putExtra(PaymentCancelAction.EXTRA_ATTEMPT_ID, attemptId)
         return PendingIntent.getBroadcast(
             context,
             REQUEST_CANCEL,

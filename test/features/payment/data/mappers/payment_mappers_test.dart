@@ -118,7 +118,13 @@ void main() {
 
   group('PaymentDetailsMapper.toStartRequest', () {
     test('sends the id, the total in minor units and the currency code', () {
-      expect(PaymentDetailsMapper.toStartRequest(sampleDetails), sampleRequest);
+      expect(
+        PaymentDetailsMapper.toStartRequest(
+          sampleDetails,
+          attemptId: 'attempt-1',
+        ),
+        sampleRequest,
+      );
     });
   });
 
@@ -129,45 +135,54 @@ void main() {
         const PaymentIdle(),
       );
       expect(
-        PaymentProgressMapper.toEntity(PaymentProgressDto.cancelled),
-        const PaymentCancelled(),
+        PaymentProgressMapper.toEntity(
+          const PaymentProgressDto.cancelled(
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+          ),
+        ),
+        const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
       );
     });
 
     test('maps running to its payment and percent', () {
       expect(
         PaymentProgressMapper.toEntity(
-          const PaymentProgressDto.running('bill-1', 40),
+          const PaymentProgressDto.running(
+            'bill-1',
+            40,
+            attemptId: 'attempt-1',
+          ),
         ),
-        const PaymentInProgress('bill-1', 40),
+        const PaymentInProgress('bill-1', 40, attemptId: 'attempt-1'),
       );
     });
 
     test('accepts the 0 and 100 percent edges', () {
       expect(
         PaymentProgressMapper.toEntity(
-          const PaymentProgressDto.running('a', 0),
+          const PaymentProgressDto.running('a', 0, attemptId: 'attempt-1'),
         ),
-        const PaymentInProgress('a', 0),
+        const PaymentInProgress('a', 0, attemptId: 'attempt-1'),
       );
       expect(
         PaymentProgressMapper.toEntity(
-          const PaymentProgressDto.running('a', 100),
+          const PaymentProgressDto.running('a', 100, attemptId: 'attempt-1'),
         ),
-        const PaymentInProgress('a', 100),
+        const PaymentInProgress('a', 100, attemptId: 'attempt-1'),
       );
     });
 
     test('rejects a percent outside 0..100', () {
       expect(
         () => PaymentProgressMapper.toEntity(
-          const PaymentProgressDto.running('a', -1),
+          const PaymentProgressDto.running('a', -1, attemptId: 'attempt-1'),
         ),
         _malformed,
       );
       expect(
         () => PaymentProgressMapper.toEntity(
-          const PaymentProgressDto.running('a', 101),
+          const PaymentProgressDto.running('a', 101, attemptId: 'attempt-1'),
         ),
         _malformed,
       );
@@ -181,6 +196,7 @@ void main() {
           amountMinor: 1100,
           currency: 'USD',
           completedAtMillis: 1760529600000,
+          attemptId: 'attempt-1',
         ),
       );
 
@@ -205,6 +221,7 @@ void main() {
             amountMinor: 1,
             currency: 'XXX',
             completedAtMillis: 1,
+            attemptId: 'attempt-1',
           ),
         ),
         _malformed,
@@ -216,21 +233,45 @@ void main() {
       () {
         expect(
           PaymentProgressMapper.toEntity(
-            const PaymentProgressDto.failed(PaymentChannel.failureDeclined),
+            const PaymentProgressDto.failed(
+              PaymentChannel.failureDeclined,
+              paymentId: 'bill-1',
+              attemptId: 'attempt-1',
+            ),
           ),
-          const PaymentFailed(PaymentDeclinedFailure()),
+          const PaymentFailed(
+            PaymentDeclinedFailure(),
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+          ),
         );
         expect(
           PaymentProgressMapper.toEntity(
-            const PaymentProgressDto.failed(PaymentChannel.failureProcessing),
+            const PaymentProgressDto.failed(
+              PaymentChannel.failureProcessing,
+              paymentId: 'bill-1',
+              attemptId: 'attempt-1',
+            ),
           ),
-          const PaymentFailed(PaymentProcessingFailure()),
+          const PaymentFailed(
+            PaymentProcessingFailure(),
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+          ),
         );
         expect(
           PaymentProgressMapper.toEntity(
-            const PaymentProgressDto.failed('something_new'),
+            const PaymentProgressDto.failed(
+              'something_new',
+              paymentId: 'bill-1',
+              attemptId: 'attempt-1',
+            ),
           ),
-          const PaymentFailed(PaymentProcessingFailure()),
+          const PaymentFailed(
+            PaymentProcessingFailure(),
+            paymentId: 'bill-1',
+            attemptId: 'attempt-1',
+          ),
         );
       },
     );

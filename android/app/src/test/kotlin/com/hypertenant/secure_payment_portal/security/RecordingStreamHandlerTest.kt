@@ -12,7 +12,7 @@ class RecordingStreamHandlerTest {
     private val handler = RecordingStreamHandler(monitor)
     private val source = FakeRecordingSource(Detection.NOT_DETECTED)
 
-    private fun event(state: String) = mapOf("schemaVersion" to 1, "screenRecording" to state)
+    private fun event(state: String) = mapOf("schemaVersion" to 2, "screenRecording" to state)
 
     @Test
     fun listeningReplaysTheCurrentStateAtOnce() {

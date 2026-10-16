@@ -11,25 +11,29 @@ final _result = PaymentResult(
   transactionId: 'tx-1',
   amount: const Money.minor(1100, Currency.usd),
   completedAt: DateTime.utc(2026, 10, 15, 12),
+  attemptId: 'attempt-1',
 );
 
 void main() {
   group('PaymentProgress', () {
     test('states compare by value, so a stream can drop repeats', () {
       expect(
-        const PaymentInProgress('a', 40),
-        const PaymentInProgress('a', 40),
+        const PaymentInProgress('a', 40, attemptId: 'attempt-1'),
+        const PaymentInProgress('a', 40, attemptId: 'attempt-1'),
       );
       expect(
-        const PaymentInProgress('a', 40),
-        isNot(const PaymentInProgress('a', 50)),
+        const PaymentInProgress('a', 40, attemptId: 'attempt-1'),
+        isNot(const PaymentInProgress('a', 50, attemptId: 'attempt-1')),
       );
       expect(
-        const PaymentInProgress('a', 40),
-        isNot(const PaymentInProgress('b', 40)),
+        const PaymentInProgress('a', 40, attemptId: 'attempt-1'),
+        isNot(const PaymentInProgress('b', 40, attemptId: 'attempt-1')),
       );
       expect(const PaymentIdle(), const PaymentIdle());
-      expect(const PaymentCancelled(), const PaymentCancelled());
+      expect(
+        const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+        const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+      );
       expect(PaymentSucceeded(_result), PaymentSucceeded(_result));
       expect(
         const PaymentFailed(PaymentDeclinedFailure()),
@@ -42,14 +46,29 @@ void main() {
     });
 
     test('the fraction is the percent as a number between 0 and 1', () {
-      expect(const PaymentInProgress('a', 0).fraction, 0);
-      expect(const PaymentInProgress('a', 25).fraction, 0.25);
-      expect(const PaymentInProgress('a', 100).fraction, 1);
+      expect(
+        const PaymentInProgress('a', 0, attemptId: 'attempt-1').fraction,
+        0,
+      );
+      expect(
+        const PaymentInProgress('a', 25, attemptId: 'attempt-1').fraction,
+        0.25,
+      );
+      expect(
+        const PaymentInProgress('a', 100, attemptId: 'attempt-1').fraction,
+        1,
+      );
     });
 
     test('a percent outside 0..100 is rejected', () {
-      expect(() => PaymentInProgress('a', -1), throwsA(isA<AssertionError>()));
-      expect(() => PaymentInProgress('a', 101), throwsA(isA<AssertionError>()));
+      expect(
+        () => PaymentInProgress('a', -1, attemptId: 'attempt-1'),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => PaymentInProgress('a', 101, attemptId: 'attempt-1'),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
     test('a switch over it is exhaustive', () {
@@ -61,7 +80,10 @@ void main() {
         PaymentCancelled() => 'cancelled',
       };
 
-      expect(name(const PaymentInProgress('a', 10)), 'running 10');
+      expect(
+        name(const PaymentInProgress('a', 10, attemptId: 'attempt-1')),
+        'running 10',
+      );
       expect(
         name(const PaymentFailed(PaymentDeclinedFailure())),
         'failed payment.declined',
@@ -90,6 +112,7 @@ void main() {
         InvalidPaymentFailure() => 'invalid',
         PaymentStartNotAllowedFailure() => 'not allowed',
         PaymentProcessingFailure() => 'processing',
+        PaymentConfirmationObsoleteFailure() => 'obsolete',
       };
 
       expect(const InvalidPaymentFailure(), isA<Failure>());
@@ -107,6 +130,7 @@ void main() {
           transactionId: 'tx-2',
           amount: const Money.minor(1100, Currency.usd),
           completedAt: DateTime.utc(2026, 10, 15, 12),
+          attemptId: 'attempt-1',
         ),
       ),
     );

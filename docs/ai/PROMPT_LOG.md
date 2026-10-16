@@ -298,3 +298,28 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** formatting, zero-issue analysis, all 844 Dart tests and both debug APKs pass. Commit: fix: reconcile replacement holders after protection failure.
 
 ---
+
+### 13. Isolate payment attempts across Flutter and Android — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** fix stale payment results, lost service work, obsolete confirmation, stale security snapshots and invisible cancellation errors found in independent review.
+- **Prompt (key part, verbatim):**
+  > давай тогда поправь то что нашел
+  > да, погнали
+- **Context given:** the approved file-by-file fix plan, AGENTS.md, native/testing/review rules, existing contract suites and the review reproductions.
+- **AI output (summary):** schema v2 carries a fresh attemptId separately from the bill ID in start/cancel and all non-idle progress. The store scopes progress, completion, rollback and cancellation to the attempt. Notification PendingIntent data makes old actions distinct. PaymentWorkerCoordinator cancels and joins retired work, tracks every delivered service startId, and lets only the current worker stop foreground processing. ConfirmPayment prepares permission first, reads security afterwards and checks obsolete confirmation after awaits. Flutter filters events, preserves acceptance rejection and shows cancellation failure while progress continues. Updated fakes, simulator, contracts, widgets and regressions together.
+- **Assumptions & risks flagged by the agent:**
+  - The schema change is coordinated inside one app; v1 consumers must not mix with v2. Attempt IDs are local execution identities, not durable backend idempotency keys; process-death recovery remains out of scope.
+  - Physical-device callback, notification and high-refresh-rate checks remain pending. The only newly used Android API is Intent data/Uri parsing (API 1); other guarded APIs are unchanged.
+  - A release build with --no-pub failed on an existing stale GeneratedPluginRegistrant reference to the dev-only integration_test plugin. A retry of the normal Flutter build command, letting Flutter regenerate its own files, was rejected by automatic approval review because of the repository's generated-file restriction. No generated file was edited manually and no release success is claimed for v2. Debug builds and required checks pass.
+  - An initial approval review also rejected updating the native rule description. The approved plan explicitly listed that file; after presenting this evidence, the narrow documentation synchronization was approved. No safety rule was weakened.
+- **Corrections made (AI suggestion → problem → correction):**
+  - Atomic transitions keyed by a bill allowed old work to finish a retry → carry a distinct attemptId and test old progress/success/failure/rollback/cancel after replacement.
+  - Ignoring every start while a Job was active lost accepted replacement work → distinguish duplicates, join retired workers and guard cleanup. An obsolete Intent still advances Android's stop startId, so every delivery is tracked.
+  - Permission requested after security verification preserved a stale verdict → prepare first, then perform the final domain check, with a channel-backed 40-second-prompt regression.
+  - Ref.mounted alone did not invalidate a changed bill → generation guards prevent obsolete preparation/security completions from starting payment.
+  - An optimistic progress event hid a later command rejection → process rejection for the current attempt even after progress.
+  - A rejected cancellation only reset a flag → keep the typed failure in processing state and show user-safe guidance with retry.
+- **Developer review:** approved the complete fix plan before implementation.
+- **Result:** 844 Dart tests, 220 JVM tests, clean format/analyze, Android Lint without errors, retail and utility debug APKs. Release validation is blocked as described above. Commit: fix: isolate payment attempts across Flutter and Android.
+
+---

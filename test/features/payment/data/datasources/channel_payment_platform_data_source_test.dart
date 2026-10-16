@@ -27,6 +27,7 @@ const _request = StartPaymentRequestDto(
   paymentId: 'bill-1',
   amountMinor: 1100,
   currency: 'USD',
+  attemptId: 'attempt-1',
 );
 
 ChannelPaymentPlatformDataSource _source({
@@ -70,14 +71,16 @@ void main() {
           final service = _service();
           final source = _source();
 
-          unawaited(source.startPayment(_request));
+          unawaited(
+            source.preparePayment().then((_) => source.startPayment(_request)),
+          );
           async.flushMicrotasks();
 
           expect(service.calls, [
             PaymentChannel.requestNotificationPermission,
             PaymentChannel.startPayment,
           ]);
-          unawaited(source.cancelPayment());
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
           expectNoPendingTimers(async);
         });
@@ -95,13 +98,17 @@ void main() {
             final events = <PaymentProgressDto>[];
             source.watchProgress().listen(events.add);
 
-            final start = FutureProbe(source.startPayment(_request));
+            final start = FutureProbe(
+              source.preparePayment().then(
+                (_) => source.startPayment(_request),
+              ),
+            );
             async.flushMicrotasks();
 
             expect(start.isDone && start.error == null, isTrue);
             expect(events.last.state, PaymentChannel.stateRunning);
             expect(service.calls, contains(PaymentChannel.startPayment));
-            unawaited(source.cancelPayment());
+            unawaited(source.cancelPayment(attemptId: 'attempt-1'));
             async.flushMicrotasks();
           });
         });
@@ -112,12 +119,14 @@ void main() {
           final service = _service()..permissionFails = true;
           final source = _source();
 
-          final start = FutureProbe(source.startPayment(_request));
+          final start = FutureProbe(
+            source.preparePayment().then((_) => source.startPayment(_request)),
+          );
           async.flushMicrotasks();
 
           expect(start.isDone && start.error == null, isTrue);
           expect(service.calls, contains(PaymentChannel.startPayment));
-          unawaited(source.cancelPayment());
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
         });
       });
@@ -129,14 +138,16 @@ void main() {
             ..permissionDelay = const Duration(seconds: 40);
           final source = _source(callTimeout: const Duration(seconds: 5));
 
-          final start = FutureProbe(source.startPayment(_request));
+          final start = FutureProbe(
+            source.preparePayment().then((_) => source.startPayment(_request)),
+          );
           async.elapse(const Duration(seconds: 39));
           expect(start.isDone, isFalse, reason: 'still waiting for the user');
 
           async.elapse(const Duration(seconds: 2));
           expect(start.isDone && start.error == null, isTrue);
           expect(service.calls.last, PaymentChannel.startPayment);
-          unawaited(source.cancelPayment());
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
         });
       });
@@ -221,7 +232,11 @@ void main() {
             final service = _service()..permissionFails = true;
             final source = _source(logger: logger);
 
-            final start = FutureProbe(source.startPayment(_request));
+            final start = FutureProbe(
+              source.preparePayment().then(
+                (_) => source.startPayment(_request),
+              ),
+            );
             async.flushMicrotasks();
 
             expect(start.isDone && start.error == null, isTrue);
@@ -231,7 +246,7 @@ void main() {
               contains('notification permission'),
             );
             expect(logger.entries.single.everything, isNot(contains('4111')));
-            unawaited(source.cancelPayment());
+            unawaited(source.cancelPayment(attemptId: 'attempt-1'));
             async.flushMicrotasks();
           });
         },
@@ -386,7 +401,7 @@ void main() {
           async.flushMicrotasks();
           expect(service.cancels, 1);
 
-          unawaited(source.cancelPayment());
+          unawaited(source.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
           expectNoPendingTimers(async);
         });
@@ -436,7 +451,13 @@ void main() {
           service.sendRaw('garbage');
           service.sendRaw({'schemaVersion': 1, 'state': 'running'});
           service.sendRaw({'schemaVersion': 1, 'state': 'on fire'});
-          service.sendRaw(const PaymentProgressDto.running('a', 5).toMap());
+          service.sendRaw(
+            const PaymentProgressDto.running(
+              'a',
+              5,
+              attemptId: 'attempt-1',
+            ).toMap(),
+          );
           async.flushMicrotasks();
 
           expect(errors, everyElement(isA<MalformedPayloadException>()));
@@ -458,7 +479,12 @@ void main() {
           async.flushMicrotasks();
 
           service.sendError();
-          service.sendRaw(PaymentProgressDto.cancelled.toMap());
+          service.sendRaw(
+            const PaymentProgressDto.cancelled(
+              paymentId: 'bill-1',
+              attemptId: 'attempt-1',
+            ).toMap(),
+          );
           async.flushMicrotasks();
 
           expect(
@@ -537,8 +563,11 @@ void main() {
           unawaited(
             repository.getPaymentDetails(details.id).then((loaded) async {
               final bill = loaded.valueOrNull!;
-              await repository.startPayment(bill);
-              second = await repository.startPayment(bill);
+              await repository.startPayment(bill, attemptId: 'attempt-1');
+              second = await repository.startPayment(
+                bill,
+                attemptId: 'attempt-1',
+              );
             }),
           );
           async.elapse(const Duration(milliseconds: 50));
@@ -551,7 +580,7 @@ void main() {
               isA<PaymentInProgressFailure>(),
             ),
           );
-          unawaited(repository.cancelPayment());
+          unawaited(repository.cancelPayment(attemptId: 'attempt-1'));
           async.flushMicrotasks();
         });
       });

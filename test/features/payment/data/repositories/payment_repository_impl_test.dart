@@ -107,7 +107,10 @@ void main() {
     test('sends the request built from the details', () async {
       when(() => platform.startPayment(sampleRequest)).thenAnswer((_) async {});
 
-      final result = await repository.startPayment(sampleDetails);
+      final result = await repository.startPayment(
+        sampleDetails,
+        attemptId: 'attempt-1',
+      );
 
       expect(result, Success.unit);
       verify(() => platform.startPayment(sampleRequest)).called(1);
@@ -141,7 +144,7 @@ void main() {
         when(() => platform.startPayment(any())).thenThrow(thrown);
 
         expect(
-          await repository.startPayment(sampleDetails),
+          await repository.startPayment(sampleDetails, attemptId: 'attempt-1'),
           Err<void>(expected),
         );
       });
@@ -150,19 +153,24 @@ void main() {
 
   group('cancelPayment', () {
     test('cancels on the platform', () async {
-      when(() => platform.cancelPayment()).thenAnswer((_) async {});
+      when(
+        () => platform.cancelPayment(attemptId: 'attempt-1'),
+      ).thenAnswer((_) async {});
 
-      expect(await repository.cancelPayment(), Success.unit);
-      verify(() => platform.cancelPayment()).called(1);
+      expect(
+        await repository.cancelPayment(attemptId: 'attempt-1'),
+        Success.unit,
+      );
+      verify(() => platform.cancelPayment(attemptId: 'attempt-1')).called(1);
     });
 
     test('maps a platform error to a failure', () async {
       when(
-        () => platform.cancelPayment(),
+        () => platform.cancelPayment(attemptId: 'attempt-1'),
       ).thenThrow(const PlatformCallException(ChannelErrorCodes.internal));
 
       expect(
-        await repository.cancelPayment(),
+        await repository.cancelPayment(attemptId: 'attempt-1'),
         const Err<void>(PlatformFailure(ChannelErrorCodes.internal)),
       );
     });
@@ -243,8 +251,12 @@ void main() {
 
     test('maps every state of the run in order', () async {
       await send(PaymentProgressDto.idle);
-      await send(const PaymentProgressDto.running('bill-1', 0));
-      await send(const PaymentProgressDto.running('bill-1', 60));
+      await send(
+        const PaymentProgressDto.running('bill-1', 0, attemptId: 'attempt-1'),
+      );
+      await send(
+        const PaymentProgressDto.running('bill-1', 60, attemptId: 'attempt-1'),
+      );
       await send(
         const PaymentProgressDto.succeeded(
           paymentId: 'bill-1',
@@ -252,6 +264,7 @@ void main() {
           amountMinor: 1100,
           currency: 'USD',
           completedAtMillis: 1760529600000,
+          attemptId: 'attempt-1',
         ),
       );
 
@@ -261,36 +274,64 @@ void main() {
         PaymentInProgress,
         PaymentSucceeded,
       ]);
-      expect(emitted[2], const PaymentInProgress('bill-1', 60));
+      expect(
+        emitted[2],
+        const PaymentInProgress('bill-1', 60, attemptId: 'attempt-1'),
+      );
     });
 
     test('maps a decline and a cancel', () async {
       await send(
-        const PaymentProgressDto.failed(PaymentChannel.failureDeclined),
+        const PaymentProgressDto.failed(
+          PaymentChannel.failureDeclined,
+          paymentId: 'bill-1',
+          attemptId: 'attempt-1',
+        ),
       );
-      await send(PaymentProgressDto.cancelled);
+      await send(
+        const PaymentProgressDto.cancelled(
+          paymentId: 'bill-1',
+          attemptId: 'attempt-1',
+        ),
+      );
 
       expect(emitted, [
-        const PaymentFailed(PaymentDeclinedFailure()),
-        const PaymentCancelled(),
+        const PaymentFailed(
+          PaymentDeclinedFailure(),
+          paymentId: 'bill-1',
+          attemptId: 'attempt-1',
+        ),
+        const PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
       ]);
     });
 
     test('drops a state identical to the previous one', () async {
-      await send(const PaymentProgressDto.running('bill-1', 40));
-      await send(const PaymentProgressDto.running('bill-1', 40));
-      await send(const PaymentProgressDto.running('bill-1', 50));
+      await send(
+        const PaymentProgressDto.running('bill-1', 40, attemptId: 'attempt-1'),
+      );
+      await send(
+        const PaymentProgressDto.running('bill-1', 40, attemptId: 'attempt-1'),
+      );
+      await send(
+        const PaymentProgressDto.running('bill-1', 50, attemptId: 'attempt-1'),
+      );
 
       expect(emitted, [
-        const PaymentInProgress('bill-1', 40),
-        const PaymentInProgress('bill-1', 50),
+        const PaymentInProgress('bill-1', 40, attemptId: 'attempt-1'),
+        const PaymentInProgress('bill-1', 50, attemptId: 'attempt-1'),
       ]);
     });
 
     test(
       'an event that makes no sense becomes a failure, not an error',
       () async {
-        await send(const PaymentProgressDto.running('bill-1', 150));
+        await send(
+          const PaymentProgressDto.running(
+            'bill-1',
+            150,
+            attemptId: 'attempt-1',
+          ),
+        );
 
         expect(emitted, [const PaymentFailed(InvalidDataFailure())]);
       },

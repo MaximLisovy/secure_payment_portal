@@ -12,10 +12,11 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PaymentStreamHandlerTest {
     private val store = PaymentProgressStore()
-    private val request = PaymentRequest("bill-1", 1100, "USD")
+    private val request = PaymentRequest("bill-1", 1100, "USD", "attempt-1")
 
     private fun state(name: String, vararg extra: Pair<String, Any>) =
-        mapOf<String, Any>("schemaVersion" to 1, "state" to name) + extra
+        mapOf<String, Any>("schemaVersion" to 2, "state" to name) +
+            (if (name == "idle") emptyMap() else mapOf("paymentId" to "bill-1", "attemptId" to "attempt-1")) + extra
 
     @Test
     fun listeningReplaysIdleBeforeAnyPayment() = runTest {
@@ -38,9 +39,9 @@ class PaymentStreamHandlerTest {
 
         store.tryStart(request)
         runCurrent()
-        store.reportProgress("bill-1", 50)
+        store.reportProgress("attempt-1", 50)
         runCurrent()
-        store.succeed("bill-1", "TX-1", 1100, "USD", 99L)
+        store.succeed("attempt-1", "TX-1", 1100, "USD", 99L)
         runCurrent()
 
         assertEquals(
@@ -65,7 +66,7 @@ class PaymentStreamHandlerTest {
     @Test
     fun aListenerThatArrivesLaterIsReplayedTheCurrentStateWithItsProgress() = runTest {
         store.tryStart(request)
-        store.reportProgress("bill-1", 70)
+        store.reportProgress("attempt-1", 70)
         val handler = PaymentStreamHandler(this, store)
         val sink = FakeEventSink()
 
@@ -82,7 +83,7 @@ class PaymentStreamHandlerTest {
     @Test
     fun aTerminalStateIsReplayedUntilTheNextPayment() = runTest {
         store.tryStart(request)
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
         val handler = PaymentStreamHandler(this, store)
 
         val first = FakeEventSink()

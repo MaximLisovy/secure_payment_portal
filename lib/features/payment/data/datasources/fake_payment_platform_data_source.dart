@@ -43,6 +43,9 @@ final class FakePaymentPlatformDataSource
   void setScenario(PaymentScenario scenario) => _scenario = scenario;
 
   @override
+  Future<void> preparePayment() async {}
+
+  @override
   Future<void> startPayment(StartPaymentRequestDto request) async {
     if (request.amountMinor <= 0) {
       throw const PlatformCallException(ChannelErrorCodes.invalidArgs);
@@ -53,14 +56,26 @@ final class FakePaymentPlatformDataSource
     _running = request;
     _runningScenario = _scenario;
     _step = 0;
-    _progress.add(PaymentProgressDto.running(request.paymentId, 0));
+    _progress.add(
+      PaymentProgressDto.running(
+        request.paymentId,
+        0,
+        attemptId: request.attemptId,
+      ),
+    );
     _timer = Timer.periodic(config.stepDelay, (_) => _tick());
   }
 
   @override
-  Future<void> cancelPayment() async {
-    if (_running == null) return;
-    _finish(PaymentProgressDto.cancelled);
+  Future<void> cancelPayment({required String attemptId}) async {
+    final running = _running;
+    if (running == null || running.attemptId != attemptId) return;
+    _finish(
+      PaymentProgressDto.cancelled(
+        paymentId: running.paymentId,
+        attemptId: attemptId,
+      ),
+    );
   }
 
   @override
@@ -82,6 +97,7 @@ final class FakePaymentPlatformDataSource
         PaymentProgressDto.running(
           request.paymentId,
           _step * 100 ~/ config.steps,
+          attemptId: request.attemptId,
         ),
       );
       return;
@@ -98,6 +114,7 @@ final class FakePaymentPlatformDataSource
         _transactionCount++;
         return PaymentProgressDto.succeeded(
           paymentId: request.paymentId,
+          attemptId: request.attemptId,
           transactionId:
               'FAKE-TX-${_transactionCount.toString().padLeft(6, '0')}',
           amountMinor: request.amountMinor,
@@ -105,10 +122,16 @@ final class FakePaymentPlatformDataSource
           completedAtMillis: _now().millisecondsSinceEpoch,
         );
       case PaymentScenario.declined:
-        return const PaymentProgressDto.failed(PaymentChannel.failureDeclined);
+        return PaymentProgressDto.failed(
+          PaymentChannel.failureDeclined,
+          paymentId: request.paymentId,
+          attemptId: request.attemptId,
+        );
       case PaymentScenario.processingFailure:
-        return const PaymentProgressDto.failed(
+        return PaymentProgressDto.failed(
           PaymentChannel.failureProcessing,
+          paymentId: request.paymentId,
+          attemptId: request.attemptId,
         );
     }
   }

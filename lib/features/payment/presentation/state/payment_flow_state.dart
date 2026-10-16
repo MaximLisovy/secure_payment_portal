@@ -75,6 +75,7 @@ final class PaymentFlowProcessing extends PaymentFlowState {
   const PaymentFlowProcessing({
     required this.percent,
     this.cancelRequested = false,
+    this.cancellationFailure,
   });
 
   /// Whole percent, 0 to 100.
@@ -83,10 +84,21 @@ final class PaymentFlowProcessing extends PaymentFlowState {
   /// Cancel was pressed and the platform has not confirmed it yet.
   final bool cancelRequested;
 
-  PaymentFlowProcessing copyWith({int? percent, bool? cancelRequested}) {
+  /// A rejected cancel leaves processing active and offers a retry.
+  final Failure? cancellationFailure;
+
+  PaymentFlowProcessing copyWith({
+    int? percent,
+    bool? cancelRequested,
+    Failure? cancellationFailure,
+    bool clearCancellationFailure = false,
+  }) {
     return PaymentFlowProcessing(
       percent: percent ?? this.percent,
       cancelRequested: cancelRequested ?? this.cancelRequested,
+      cancellationFailure: clearCancellationFailure
+          ? null
+          : cancellationFailure ?? this.cancellationFailure,
     );
   }
 
@@ -94,7 +106,7 @@ final class PaymentFlowProcessing extends PaymentFlowState {
   PaymentFlowPhase get phase => PaymentFlowPhase.processing;
 
   @override
-  List<Object?> get props => [percent, cancelRequested];
+  List<Object?> get props => [percent, cancelRequested, cancellationFailure];
 }
 
 final class PaymentFlowSuccess extends PaymentFlowState {

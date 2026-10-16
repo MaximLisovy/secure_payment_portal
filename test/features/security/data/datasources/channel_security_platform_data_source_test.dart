@@ -425,7 +425,7 @@ void main() {
 
           device.sendRaw('garbage');
           device.sendRaw({'schemaVersion': 1});
-          device.sendRaw({'schemaVersion': 1, 'screenRecording': 'detected'});
+          device.sendRaw({'schemaVersion': 2, 'screenRecording': 'detected'});
           await pumpEventQueue();
 
           expect(seen, [

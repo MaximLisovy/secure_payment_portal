@@ -61,7 +61,7 @@ void main() {
       expect(() => SecurityStatusDto.fromMap(null), _malformed);
       expect(() => SecurityStatusDto.fromMap('detected'), _malformed);
       expect(
-        () => SecurityStatusDto.fromMap(_statusMap(version: 2)),
+        () => SecurityStatusDto.fromMap(_statusMap(version: 99)),
         _malformed,
       );
       expect(

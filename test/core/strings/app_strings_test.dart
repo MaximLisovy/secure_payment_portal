@@ -22,6 +22,7 @@ void main() {
       const PaymentStartNotAllowedFailure(),
       const InvalidPaymentFailure(),
       const PaymentProcessingFailure(),
+      const PaymentConfirmationObsoleteFailure(),
     ];
 
     for (final failure in failures) {

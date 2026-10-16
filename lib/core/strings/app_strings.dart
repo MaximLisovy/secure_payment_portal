@@ -58,6 +58,8 @@ abstract final class AppStrings {
   static const processingTitle = 'Processing your payment';
   static const cancel = 'Cancel';
   static const cancelling = 'Cancelling…';
+  static const cancellationFailed =
+      'Could not cancel. Your payment is still processing. Try again.';
   static const paymentSuccessful = 'Payment successful';
   static const paymentFailed = 'Payment failed';
   static const paymentCancelled = 'Payment cancelled';
@@ -100,6 +102,7 @@ abstract final class AppStrings {
     'error.unexpected' => 'Something unexpected happened. Please try again.',
     'payment.declined' => 'The payment was declined.',
     'payment.in_progress' => 'A payment is already in progress.',
+    'payment.confirmation_obsolete' => 'This confirmation is no longer active.',
     'payment.invalid' => 'There is nothing valid to pay.',
     'payment.start_not_allowed' => 'Open the app to pay.',
     'payment.processing_failed' => 'The payment could not be completed.',

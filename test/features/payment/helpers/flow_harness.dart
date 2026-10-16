@@ -65,6 +65,7 @@ final class FlowHarness {
     );
     final container = ProviderContainer.test(
       overrides: [
+        paymentAttemptIdFactoryProvider.overrideWithValue(() => 'attempt-1'),
         paymentScreenConfigProvider.overrideWithValue(
           PaymentScreenConfig(
             paymentId: sampleDetails.id,

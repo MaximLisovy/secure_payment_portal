@@ -34,6 +34,7 @@ final _receipt = PaymentResult(
   transactionId: 'FAKE-TX-000001',
   amount: const Money.minor(1100, Currency.usd),
   completedAt: harnessClock,
+  attemptId: 'attempt-1',
 );
 
 const _idle = PaymentFlowIdle();
@@ -56,6 +57,7 @@ void _payDirectly(FlowHarness h, FakeAsync async, {String billId = 'bill-1'}) {
         paymentId: billId,
         amountMinor: 1100,
         currency: 'USD',
+        attemptId: 'attempt-1',
       ),
     ),
   );
@@ -566,15 +568,18 @@ void main() {
     test('a cancel request that fails lets the user try again', () {
       fakeAsync((async) {
         final payments = _MockPayments();
+        when(
+          () => payments.preparePayment(),
+        ).thenAnswer((_) async => Success.unit);
         final progress = StreamController<PaymentProgress>();
         final h = FlowHarness.create(
           overrides: [paymentRepositoryProvider.overrideWithValue(payments)],
         );
         when(() => payments.watchProgress()).thenAnswer((_) => progress.stream);
         when(
-          () => payments.startPayment(any()),
+          () => payments.startPayment(any(), attemptId: 'attempt-1'),
         ).thenAnswer((_) async => Success.unit);
-        when(() => payments.cancelPayment()).thenAnswer(
+        when(() => payments.cancelPayment(attemptId: 'attempt-1')).thenAnswer(
           (_) async =>
               const Err<void>(PlatformFailure(ChannelErrorCodes.internal)),
         );
@@ -583,13 +588,21 @@ void main() {
         progress.add(const PaymentIdle());
         async.flushMicrotasks();
         h.confirm(async);
-        progress.add(const PaymentInProgress('bill-1', 30));
+        progress.add(
+          const PaymentInProgress('bill-1', 30, attemptId: 'attempt-1'),
+        );
         async.flushMicrotasks();
 
         unawaited(h.flow.cancel());
         async.flushMicrotasks();
 
-        expect(h.states.last, _processing(30));
+        expect(
+          h.states.last,
+          const PaymentFlowProcessing(
+            percent: 30,
+            cancellationFailure: PlatformFailure(ChannelErrorCodes.internal),
+          ),
+        );
         unawaited(progress.close());
       });
     });

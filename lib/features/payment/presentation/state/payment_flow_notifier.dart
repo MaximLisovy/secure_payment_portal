@@ -10,30 +10,21 @@ import 'package:secure_payment_portal/features/payment/presentation/state/scan_d
 import 'package:secure_payment_portal/features/payment/presentation/state/verdict_hold.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
-/// The payment flow as a state machine.
+/// Owns one bill and one payment attempt at a time. Side effects live in methods.
+/// A changed bill or disposal invalidates confirmation before it can start work.
+/// Only matching attempt events may advance processing; an acceptance error is
+/// authoritative even if an optimistic progress event arrived before the reply.
 ///
-/// `build` only returns [PaymentFlowIdle]; every side effect lives in a method.
-/// The notifier composes the status stream with the security policy itself, as
-/// decided in the domain milestone, and talks to `ConfirmPayment` only to start
-/// processing.
-///
-/// Transitions: `Idle → SecurityCheck → Ready | Blocked`, `Ready → Confirming →
-/// Processing(p) → Success | Failure | Cancelled`, and `Blocked(recoverable)`,
-/// `Failure`, `Cancelled` and `Success` go back to `SecurityCheck`. Security
-/// changes are applied only before confirming: once a payment is authorized, a
-/// recording that starts does not cancel it.
-///
-/// **The scan dwell.** While the check is shown, the verdict is held until the
-/// end of a revolution of the scan (`scanDwellProvider`): max(how long the check
-/// really took, one revolution), rounded up to the end of the current one. The
-/// held verdict is always the latest, and it is applied the moment it is
-/// released. Once released, later changes apply at once. Confirming is never
-/// delayed: the dwell belongs to the check the user watches.
+/// Security verdicts are held until a scan revolution ends. The hold never
+/// delays the final security read after permission preparation, and a recording
+/// that starts after processing was accepted does not cancel an authorized payment.
 class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   PaymentDetails? _details;
   StreamSubscription<PaymentProgress>? _progressSubscription;
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
+  int _confirmationGeneration = 0;
+  String? _activeAttemptId;
 
   /// Bumped to drop a device check that is still waiting for the secure window.
   int _checkGeneration = 0;
@@ -65,10 +56,17 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   Future<void> confirm() async {
     final details = _details;
     if (details == null || state is! PaymentFlowReady) return;
+    final generation = ++_confirmationGeneration;
+    final attemptId = ref.read(paymentAttemptIdFactoryProvider)();
+    _activeAttemptId = attemptId;
     state = const PaymentFlowConfirming();
 
-    final result = await ref.read(confirmPaymentProvider)(details);
-    if (!ref.mounted) return;
+    final result = await ref.read(confirmPaymentProvider)(
+      details,
+      attemptId: attemptId,
+      isCurrent: () => ref.mounted && generation == _confirmationGeneration,
+    );
+    if (!ref.mounted || generation != _confirmationGeneration) return;
 
     switch (result) {
       case Success<void>():
@@ -77,8 +75,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
           state = const PaymentFlowProcessing(percent: 0);
         }
       case Err<void>(:final failure):
-        // The progress stream may already have reported the outcome.
-        if (state is! PaymentFlowConfirming) return;
+        // A pre-acceptance progress event cannot erase a command rejection.
+        _activeAttemptId = null;
         state = switch (failure) {
           SecurityBlockedFailure(:final reason) => PaymentFlowBlocked(reason),
           _ => PaymentFlowFailure(failure),
@@ -90,15 +88,25 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   Future<void> cancel() async {
     final current = state;
     if (current is! PaymentFlowProcessing || current.cancelRequested) return;
-    state = current.copyWith(cancelRequested: true);
+    final attemptId = _activeAttemptId;
+    if (attemptId == null) return;
+    state = current.copyWith(
+      cancelRequested: true,
+      clearCancellationFailure: true,
+    );
 
-    final result = await ref.read(paymentRepositoryProvider).cancelPayment();
-    if (!ref.mounted) return;
+    final result = await ref
+        .read(paymentRepositoryProvider)
+        .cancelPayment(attemptId: attemptId);
+    if (!ref.mounted || _activeAttemptId != attemptId) return;
 
     // If the request failed the payment is still running: let the user try again.
     final now = state;
     if (result is Err<void> && now is PaymentFlowProcessing) {
-      state = now.copyWith(cancelRequested: false);
+      state = now.copyWith(
+        cancelRequested: false,
+        cancellationFailure: result.failure,
+      );
     }
   }
 
@@ -121,8 +129,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   Future<void> _restart() async {
+    final generation = _confirmationGeneration;
     await ref.read(secureWindowProvider.notifier).retry();
-    if (!ref.mounted) return;
+    if (!ref.mounted || generation != _confirmationGeneration) return;
     unawaited(_startSecurityCheck());
   }
 
@@ -178,6 +187,14 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     final paying =
         state is PaymentFlowConfirming || state is PaymentFlowProcessing;
     if (!paying) return;
+    if (progress is PaymentFailed && progress.attemptId == null) {
+      state = PaymentFlowFailure(progress.failure);
+      return;
+    }
+    if (progress.attemptId != _activeAttemptId ||
+        progress.paymentId != _details?.id) {
+      return;
+    }
     switch (progress) {
       case PaymentIdle():
         break;
@@ -187,6 +204,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
           percent: percent,
           cancelRequested:
               current is PaymentFlowProcessing && current.cancelRequested,
+          cancellationFailure: current is PaymentFlowProcessing
+              ? current.cancellationFailure
+              : null,
         );
       case PaymentSucceeded(:final result):
         state = PaymentFlowSuccess(result);
@@ -205,6 +225,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     switch (progress) {
       case PaymentInProgress(:final paymentId, :final percent)
           when paymentId == billId:
+        _activeAttemptId = progress.attemptId;
         state = PaymentFlowProcessing(percent: percent);
       case PaymentSucceeded(:final result) when result.paymentId == billId:
         // Already paid: show the receipt, never let the bill be paid twice.
@@ -216,6 +237,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _stopListening() {
+    _confirmationGeneration++;
+    _activeAttemptId = null;
     _hold.stop();
     _checkGeneration++;
     unawaited(_progressSubscription?.cancel());

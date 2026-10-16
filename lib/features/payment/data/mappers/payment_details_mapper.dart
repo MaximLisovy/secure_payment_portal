@@ -32,10 +32,14 @@ abstract final class PaymentDetailsMapper {
   }
 
   /// The request the platform needs to process [details].
-  static StartPaymentRequestDto toStartRequest(PaymentDetails details) {
+  static StartPaymentRequestDto toStartRequest(
+    PaymentDetails details, {
+    required String attemptId,
+  }) {
     final total = details.total;
     return StartPaymentRequestDto(
       paymentId: details.id,
+      attemptId: attemptId,
       amountMinor: total.minorUnits,
       currency: total.currency.code,
     );

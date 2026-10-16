@@ -7,12 +7,12 @@ import com.hypertenant.secure_payment_portal.bridge.PaymentChannel
  * What to pay: flat primitives only. No user-facing text and no merchant data crosses the channel,
  * so none can end up in a notification.
  */
-data class PaymentRequest(val paymentId: String, val amountMinor: Long, val currency: String) {
+data class PaymentRequest(val paymentId: String, val amountMinor: Long, val currency: String, val attemptId: String) {
     companion object {
         /** The values, if they make a payable request; null otherwise. One rule for both entrances. */
-        fun of(paymentId: String?, amountMinor: Long, currency: String?): PaymentRequest? {
-            if (paymentId.isNullOrBlank() || currency.isNullOrBlank() || amountMinor <= 0) return null
-            return PaymentRequest(paymentId, amountMinor, currency)
+        fun of(paymentId: String?, amountMinor: Long, currency: String?, attemptId: String?): PaymentRequest? {
+            if (attemptId.isNullOrBlank() || paymentId.isNullOrBlank() || currency.isNullOrBlank() || amountMinor <= 0) return null
+            return PaymentRequest(paymentId, amountMinor, currency, attemptId)
         }
 
         /**
@@ -30,6 +30,7 @@ data class PaymentRequest(val paymentId: String, val amountMinor: Long, val curr
                 map[PaymentChannel.KEY_PAYMENT_ID] as? String,
                 amount,
                 map[PaymentChannel.KEY_CURRENCY] as? String,
+                map[PaymentChannel.KEY_ATTEMPT_ID] as? String,
             )
         }
 

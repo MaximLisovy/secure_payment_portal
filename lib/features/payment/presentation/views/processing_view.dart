@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_payment_portal/core/design_system/brand_context.dart';
+import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/strings/app_strings.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
@@ -21,6 +22,7 @@ class ProcessingView extends ConsumerStatefulWidget {
 class _ProcessingViewState extends ConsumerState<ProcessingView> {
   final _percent = ValueNotifier<int>(0);
   final _cancelRequested = ValueNotifier<bool>(false);
+  final _cancellationFailure = ValueNotifier<Failure?>(null);
 
   @override
   void initState() {
@@ -33,9 +35,11 @@ class _ProcessingViewState extends ConsumerState<ProcessingView> {
     if (state case PaymentFlowProcessing(
       :final percent,
       :final cancelRequested,
+      :final cancellationFailure,
     )) {
       _percent.value = percent;
       _cancelRequested.value = cancelRequested;
+      _cancellationFailure.value = cancellationFailure;
     }
   }
 
@@ -43,6 +47,7 @@ class _ProcessingViewState extends ConsumerState<ProcessingView> {
   void dispose() {
     _percent.dispose();
     _cancelRequested.dispose();
+    _cancellationFailure.dispose();
     super.dispose();
   }
 
@@ -69,6 +74,24 @@ class _ProcessingViewState extends ConsumerState<ProcessingView> {
             _ProgressReadout(percent: _percent),
             SizedBox(height: density.spaceXl),
             _CancelButton(cancelRequested: _cancelRequested),
+            ValueListenableBuilder<Failure?>(
+              valueListenable: _cancellationFailure,
+              builder: (context, failure, _) => failure == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: EdgeInsets.only(top: density.spaceMd),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          AppStrings.cancellationFailed,
+                          style: text.bodyMedium?.copyWith(
+                            color: context.brandColors.danger,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+            ),
           ],
         ),
       ),

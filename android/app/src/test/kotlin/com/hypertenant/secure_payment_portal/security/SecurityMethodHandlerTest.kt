@@ -72,7 +72,7 @@ class SecurityMethodHandlerTest {
         assertEquals(
             listOf(
                 "success(" +
-                    "{schemaVersion=1, root=detected, rootSignals=[su_binary], " +
+                    "{schemaVersion=2, root=detected, rootSignals=[su_binary], " +
                     "screenRecording=detected, windowProtection=active})"
             ),
             result.replies,

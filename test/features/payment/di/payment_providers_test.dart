@@ -83,7 +83,9 @@ ProviderContainer _container({
     (failure) => fail('the demo bill did not load: ${failure.messageKey}'),
   );
 
-  final confirm = FutureProbe(container.read(confirmPaymentProvider)(details));
+  final confirm = FutureProbe(
+    container.read(confirmPaymentProvider)(details, attemptId: 'attempt-1'),
+  );
   async.elapse(_step * 3);
   return (seen: seen, confirmed: confirm.value);
 }
@@ -98,7 +100,10 @@ class _BrokenProgressSource implements PaymentPlatformDataSource {
   Future<void> startPayment(StartPaymentRequestDto request) async {}
 
   @override
-  Future<void> cancelPayment() async {}
+  Future<void> cancelPayment({required String attemptId}) async {}
+
+  @override
+  Future<void> preparePayment() async {}
 }
 
 void main() {
@@ -130,7 +135,14 @@ void main() {
 
       final paid = _pay(async, container, FakeBills.utilityBillId);
 
-      expect(paid.seen.last, const PaymentFailed(PaymentDeclinedFailure()));
+      expect(
+        paid.seen.last,
+        const PaymentFailed(
+          PaymentDeclinedFailure(),
+          paymentId: FakeBills.utilityBillId,
+          attemptId: 'attempt-1',
+        ),
+      );
     });
   });
 
@@ -223,7 +235,7 @@ void main() {
 
       final result = await container
           .read(paymentRepositoryProvider)
-          .startPayment(sampleDetails);
+          .startPayment(sampleDetails, attemptId: 'attempt-1');
 
       expect(result.isSuccess, isFalse);
       expect(logger.warnings.single.message, contains('BROKEN'));

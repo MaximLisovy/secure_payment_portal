@@ -9,6 +9,7 @@ final class PaymentProgressDto extends Equatable {
   const PaymentProgressDto({
     required this.state,
     this.paymentId,
+    this.attemptId,
     this.percent,
     this.transactionId,
     this.amountMinor,
@@ -17,15 +18,20 @@ final class PaymentProgressDto extends Equatable {
     this.errorCode,
   });
 
-  const PaymentProgressDto.running(String paymentId, int percent)
-    : this(
-        state: PaymentChannel.stateRunning,
-        paymentId: paymentId,
-        percent: percent,
-      );
+  const PaymentProgressDto.running(
+    String paymentId,
+    int percent, {
+    required String attemptId,
+  }) : this(
+         state: PaymentChannel.stateRunning,
+         paymentId: paymentId,
+         attemptId: attemptId,
+         percent: percent,
+       );
 
   const PaymentProgressDto.succeeded({
     required String paymentId,
+    required String attemptId,
     required String transactionId,
     required int amountMinor,
     required String currency,
@@ -33,22 +39,36 @@ final class PaymentProgressDto extends Equatable {
   }) : this(
          state: PaymentChannel.stateSucceeded,
          paymentId: paymentId,
+         attemptId: attemptId,
          transactionId: transactionId,
          amountMinor: amountMinor,
          currency: currency,
          completedAtMillis: completedAtMillis,
        );
 
-  const PaymentProgressDto.failed(String errorCode)
-    : this(state: PaymentChannel.stateFailed, errorCode: errorCode);
+  const PaymentProgressDto.failed(
+    String errorCode, {
+    required String paymentId,
+    required String attemptId,
+  }) : this(
+         state: PaymentChannel.stateFailed,
+         errorCode: errorCode,
+         paymentId: paymentId,
+         attemptId: attemptId,
+       );
 
   static const PaymentProgressDto idle = PaymentProgressDto(
     state: PaymentChannel.stateIdle,
   );
 
-  static const PaymentProgressDto cancelled = PaymentProgressDto(
-    state: PaymentChannel.stateCancelled,
-  );
+  const PaymentProgressDto.cancelled({
+    required String paymentId,
+    required String attemptId,
+  }) : this(
+         state: PaymentChannel.stateCancelled,
+         paymentId: paymentId,
+         attemptId: attemptId,
+       );
 
   /// Throws `MalformedPayloadException` if [raw] is not the documented shape.
   factory PaymentProgressDto.fromMap(Object? raw) {
@@ -56,16 +76,23 @@ final class PaymentProgressDto extends Equatable {
       ..requireSchemaVersion();
     final state = reader.requireString(PaymentChannel.keyState);
     switch (state) {
-      case PaymentChannel.stateIdle || PaymentChannel.stateCancelled:
+      case PaymentChannel.stateIdle:
         return PaymentProgressDto(state: state);
+      case PaymentChannel.stateCancelled:
+        return PaymentProgressDto.cancelled(
+          paymentId: reader.requireString(PaymentChannel.keyPaymentId),
+          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
+        );
       case PaymentChannel.stateRunning:
         return PaymentProgressDto.running(
           reader.requireString(PaymentChannel.keyPaymentId),
           reader.requireInt(PaymentChannel.keyPercent),
+          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
         );
       case PaymentChannel.stateSucceeded:
         return PaymentProgressDto.succeeded(
           paymentId: reader.requireString(PaymentChannel.keyPaymentId),
+          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
           transactionId: reader.requireString(PaymentChannel.keyTransactionId),
           amountMinor: reader.requireInt(PaymentChannel.keyAmountMinor),
           currency: reader.requireString(PaymentChannel.keyCurrency),
@@ -76,6 +103,8 @@ final class PaymentProgressDto extends Equatable {
       case PaymentChannel.stateFailed:
         return PaymentProgressDto.failed(
           reader.requireString(PaymentChannel.keyErrorCode),
+          paymentId: reader.requireString(PaymentChannel.keyPaymentId),
+          attemptId: reader.requireString(PaymentChannel.keyAttemptId),
         );
       default:
         throw const MalformedPayloadException(
@@ -87,6 +116,7 @@ final class PaymentProgressDto extends Equatable {
   /// One of `idle`, `running`, `succeeded`, `failed`, `cancelled`.
   final String state;
   final String? paymentId;
+  final String? attemptId;
   final int? percent;
   final String? transactionId;
   final int? amountMinor;
@@ -97,6 +127,7 @@ final class PaymentProgressDto extends Equatable {
   Map<String, Object?> toMap() => {
     ChannelContract.keySchemaVersion: ChannelContract.schemaVersion,
     PaymentChannel.keyState: state,
+    if (attemptId != null) PaymentChannel.keyAttemptId: attemptId,
     if (paymentId != null) PaymentChannel.keyPaymentId: paymentId,
     if (percent != null) PaymentChannel.keyPercent: percent,
     if (transactionId != null) PaymentChannel.keyTransactionId: transactionId,
@@ -111,6 +142,7 @@ final class PaymentProgressDto extends Equatable {
   List<Object?> get props => [
     state,
     paymentId,
+    attemptId,
     percent,
     transactionId,
     amountMinor,

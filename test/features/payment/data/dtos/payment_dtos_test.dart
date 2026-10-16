@@ -99,6 +99,7 @@ void main() {
         unorderedEquals([
           ChannelContract.keySchemaVersion,
           PaymentChannel.keyPaymentId,
+          PaymentChannel.keyAttemptId,
           PaymentChannel.keyAmountMinor,
           PaymentChannel.keyCurrency,
         ]),
@@ -123,16 +124,28 @@ void main() {
   group('PaymentProgressDto.fromMap', () {
     final valid = <String, PaymentProgressDto>{
       'idle': PaymentProgressDto.idle,
-      'cancelled': PaymentProgressDto.cancelled,
-      'running': const PaymentProgressDto.running('bill-1', 40),
+      'cancelled': const PaymentProgressDto.cancelled(
+        paymentId: 'bill-1',
+        attemptId: 'attempt-1',
+      ),
+      'running': const PaymentProgressDto.running(
+        'bill-1',
+        40,
+        attemptId: 'attempt-1',
+      ),
       'succeeded': const PaymentProgressDto.succeeded(
         paymentId: 'bill-1',
         transactionId: 'tx-1',
         amountMinor: 1100,
         currency: 'USD',
         completedAtMillis: 1760000000000,
+        attemptId: 'attempt-1',
       ),
-      'failed': const PaymentProgressDto.failed(PaymentChannel.failureDeclined),
+      'failed': const PaymentProgressDto.failed(
+        PaymentChannel.failureDeclined,
+        paymentId: 'bill-1',
+        attemptId: 'attempt-1',
+      ),
     };
     for (final entry in valid.entries) {
       test('round-trips a ${entry.key} event', () {
@@ -155,6 +168,7 @@ void main() {
         () => PaymentProgressDto.fromMap(
           _event(PaymentChannel.stateRunning, {
             PaymentChannel.keyPaymentId: 'x',
+            PaymentChannel.keyAttemptId: 'attempt-1',
           }),
         ),
         _malformed,
@@ -183,6 +197,7 @@ void main() {
             amountMinor: 1,
             currency: 'USD',
             completedAtMillis: 1,
+            attemptId: 'attempt-1',
           ).toMap(),
         }..remove(missing);
 
@@ -205,6 +220,7 @@ void main() {
           () => PaymentProgressDto.fromMap(
             _event(PaymentChannel.stateRunning, {
               PaymentChannel.keyPaymentId: 'x',
+              PaymentChannel.keyAttemptId: 'attempt-1',
               PaymentChannel.keyPercent: '5',
             }),
           ),
@@ -227,6 +243,7 @@ void main() {
         PaymentProgressDto.fromMap(
           _event(PaymentChannel.stateRunning, {
             PaymentChannel.keyPaymentId: 'x',
+            PaymentChannel.keyAttemptId: 'attempt-1',
             PaymentChannel.keyPercent: 150,
           }),
         ).percent,

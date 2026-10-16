@@ -11,9 +11,9 @@ import org.junit.Test
 
 class PaymentProgressStoreTest {
     private val store = PaymentProgressStore()
-    private val request = PaymentRequest("bill-1", 1100, "USD")
+    private val request = PaymentRequest("bill-1", 1100, "USD", "attempt-1")
 
-    private fun succeed(id: String = "bill-1") = store.succeed(id, "TX-1", 1100, "USD", 1_000L)
+    private fun succeed(id: String = "attempt-1") = store.succeed(id, "TX-1", 1100, "USD", 1_000L)
 
     @Test
     fun startsIdle() {
@@ -25,40 +25,40 @@ class PaymentProgressStoreTest {
         val claim = store.tryStart(request)
 
         assertTrue(claim is StartClaim.Accepted)
-        assertEquals(PaymentProgress.Running("bill-1", 0), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
     fun aSecondStartWhileOneRunsIsRefusedAndDisturbsNothing() {
         store.tryStart(request)
-        store.reportProgress("bill-1", 40)
+        store.reportProgress("attempt-1", 40)
 
-        val second = store.tryStart(PaymentRequest("bill-2", 500, "EUR"))
+        val second = store.tryStart(PaymentRequest("bill-2", 500, "EUR", "attempt-1"))
 
         assertEquals(StartClaim.AlreadyRunning, second)
-        assertEquals(PaymentProgress.Running("bill-1", 40), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 40, "attempt-1"), store.state.value)
     }
 
     @Test
     fun progressOnlyGoesUp() {
         store.tryStart(request)
 
-        store.reportProgress("bill-1", 30)
-        store.reportProgress("bill-1", 10)
+        store.reportProgress("attempt-1", 30)
+        store.reportProgress("attempt-1", 10)
 
-        assertEquals("a lower percent must not be shown", PaymentProgress.Running("bill-1", 30), store.state.value)
+        assertEquals("a lower percent must not be shown", PaymentProgress.Running("bill-1", 30, "attempt-1"), store.state.value)
 
-        store.reportProgress("bill-1", 30)
-        assertEquals(PaymentProgress.Running("bill-1", 30), store.state.value)
+        store.reportProgress("attempt-1", 30)
+        assertEquals(PaymentProgress.Running("bill-1", 30, "attempt-1"), store.state.value)
     }
 
     @Test
     fun aPercentOutsideTheRangeIsClamped() {
         store.tryStart(request)
 
-        store.reportProgress("bill-1", 250)
+        store.reportProgress("attempt-1", 250)
 
-        assertEquals(PaymentProgress.Running("bill-1", 100), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 100, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -66,15 +66,15 @@ class PaymentProgressStoreTest {
         store.tryStart(request)
 
         assertFalse(store.reportProgress("someone-else", 50))
-        assertEquals(PaymentProgress.Running("bill-1", 0), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
     fun reportingProgressTellsTheWorkItMayContinue() {
         store.tryStart(request)
 
-        assertTrue(store.reportProgress("bill-1", 20))
-        assertTrue("an unchanged percent is still a running payment", store.reportProgress("bill-1", 20))
+        assertTrue(store.reportProgress("attempt-1", 20))
+        assertTrue("an unchanged percent is still a running payment", store.reportProgress("attempt-1", 20))
     }
 
     @Test
@@ -84,7 +84,7 @@ class PaymentProgressStoreTest {
         assertTrue(succeed())
 
         assertEquals(
-            PaymentProgress.Succeeded("bill-1", "TX-1", 1100, "USD", 1_000L),
+            PaymentProgress.Succeeded("bill-1", "TX-1", 1100, "USD", 1_000L, "attempt-1"),
             store.state.value,
         )
     }
@@ -93,39 +93,39 @@ class PaymentProgressStoreTest {
     fun aFailureEndsTheRunWithItsCode() {
         store.tryStart(request)
 
-        assertTrue(store.fail("bill-1", PaymentFailureCodes.DECLINED))
+        assertTrue(store.fail("attempt-1", PaymentFailureCodes.DECLINED))
 
-        assertEquals(PaymentProgress.Failed("declined"), store.state.value)
+        assertEquals(PaymentProgress.Failed("declined", "bill-1", "attempt-1"), store.state.value)
     }
 
     @Test
     fun cancellingEndsTheRun() {
         store.tryStart(request)
 
-        assertTrue(store.cancelIfRunning())
+        assertTrue(store.cancelIfRunning("attempt-1"))
 
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
     }
 
     @Test
     fun cancellingWithNothingRunningDoesNothing() {
-        assertFalse(store.cancelIfRunning())
+        assertFalse(store.cancelIfRunning("attempt-1"))
         assertEquals(PaymentProgress.Idle, store.state.value)
 
         store.tryStart(request)
         succeed()
-        assertFalse("a finished payment cannot be cancelled", store.cancelIfRunning())
+        assertFalse("a finished payment cannot be cancelled", store.cancelIfRunning("attempt-1"))
         assertTrue(store.state.value is PaymentProgress.Succeeded)
     }
 
     @Test
     fun ofACancelAndAFinishTheFirstWins() {
         store.tryStart(request)
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
 
         assertFalse("too late", succeed())
-        assertFalse("too late", store.fail("bill-1", PaymentFailureCodes.PROCESSING))
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertFalse("too late", store.fail("attempt-1", PaymentFailureCodes.PROCESSING))
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
     }
 
     @Test
@@ -133,7 +133,7 @@ class PaymentProgressStoreTest {
         store.tryStart(request)
         succeed()
 
-        assertFalse("too late", store.cancelIfRunning())
+        assertFalse("too late", store.cancelIfRunning("attempt-1"))
         assertTrue(store.state.value is PaymentProgress.Succeeded)
     }
 
@@ -143,7 +143,7 @@ class PaymentProgressStoreTest {
 
         assertTrue(succeed())
         assertFalse(succeed())
-        assertFalse(store.fail("bill-1", PaymentFailureCodes.PROCESSING))
+        assertFalse(store.fail("attempt-1", PaymentFailureCodes.PROCESSING))
     }
 
     @Test
@@ -152,7 +152,7 @@ class PaymentProgressStoreTest {
 
         assertFalse(succeed("someone-else"))
         assertFalse(store.fail("someone-else", PaymentFailureCodes.PROCESSING))
-        assertEquals(PaymentProgress.Running("bill-1", 0), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -161,20 +161,20 @@ class PaymentProgressStoreTest {
         succeed()
 
         assertTrue(store.state.value is PaymentProgress.Succeeded)
-        assertFalse(store.reportProgress("bill-1", 50))
+        assertFalse(store.reportProgress("attempt-1", 50))
 
-        val next = store.tryStart(PaymentRequest("bill-2", 200, "USD"))
+        val next = store.tryStart(PaymentRequest("bill-2", 200, "USD", "attempt-1"))
         assertTrue(next is StartClaim.Accepted)
-        assertEquals(PaymentProgress.Running("bill-2", 0), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-2", 0, "attempt-1"), store.state.value)
     }
 
     @Test
     fun aNewStartAfterACancelOrAFailureIsAccepted() {
         store.tryStart(request)
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
         assertTrue(store.tryStart(request) is StartClaim.Accepted)
 
-        store.fail("bill-1", PaymentFailureCodes.PROCESSING)
+        store.fail("attempt-1", PaymentFailureCodes.PROCESSING)
         assertTrue(store.tryStart(request) is StartClaim.Accepted)
     }
 
@@ -184,7 +184,7 @@ class PaymentProgressStoreTest {
         succeed()
         val before = store.state.value
 
-        val claim = store.tryStart(PaymentRequest("bill-2", 200, "USD")) as StartClaim.Accepted
+        val claim = store.tryStart(PaymentRequest("bill-2", 200, "USD", "attempt-1")) as StartClaim.Accepted
         store.rollback(claim)
 
         assertEquals(before, store.state.value)
@@ -194,14 +194,14 @@ class PaymentProgressStoreTest {
     @Test
     fun aRollbackDoesNotUndoAWinningCancelOrProgress() {
         val claim = store.tryStart(request) as StartClaim.Accepted
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
         store.rollback(claim)
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
 
         val second = store.tryStart(request) as StartClaim.Accepted
-        store.reportProgress("bill-1", 10)
+        store.reportProgress("attempt-1", 10)
         store.rollback(second)
-        assertEquals(PaymentProgress.Running("bill-1", 10), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 10, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -213,7 +213,7 @@ class PaymentProgressStoreTest {
         repeat(16) { index ->
             pool.execute {
                 start.await()
-                if (store.tryStart(PaymentRequest("bill-$index", 100, "USD")) is StartClaim.Accepted) {
+                if (store.tryStart(PaymentRequest("bill-$index", 100, "USD", "attempt-1")) is StartClaim.Accepted) {
                     accepted.incrementAndGet()
                 }
                 done.countDown()
@@ -238,12 +238,12 @@ class PaymentProgressStoreTest {
             val done = CountDownLatch(2)
             pool.execute {
                 go.await()
-                if (raced.cancelIfRunning()) wins.incrementAndGet()
+                if (raced.cancelIfRunning("attempt-1")) wins.incrementAndGet()
                 done.countDown()
             }
             pool.execute {
                 go.await()
-                if (raced.succeed("bill-1", "TX", 1, "USD", 1L)) wins.incrementAndGet()
+                if (raced.succeed("attempt-1", "TX", 1, "USD", 1L)) wins.incrementAndGet()
                 done.countDown()
             }
             go.countDown()

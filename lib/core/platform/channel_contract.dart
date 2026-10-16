@@ -9,7 +9,7 @@ abstract final class ChannelContract {
   static const String namespace = 'com.hypertenant.secure_payment_portal';
 
   /// Bumped when a payload changes incompatibly. A reader rejects any other.
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 2;
   static const String keySchemaVersion = 'schemaVersion';
 }
 
@@ -94,6 +94,7 @@ abstract final class PaymentChannel {
   static const String requestNotificationPermission =
       'requestNotificationPermission';
 
+  static const String keyAttemptId = 'attemptId';
   static const String keyPaymentId = 'paymentId';
   static const String keyAmountMinor = 'amountMinor';
   static const String keyCurrency = 'currency';

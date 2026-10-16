@@ -23,6 +23,7 @@ void main() {
       transactionId: 'FAKE-TX-000001',
       amount: sampleDetails.total,
       completedAt: DateTime.utc(2026, 10, 15, 12),
+      attemptId: 'attempt-1',
     );
 
     // Every state of the flow, so a new one cannot be forgotten.

@@ -22,7 +22,7 @@ class PaymentSession(
     suspend fun run(request: PaymentRequest) {
         val outcome =
             try {
-                processor.process(request) { percent -> store.reportProgress(request.paymentId, percent) }
+                processor.process(request) { percent -> store.reportProgress(request.attemptId, percent) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -32,14 +32,14 @@ class PaymentSession(
         when (outcome) {
             is ProcessingOutcome.Success ->
                 store.succeed(
-                    request.paymentId,
+                    request.attemptId,
                     outcome.transactionId,
                     request.amountMinor,
                     request.currency,
                     now(),
                 )
-            ProcessingOutcome.Declined -> store.fail(request.paymentId, PaymentFailureCodes.DECLINED)
-            ProcessingOutcome.Failed -> store.fail(request.paymentId, PaymentFailureCodes.PROCESSING)
+            ProcessingOutcome.Declined -> store.fail(request.attemptId, PaymentFailureCodes.DECLINED)
+            ProcessingOutcome.Failed -> store.fail(request.attemptId, PaymentFailureCodes.PROCESSING)
             ProcessingOutcome.Stopped -> Unit
         }
     }

@@ -10,9 +10,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -31,18 +31,20 @@ import kotlinx.coroutines.launch
  *
  * **Lifecycle.**
  * - `onStartCommand` goes foreground first, within the five seconds the system allows, then checks
- *   the store: it runs the payment only if it is the one `Running`, so a start that lost a race, a
- *   duplicate, or a payment cancelled before the service got here does nothing. It returns
+ *   the store: it runs the payment only if it is the one `Running`, so a start that lost a race, an
+ *   obsolete request or a payment cancelled before the service got here does nothing. It returns
  *   `START_NOT_STICKY`: a payment never restarts by itself.
+ * - PaymentWorkerCoordinator joins retired work before running a new attempt. Duplicates
+ *   keep one worker and update its stop startId. Only the current worker may finish the service.
  * - It runs the payment in a scope the service owns, cancelled in `onDestroy`.
- * - On a terminal state it posts the final notification at once, then `stopForeground` and
+ * - On a terminal state it detaches, posts the final notification, and calls
  *   `stopSelf(startId)`: success and failure leave their notification (detached, dismissible),
  *   a cancel removes it.
  * - A cancel, from the app or the notification, only sets the store; the work sees the payment
  *   leave `Running` and stops within a step.
  * - `onTimeout` fails the payment and stops. On Android 15 both overloads are called, so it is
  *   idempotent.
- * - `onDestroy` fails the payment *this instance* was running, so the UI is never left on a
+ * - `onDestroy` fails the attempt *this instance* was running, so the UI is never left on a
  *   stale "running". It does not touch another payment: a new one may have been claimed in the
  *   moment between one service stopping and the next starting.
  *
@@ -53,40 +55,36 @@ class PaymentProcessingService : Service() {
     private val store = PaymentProgressStore.shared
     private lateinit var notifications: PaymentNotificationFactory
     private var scope: CoroutineScope? = null
-    private var work: Job? = null
-
-    /** The payment this instance is running, or null. */
-    private var currentPaymentId: String? = null
-    private var finished = false
+    private lateinit var workers: PaymentWorkerCoordinator
 
     override fun onCreate() {
         super.onCreate()
         notifications = PaymentNotificationFactory(this).also { it.ensureChannel() }
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope = serviceScope
+        workers = PaymentWorkerCoordinator(serviceScope, store, ::process, ::finish)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        workers.observeDelivery(startId)
         val request = requestFrom(intent)
         // First, before anything can go wrong: the system gives a few seconds to do this.
         if (!goForeground()) {
-            request?.let { store.fail(it.paymentId, PaymentFailureCodes.PROCESSING) }
+            request?.let { store.fail(it.attemptId, PaymentFailureCodes.PROCESSING) }
             stopSelf(startId)
             return START_NOT_STICKY
         }
         val state = store.state.value
-        if (request == null || state !is PaymentProgress.Running || state.paymentId != request.paymentId) {
-            // Cancelled before the service got here, or a start nobody claimed: nothing to run.
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf(startId)
+        if (request == null || state !is PaymentProgress.Running || state.attemptId != request.attemptId) {
+            if (!workers.hasWork) {
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                stopSelf(startId)
+            }
             return START_NOT_STICKY
         }
-        if (work?.isActive == true) return START_NOT_STICKY // A duplicate start: already running.
-
-        currentPaymentId = request.paymentId
-        finished = false
-        work = scope?.launch { process(request, startId) }
+        workers.start(request, startId)
         return START_NOT_STICKY
     }
 
@@ -97,34 +95,26 @@ class PaymentProcessingService : Service() {
     override fun onTimeout(startId: Int, fgsType: Int) = timedOut(startId)
 
     override fun onDestroy() {
-        currentPaymentId?.let { store.fail(it, PaymentFailureCodes.PROCESSING) }
+        workers.destroy()
         scope?.cancel()
         scope = null
         super.onDestroy()
     }
 
-    private suspend fun process(request: PaymentRequest, startId: Int) {
-        val updater = scope?.launch { NotificationUpdater().run(store.state) { notify(it) } }
+    private suspend fun process(request: PaymentRequest) = coroutineScope {
+        val updater = launch { NotificationUpdater().run(store.state) { notify(it) } }
         try {
             PaymentSession(store, SimulatedPaymentProcessor()).run(request)
         } finally {
-            updater?.cancel()
+            updater.cancel()
         }
-        finish(startId)
     }
 
-    private fun timedOut(startId: Int) {
-        currentPaymentId?.let { store.fail(it, PaymentFailureCodes.PROCESSING) }
-        work?.cancel()
-        finish(startId)
-    }
+    private fun timedOut(startId: Int) = workers.timeout(startId)
 
     /** Posts how the payment ended, leaves or removes the notification, and stops. Once. */
-    private fun finish(startId: Int) {
-        if (finished) return
-        finished = true
-        currentPaymentId = null
-        val spec = NotificationSpec.forState(store.state.value)
+    private fun finish(startId: Int, outcome: PaymentProgress) {
+        val spec = NotificationSpec.forState(outcome)
         if (spec != null && !spec.isOngoing) {
             // Detach first, then post the final notification: while it is still the foreground
             // notification the system keeps it non-cancellable and drops its auto-cancel flag, so
@@ -152,7 +142,7 @@ class PaymentProcessingService : Service() {
             ServiceCompat.startForeground(
                 this,
                 PaymentNotificationFactory.NOTIFICATION_ID,
-                notifications.build(NotificationSpec.starting()),
+                notifications.build(NotificationSpec.forState(store.state.value) ?: NotificationSpec.starting()),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE,
             )
             true
@@ -179,9 +169,11 @@ class PaymentProcessingService : Service() {
             intent?.getStringExtra(EXTRA_PAYMENT_ID),
             intent?.getLongExtra(EXTRA_AMOUNT_MINOR, 0) ?: 0,
             intent?.getStringExtra(EXTRA_CURRENCY),
+            intent?.getStringExtra(EXTRA_ATTEMPT_ID),
         )
 
     companion object {
+        private const val EXTRA_ATTEMPT_ID = "attemptId"
         private const val EXTRA_PAYMENT_ID = "paymentId"
         private const val EXTRA_AMOUNT_MINOR = "amountMinor"
         private const val EXTRA_CURRENCY = "currency"
@@ -189,6 +181,7 @@ class PaymentProcessingService : Service() {
         fun intentFor(context: Context, request: PaymentRequest): Intent =
             Intent(context, PaymentProcessingService::class.java)
                 .putExtra(EXTRA_PAYMENT_ID, request.paymentId)
+                .putExtra(EXTRA_ATTEMPT_ID, request.attemptId)
                 .putExtra(EXTRA_AMOUNT_MINOR, request.amountMinor)
                 .putExtra(EXTRA_CURRENCY, request.currency)
     }

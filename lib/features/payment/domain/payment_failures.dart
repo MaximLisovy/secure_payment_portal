@@ -32,3 +32,9 @@ final class PaymentStartNotAllowedFailure extends PaymentFailure {
 final class PaymentProcessingFailure extends PaymentFailure {
   const PaymentProcessingFailure() : super('payment.processing_failed');
 }
+
+/// The screen changed or went away before confirmation could start processing.
+final class PaymentConfirmationObsoleteFailure extends PaymentFailure {
+  const PaymentConfirmationObsoleteFailure()
+    : super('payment.confirmation_obsolete');
+}

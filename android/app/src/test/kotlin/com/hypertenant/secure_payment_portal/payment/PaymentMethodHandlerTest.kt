@@ -52,8 +52,9 @@ class PaymentMethodHandlerTest {
         currency: Any? = "USD",
     ) =
         mapOf(
-            "schemaVersion" to 1,
+            "schemaVersion" to 2,
             "paymentId" to paymentId,
+            "attemptId" to "attempt-1",
             "amountMinor" to amountMinor,
             "currency" to currency,
         )
@@ -63,8 +64,8 @@ class PaymentMethodHandlerTest {
         handler().call("startPayment", startArgs())
 
         assertEquals(listOf("success(null)"), result.replies)
-        assertEquals(listOf(PaymentRequest("bill-1", 1100, "USD")), launched)
-        assertEquals(PaymentProgress.Running("bill-1", 0), store.state.value)
+        assertEquals(listOf(PaymentRequest("bill-1", 1100, "USD", "attempt-1")), launched)
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -85,13 +86,13 @@ class PaymentMethodHandlerTest {
     fun aSecondStartWhileOneRunsIsAlreadyRunningAndTheFirstKeepsGoing() = runTest {
         val handler = handler()
         handler.call("startPayment", startArgs())
-        store.reportProgress("bill-1", 30)
+        store.reportProgress("attempt-1", 30)
 
         handler.call("startPayment", startArgs(paymentId = "bill-2"))
 
         assertEquals("error(ALREADY_RUNNING,A payment is already running.,null)", result.replies.last())
         assertEquals(1, launched.size)
-        assertEquals(PaymentProgress.Running("bill-1", 30), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 30, "attempt-1"), store.state.value)
     }
 
     @Test
@@ -118,18 +119,27 @@ class PaymentMethodHandlerTest {
         val handler = handler()
         handler.call("startPayment", startArgs())
 
-        handler.call("cancelPayment")
+        handler.call("cancelPayment", mapOf("schemaVersion" to 2, "attemptId" to "attempt-1"))
 
         assertEquals("success(null)", result.replies.last())
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
+    }
+
+    @Test
+    fun aCancelWithoutAttemptIdentityFailsWithoutCancellingAnything() = runTest {
+        val handler = handler()
+        handler.call("startPayment", startArgs())
+        handler.call("cancelPayment")
+        assertTrue(result.replies.last().startsWith("error(INVALID_ARGS,"))
+        assertEquals(PaymentProgress.Running("bill-1", 0, "attempt-1"), store.state.value)
     }
 
     @Test
     fun cancelWithNothingRunningIsAnOkNoOp() = runTest {
         val handler = handler()
 
-        handler.call("cancelPayment")
-        handler.call("cancelPayment")
+        handler.call("cancelPayment", mapOf("schemaVersion" to 2, "attemptId" to "attempt-1"))
+        handler.call("cancelPayment", mapOf("schemaVersion" to 2, "attemptId" to "attempt-1"))
 
         assertEquals(listOf("success(null)", "success(null)"), result.replies)
         assertEquals(PaymentProgress.Idle, store.state.value)

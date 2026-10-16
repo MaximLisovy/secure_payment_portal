@@ -23,6 +23,7 @@ final _result = PaymentResult(
   transactionId: 'FAKE-TX-000001',
   amount: const Money.minor(10939, Currency.usd),
   completedAt: DateTime.utc(2026, 10, 15, 12),
+  attemptId: 'attempt-1',
 );
 
 Future<FixedFlow> _pumpIn(
@@ -148,6 +149,25 @@ void main() {
   });
 
   group('processing', () {
+    testWidgets(
+      'a rejected cancel is visible while progress and retry remain',
+      (tester) async {
+        final flow = await _pumpIn(
+          tester,
+          const PaymentFlowProcessing(
+            percent: 37,
+            cancellationFailure: PlatformFailure('UNAVAILABLE'),
+          ),
+        );
+        expect(find.text('37%'), findsOneWidget);
+        expect(find.text(AppStrings.cancellationFailed), findsOneWidget);
+        final button = find.widgetWithText(OutlinedButton, AppStrings.cancel);
+        expect(_enabled(tester, button), isTrue);
+        await tester.tap(button);
+        expect(flow.calls, contains('cancel'));
+      },
+    );
+
     testWidgets('shows the percentage and a cancel button', (tester) async {
       final flow = await _pumpIn(
         tester,

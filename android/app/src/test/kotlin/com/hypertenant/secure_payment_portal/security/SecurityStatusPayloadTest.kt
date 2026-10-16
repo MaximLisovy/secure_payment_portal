@@ -16,7 +16,7 @@ class SecurityStatusPayloadTest {
 
         assertEquals(
             mapOf(
-                "schemaVersion" to 1,
+                "schemaVersion" to 2,
                 "root" to "detected",
                 "rootSignals" to listOf("su_binary", "test_keys"),
                 "screenRecording" to "unknown",
@@ -43,7 +43,7 @@ class SecurityStatusPayloadTest {
     @Test
     fun aRecordingEventHasTheDocumentedShape() {
         assertEquals(
-            mapOf("schemaVersion" to 1, "screenRecording" to "detected"),
+            mapOf("schemaVersion" to 2, "screenRecording" to "detected"),
             SecurityStatusPayload.recording(Detection.DETECTED),
         )
     }

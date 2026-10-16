@@ -17,6 +17,7 @@ object PaymentProgressPayload {
                     mapOf(
                         PaymentChannel.KEY_STATE to PaymentChannel.STATE_RUNNING,
                         PaymentChannel.KEY_PAYMENT_ID to progress.paymentId,
+                        PaymentChannel.KEY_ATTEMPT_ID to progress.attemptId,
                         PaymentChannel.KEY_PERCENT to progress.percent,
                     )
             is PaymentProgress.Succeeded ->
@@ -24,6 +25,7 @@ object PaymentProgressPayload {
                     mapOf(
                         PaymentChannel.KEY_STATE to PaymentChannel.STATE_SUCCEEDED,
                         PaymentChannel.KEY_PAYMENT_ID to progress.paymentId,
+                        PaymentChannel.KEY_ATTEMPT_ID to progress.attemptId,
                         PaymentChannel.KEY_TRANSACTION_ID to progress.transactionId,
                         PaymentChannel.KEY_AMOUNT_MINOR to progress.amountMinor,
                         PaymentChannel.KEY_CURRENCY to progress.currency,
@@ -34,9 +36,14 @@ object PaymentProgressPayload {
                     mapOf(
                         PaymentChannel.KEY_STATE to PaymentChannel.STATE_FAILED,
                         PaymentChannel.KEY_ERROR_CODE to progress.errorCode,
+                        PaymentChannel.KEY_PAYMENT_ID to progress.paymentId,
+                        PaymentChannel.KEY_ATTEMPT_ID to progress.attemptId,
                     )
-            PaymentProgress.Cancelled ->
-                base + (PaymentChannel.KEY_STATE to PaymentChannel.STATE_CANCELLED)
+            is PaymentProgress.Cancelled -> base + mapOf(
+                PaymentChannel.KEY_STATE to PaymentChannel.STATE_CANCELLED,
+                PaymentChannel.KEY_PAYMENT_ID to progress.paymentId,
+                PaymentChannel.KEY_ATTEMPT_ID to progress.attemptId,
+            )
         }
     }
 }

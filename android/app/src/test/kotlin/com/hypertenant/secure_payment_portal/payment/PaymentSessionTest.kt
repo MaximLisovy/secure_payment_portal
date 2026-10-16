@@ -13,7 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-private val request = PaymentRequest("bill-1", 1100, "USD")
+private val request = PaymentRequest("bill-1", 1100, "USD", "attempt-1")
 
 private class ScriptedProcessor(private val script: suspend (report: (Int) -> Boolean) -> ProcessingOutcome) :
     PaymentProcessor {
@@ -96,7 +96,7 @@ class PaymentSessionTest {
         session(SimulatedPaymentProcessor(steps = 2, stepDelayMillis = 10) { "TX-7" }).run(request)
 
         assertEquals(
-            PaymentProgress.Succeeded("bill-1", "TX-7", 1100, "USD", 1_700_000_000_000L),
+            PaymentProgress.Succeeded("bill-1", "TX-7", 1100, "USD", 1_700_000_000_000L, "attempt-1"),
             store.state.value,
         )
     }
@@ -125,11 +125,11 @@ class PaymentSessionTest {
     fun aDeclineAndAFailureArePublishedWithTheirCodes() = runTest {
         claim()
         session(ScriptedProcessor { ProcessingOutcome.Declined }).run(request)
-        assertEquals(PaymentProgress.Failed("declined"), store.state.value)
+        assertEquals(PaymentProgress.Failed("declined", "bill-1", "attempt-1"), store.state.value)
 
         claim()
         session(ScriptedProcessor { ProcessingOutcome.Failed }).run(request)
-        assertEquals(PaymentProgress.Failed("processing_failed"), store.state.value)
+        assertEquals(PaymentProgress.Failed("processing_failed", "bill-1", "attempt-1"), store.state.value)
     }
 
     @Test
@@ -138,7 +138,7 @@ class PaymentSessionTest {
 
         session(ScriptedProcessor { throw IllegalStateException("backend down") }).run(request)
 
-        assertEquals(PaymentProgress.Failed("processing_failed"), store.state.value)
+        assertEquals(PaymentProgress.Failed("processing_failed", "bill-1", "attempt-1"), store.state.value)
     }
 
     @Test
@@ -150,10 +150,10 @@ class PaymentSessionTest {
         runCurrent()
         assertTrue(store.state.value is PaymentProgress.Running)
 
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
         advanceUntilIdle()
 
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
         assertTrue(run.isCompleted)
         assertEquals("it stopped at the next step, not at the end", 400L, testScheduler.currentTime)
     }
@@ -165,23 +165,23 @@ class PaymentSessionTest {
         val run = launch { session(processor).run(request) }
         advanceTimeBy(250)
         runCurrent()
-        assertEquals(PaymentProgress.Running("bill-1", 100), store.state.value)
+        assertEquals(PaymentProgress.Running("bill-1", 100, "attempt-1"), store.state.value)
 
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
         advanceUntilIdle()
 
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
         assertTrue(run.isCompleted)
     }
 
     @Test
     fun aStoppedOutcomePublishesNothing() = runTest {
         claim()
-        store.cancelIfRunning()
+        store.cancelIfRunning("attempt-1")
 
         session(ScriptedProcessor { ProcessingOutcome.Stopped }).run(request)
 
-        assertEquals(PaymentProgress.Cancelled, store.state.value)
+        assertEquals(PaymentProgress.Cancelled("bill-1", "attempt-1"), store.state.value)
     }
 
     @Test

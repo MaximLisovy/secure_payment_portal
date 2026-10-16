@@ -10,7 +10,7 @@ enum class NotificationKind { PROCESSING, COMPLETE, FAILED }
  * screen when the service stops ("remove only on cancel"): dismissible, no progress, no action.
  * A cancel shows nothing, and neither does an idle store.
  */
-data class NotificationSpec(val kind: NotificationKind, val percent: Int = 0) {
+data class NotificationSpec(val kind: NotificationKind, val percent: Int = 0, val attemptId: String? = null) {
     val isOngoing: Boolean get() = kind == NotificationKind.PROCESSING
     val showsProgress: Boolean get() = kind == NotificationKind.PROCESSING
     val showsCancel: Boolean get() = kind == NotificationKind.PROCESSING
@@ -21,10 +21,10 @@ data class NotificationSpec(val kind: NotificationKind, val percent: Int = 0) {
 
         fun forState(state: PaymentProgress): NotificationSpec? =
             when (state) {
-                is PaymentProgress.Running -> NotificationSpec(NotificationKind.PROCESSING, state.percent)
+                is PaymentProgress.Running -> NotificationSpec(NotificationKind.PROCESSING, state.percent, state.attemptId)
                 is PaymentProgress.Succeeded -> NotificationSpec(NotificationKind.COMPLETE)
                 is PaymentProgress.Failed -> NotificationSpec(NotificationKind.FAILED)
-                PaymentProgress.Cancelled,
+                is PaymentProgress.Cancelled,
                 PaymentProgress.Idle -> null
             }
     }

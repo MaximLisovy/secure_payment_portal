@@ -32,8 +32,9 @@ void main() {
   setUp(() {
     security = _MockSecurity();
     payments = _MockPayments();
+    when(() => payments.preparePayment()).thenAnswer((_) async => Success.unit);
     when(
-      () => payments.startPayment(any()),
+      () => payments.startPayment(any(), attemptId: 'attempt-1'),
     ).thenAnswer((_) async => Success.unit);
   });
 
@@ -48,12 +49,12 @@ void main() {
     test('checks the device first, then starts processing', () async {
       deviceReads(cleanStatus);
 
-      final result = await confirm()(sampleDetails);
+      final result = await confirm()(sampleDetails, attemptId: 'attempt-1');
 
       expect(result, Success.unit);
       verifyInOrder([
         () => security.getStatus(),
-        () => payments.startPayment(sampleDetails),
+        () => payments.startPayment(sampleDetails, attemptId: 'attempt-1'),
       ]);
     });
 
@@ -61,8 +62,8 @@ void main() {
       deviceReads(cleanStatus);
       final useCase = confirm();
 
-      await useCase(sampleDetails);
-      await useCase(sampleDetails);
+      await useCase(sampleDetails, attemptId: 'attempt-1');
+      await useCase(sampleDetails, attemptId: 'attempt-1');
 
       verify(() => security.getStatus()).called(2);
     });
@@ -72,7 +73,7 @@ void main() {
       () async {
         deviceReads(cleanStatus);
 
-        await confirm()(sampleDetails);
+        await confirm()(sampleDetails, attemptId: 'attempt-1');
 
         verifyNever(() => security.watchStatus());
       },
@@ -87,7 +88,10 @@ void main() {
         ),
       );
 
-      expect(await confirm()(sampleDetails), Success.unit);
+      expect(
+        await confirm()(sampleDetails, attemptId: 'attempt-1'),
+        Success.unit,
+      );
     });
 
     test(
@@ -101,7 +105,10 @@ void main() {
           ),
         );
 
-        expect(await confirm()(sampleDetails), Success.unit);
+        expect(
+          await confirm()(sampleDetails, attemptId: 'attempt-1'),
+          Success.unit,
+        );
       },
     );
   });
@@ -136,10 +143,10 @@ void main() {
       test('$name fails with $reason and never starts processing', () async {
         deviceReads(status);
 
-        final result = await confirm()(sampleDetails);
+        final result = await confirm()(sampleDetails, attemptId: 'attempt-1');
 
         expect(result, Err<void>(SecurityBlockedFailure(reason)));
-        verifyNever(() => payments.startPayment(any()));
+        verifyNever(() => payments.startPayment(any(), attemptId: 'attempt-1'));
       });
     }
 
@@ -150,7 +157,7 @@ void main() {
           () => security.getStatus(),
         ).thenAnswer((_) async => const Err<SecurityStatus>(NetworkFailure()));
 
-        final result = await confirm()(sampleDetails);
+        final result = await confirm()(sampleDetails, attemptId: 'attempt-1');
 
         expect(
           result,
@@ -158,7 +165,7 @@ void main() {
             SecurityBlockedFailure(SecurityBlockReason.rootUnverifiable),
           ),
         );
-        verifyNever(() => payments.startPayment(any()));
+        verifyNever(() => payments.startPayment(any(), attemptId: 'attempt-1'));
       },
     );
 
@@ -172,10 +179,12 @@ void main() {
           blockOnUnknownRoot: false,
           blockOnUnprotectedWindow: false,
         ),
-      )(sampleDetails);
+      )(sampleDetails, attemptId: 'attempt-1');
 
       expect(result, Success.unit);
-      verify(() => payments.startPayment(sampleDetails)).called(1);
+      verify(
+        () => payments.startPayment(sampleDetails, attemptId: 'attempt-1'),
+      ).called(1);
     });
 
     test(
@@ -189,7 +198,7 @@ void main() {
           ),
         );
 
-        final result = await confirm()(sampleDetails);
+        final result = await confirm()(sampleDetails, attemptId: 'attempt-1');
 
         expect(
           result,
@@ -199,7 +208,7 @@ void main() {
             ),
           ),
         );
-        verifyNever(() => payments.startPayment(any()));
+        verifyNever(() => payments.startPayment(any(), attemptId: 'attempt-1'));
       },
     );
 
@@ -214,7 +223,7 @@ void main() {
 
       final result = await confirm(
         const SecurityPolicy(blockOnUnknownRecording: true),
-      )(sampleDetails);
+      )(sampleDetails, attemptId: 'attempt-1');
 
       expect(
         result,
@@ -252,11 +261,13 @@ void main() {
       test(
         '$name fails with InvalidPaymentFailure and touches nothing',
         () async {
-          final result = await confirm()(details);
+          final result = await confirm()(details, attemptId: 'attempt-1');
 
           expect(result, const Err<void>(InvalidPaymentFailure()));
           verifyNever(() => security.getStatus());
-          verifyNever(() => payments.startPayment(any()));
+          verifyNever(
+            () => payments.startPayment(any(), attemptId: 'attempt-1'),
+          );
         },
       );
     }
@@ -268,11 +279,11 @@ void main() {
       () async {
         deviceReads(cleanStatus);
         when(
-          () => payments.startPayment(any()),
+          () => payments.startPayment(any(), attemptId: 'attempt-1'),
         ).thenAnswer((_) async => const Err<void>(PaymentInProgressFailure()));
 
         expect(
-          await confirm()(sampleDetails),
+          await confirm()(sampleDetails, attemptId: 'attempt-1'),
           const Err<void>(PaymentInProgressFailure()),
         );
       },
@@ -282,12 +293,14 @@ void main() {
       'any other failure from the repository is passed through unchanged',
       () async {
         deviceReads(cleanStatus);
-        when(() => payments.startPayment(any())).thenAnswer(
+        when(
+          () => payments.startPayment(any(), attemptId: 'attempt-1'),
+        ).thenAnswer(
           (_) async => const Err<void>(PlatformFailure('START_NOT_ALLOWED')),
         );
 
         expect(
-          await confirm()(sampleDetails),
+          await confirm()(sampleDetails, attemptId: 'attempt-1'),
           const Err<void>(PlatformFailure('START_NOT_ALLOWED')),
         );
       },

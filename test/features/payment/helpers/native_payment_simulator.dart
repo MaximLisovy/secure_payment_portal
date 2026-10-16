@@ -121,11 +121,27 @@ final class NativePaymentSimulator {
         }
         _running = request;
         _step = 0;
-        _emit(PaymentProgressDto.running(request.paymentId, 0));
+        _emit(
+          PaymentProgressDto.running(
+            request.paymentId,
+            0,
+            attemptId: request.attemptId,
+          ),
+        );
         _timer = Timer.periodic(stepDelay, (_) => _tick());
         return null;
       case PaymentChannel.cancelPayment:
-        if (_running != null) _finish(PaymentProgressDto.cancelled);
+        final running = _running;
+        final args = call.arguments as Map<Object?, Object?>;
+        if (running != null &&
+            args[PaymentChannel.keyAttemptId] == running.attemptId) {
+          _finish(
+            PaymentProgressDto.cancelled(
+              paymentId: running.paymentId,
+              attemptId: running.attemptId,
+            ),
+          );
+        }
         return null;
       default:
         throw MissingPluginException();
@@ -138,7 +154,11 @@ final class NativePaymentSimulator {
     _step++;
     if (_step <= steps) {
       _emit(
-        PaymentProgressDto.running(request.paymentId, _step * 100 ~/ steps),
+        PaymentProgressDto.running(
+          request.paymentId,
+          _step * 100 ~/ steps,
+          attemptId: request.attemptId,
+        ),
       );
       return;
     }
@@ -146,6 +166,7 @@ final class NativePaymentSimulator {
     _finish(
       PaymentProgressDto.succeeded(
         paymentId: request.paymentId,
+        attemptId: request.attemptId,
         transactionId: 'NATIVE-TX-$_transactions',
         amountMinor: request.amountMinor,
         currency: request.currency,

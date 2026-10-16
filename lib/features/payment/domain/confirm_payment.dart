@@ -29,17 +29,33 @@ final class ConfirmPayment {
   /// `SecurityBlockedFailure` (the policy said no, and processing never
   /// started), or whatever `startPayment` fails with, such as
   /// `PaymentInProgressFailure` on a double confirm.
-  Future<Result<void>> call(PaymentDetails details) async {
+  Future<Result<void>> call(
+    PaymentDetails details, {
+    required String attemptId,
+    bool Function()? isCurrent,
+  }) async {
     if (!details.isPayable) return const Err(InvalidPaymentFailure());
+
+    if (isCurrent?.call() == false) {
+      return const Err(PaymentConfirmationObsoleteFailure());
+    }
+    final prepared = await _payments.preparePayment();
+    if (isCurrent?.call() == false) {
+      return const Err(PaymentConfirmationObsoleteFailure());
+    }
+    if (prepared is Err<void>) return prepared;
 
     // A status that cannot be read is an unknown one: the policy decides.
     final status =
         (await _security.getStatus()).valueOrNull ?? SecurityStatus.unknown;
+    if (isCurrent?.call() == false) {
+      return const Err(PaymentConfirmationObsoleteFailure());
+    }
     final decision = _policy.evaluate(status);
     if (decision case SecurityBlocked(:final reason)) {
       return Err(SecurityBlockedFailure(reason));
     }
 
-    return _payments.startPayment(details);
+    return _payments.startPayment(details, attemptId: attemptId);
   }
 }

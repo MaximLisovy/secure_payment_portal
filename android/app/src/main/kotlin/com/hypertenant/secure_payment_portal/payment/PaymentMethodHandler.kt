@@ -1,6 +1,7 @@
 package com.hypertenant.secure_payment_portal.payment
 
 import com.hypertenant.secure_payment_portal.bridge.AndroidMainThread
+import com.hypertenant.secure_payment_portal.bridge.ChannelContract
 import com.hypertenant.secure_payment_portal.bridge.ChannelErrorCodes
 import com.hypertenant.secure_payment_portal.bridge.MainThread
 import com.hypertenant.secure_payment_portal.bridge.PaymentChannel
@@ -32,7 +33,13 @@ class PaymentMethodHandler(
             when (call.method) {
                 PaymentChannel.START_PAYMENT -> startPayment(call, result)
                 PaymentChannel.CANCEL_PAYMENT -> {
-                    store.cancelIfRunning()
+                    val arguments = call.arguments as? Map<*, *>
+                    val attemptId = arguments?.get(PaymentChannel.KEY_ATTEMPT_ID) as? String
+                    if (attemptId.isNullOrBlank() || arguments[ChannelContract.KEY_SCHEMA_VERSION] != ChannelContract.SCHEMA_VERSION) {
+                        result.error(ChannelErrorCodes.INVALID_ARGS, "A cancellation needs an attempt identity.", null)
+                        return
+                    }
+                    store.cancelIfRunning(attemptId)
                     result.success(null)
                 }
                 PaymentChannel.REQUEST_NOTIFICATION_PERMISSION -> requestPermission(result)

@@ -41,15 +41,23 @@ final class PaymentRepositoryImpl implements PaymentRepository {
   }
 
   @override
-  Future<Result<void>> startPayment(PaymentDetails details) {
+  Future<Result<void>> preparePayment() => _command(_platform.preparePayment);
+
+  @override
+  Future<Result<void>> startPayment(
+    PaymentDetails details, {
+    required String attemptId,
+  }) {
     return _command(
-      () =>
-          _platform.startPayment(PaymentDetailsMapper.toStartRequest(details)),
+      () => _platform.startPayment(
+        PaymentDetailsMapper.toStartRequest(details, attemptId: attemptId),
+      ),
     );
   }
 
   @override
-  Future<Result<void>> cancelPayment() => _command(_platform.cancelPayment);
+  Future<Result<void>> cancelPayment({required String attemptId}) =>
+      _command(() => _platform.cancelPayment(attemptId: attemptId));
 
   @override
   Stream<PaymentProgress> watchProgress() {

@@ -7,14 +7,14 @@ Update this file in the same change that alters the contract.
 
 **Status.**
 
-- **Security (`…/security`, `…/security/screen_recording`): draft v1, implemented.**
+- **Security (`…/security`, `…/security/screen_recording`): draft v2, implemented.**
   Kotlin (`SecurityPlugin`) and Dart (`ChannelSecurityPlatformDataSource`) both
   exist and were checked on a Pixel_9 emulator (API 36), as listed under
   [Verified on a device](#verified-on-a-device-security). It stays **draft** until
   one manual check is done and written down: what the recording callback does
   while the window is secure (**pending manual verification**, below). It becomes
   final then, in a small docs commit.
-- **Payment (`…/payment`, `…/payment/progress`): draft v1, implemented.** The Kotlin
+- **Payment (`…/payment`, `…/payment/progress`): draft v2, implemented.** The Kotlin
   foreground service (`PaymentProcessingService`, `PaymentServicePlugin`) and the
   Dart `ChannelPaymentPlatformDataSource` both exist, the Dart one passes the
   payment contract suite unchanged, and what `adb` could check on a Pixel_9
@@ -39,8 +39,8 @@ They never depend on the `applicationId`, which differs per flavor.
 | `…/security` | Method | `enableSecureWindow` | none | `null` | `UNAVAILABLE` (no Activity) | `FLAG_SECURE`, any API. Reference counted. |
 | `…/security` | Method | `disableSecureWindow` | none | `null` | `UNAVAILABLE` | Balances `enableSecureWindow`; an extra call is ignored. |
 | `…/security/screen_recording` | Event | recording changes | none | map: `schemaVersion`, `screenRecording` | — | API 35+ detection callback; below that it emits `unknown`. |
-| `…/payment` | Method | `startPayment` | map: `schemaVersion`, `paymentId`, `amountMinor`, `currency` | `null` once processing was **accepted** | `ALREADY_RUNNING`, `START_NOT_ALLOWED`, `INVALID_ARGS` | Foreground service started from a user action while the app is visible. |
-| `…/payment` | Method | `cancelPayment` | none | `null` | `INTERNAL` | With nothing running it does nothing. |
+| `…/payment` | Method | `startPayment` | map: `schemaVersion`, `paymentId`, `attemptId`, `amountMinor`, `currency` | `null` once processing was **accepted** | `ALREADY_RUNNING`, `START_NOT_ALLOWED`, `INVALID_ARGS` | Foreground service started from a user action while the app is visible. |
+| `…/payment` | Method | `cancelPayment` | map: `schemaVersion`, `attemptId` | `null` | `INVALID_ARGS`, `INTERNAL` | A stale attempt ID is a no-op. |
 | `…/payment` | Method | `requestNotificationPermission` | none | string: `granted`, `denied` or `notRequired` | — (never fails) | Runtime permission from API 33; `notRequired` below. Called by the Dart data source before `startPayment`. |
 | `…/payment/progress` | Event | payment progress | none | map: `schemaVersion`, `state`, plus the fields of that state | — | Fed by the service's process-wide state. |
 
@@ -49,13 +49,13 @@ Unknown method → `notImplemented`. Bad arguments → `INVALID_ARGS`. The engin
 ## Payloads
 
 Flat maps of primitives with explicit keys. Every payload carries `schemaVersion`
-(currently `1`); a reader rejects any other value.
+(currently `2`); a reader rejects any other value.
 
 ### `getSecurityStatus` reply
 
 | Key | Type | Meaning |
 |---|---|---|
-| `schemaVersion` | int | `1` |
+| `schemaVersion` | int | `2` |
 | `root` | string | `detected`, `notDetected` or `unknown` |
 | `rootSignals` | list of string | reason codes that fired. **Non-empty exactly when `root` is `detected`.** |
 | `screenRecording` | string | `detected` (a recording is in progress), `notDetected` or `unknown` |
@@ -83,20 +83,25 @@ status as unknown.
 
 | Key | Type | Meaning |
 |---|---|---|
-| `schemaVersion` | int | `1` |
+| `schemaVersion` | int | `2` |
 | `paymentId` | string | the bill being paid |
+| `attemptId` | string | a fresh, non-empty processing identity for this execution, distinct from the bill |
 | `amountMinor` | int | total in minor units; must be greater than 0 |
 | `currency` | string | ISO 4217 code, e.g. `USD` |
 
 No user-facing text and no merchant data crosses the channel. The notification
 text is native resources (flavor `app_name` via `resValue`).
 
+### `cancelPayment` arguments
+
+`{ schemaVersion: 2, attemptId }`. The ID is required and non-empty; missing or malformed arguments are `INVALID_ARGS`. A valid ID that is not running is a successful no-op.
+
 ### `requestNotificationPermission` reply
 
 A string: `granted`, `denied`, or `notRequired` (below API 33). It never fails: with no Activity to
 show the prompt, or if anything goes wrong, the answer is `denied`. **Denial never stops a
 payment**: the foreground service runs without its notification being shown, and Dart still
-receives the progress. The Dart data source calls it before every `startPayment` and ignores the
+receives the progress. The use case calls repository preparation first, which asks through the data source, then makes a fresh security read before `startPayment`. It ignores the permission
 answer; the system decides whether a prompt appears (it stops showing one after repeated denials).
 
 ### Payment progress event
@@ -106,10 +111,10 @@ answer; the system decides whether a prompt appears (it stops showing one after 
 | `state` | Extra keys |
 |---|---|
 | `idle` | none (nothing running, nothing finished) |
-| `running` | `paymentId` (string), `percent` (int, 0 to 100) |
-| `succeeded` | `paymentId`, `transactionId` (string), `amountMinor` (int), `currency` (string), `completedAtMillis` (int, epoch milliseconds) |
-| `failed` | `errorCode`: `declined` or `processing_failed`. An unknown code is shown as a processing failure. |
-| `cancelled` | none |
+| `running` | `paymentId`, `attemptId` (strings), `percent` (int, 0 to 100) |
+| `succeeded` | `paymentId`, `attemptId`, `transactionId` (string), `amountMinor` (int), `currency` (string), `completedAtMillis` (int, epoch milliseconds) |
+| `failed` | `paymentId`, `attemptId`, `errorCode`: `declined` or `processing_failed`. An unknown code is shown as a processing failure. |
+| `cancelled` | `paymentId`, `attemptId` (strings) |
 
 ## Behaviour both sides must honour
 
@@ -134,8 +139,8 @@ implementations must agree.
   payment that never ran. A service that is started for a payment that is no longer
   the running one (a duplicate, or one cancelled before the service arrived) does
   nothing.
-- **Cancel is idempotent.** With nothing running it is a no-op; otherwise the
-  state becomes `cancelled`.
+- **Attempt isolation.** All non-idle payment events identify both the bill and its attempt. A late progress, finish, rollback, timeout or cancel from an old attempt cannot affect a retry of the same bill. Schema v2 requires these fields; Dart and Kotlin ship together. This local execution identity is not a durable backend idempotency key.
+- **Cancel is idempotent and scoped.** With nothing running or with a stale `attemptId` it is a no-op; otherwise the state becomes `cancelled`. The notification PendingIntent has distinct data for each attempt, and carries that attempt ID.
 - **Cancel is one call, wherever it comes from.** From the app (`cancelPayment`) and
   from the notification's Cancel action it is the same store transition. The
   notification action is an immutable `PendingIntent.getBroadcast` to a **non-exported**
@@ -148,14 +153,14 @@ implementations must agree.
   `onTimeout` (both overloads on Android 15) fails the payment as
   `processing_failed` and stops. `START_NOT_STICKY`: a payment never restarts by
   itself. It goes foreground first thing in `onStartCommand`, and on destroy fails
-  only the payment it ran itself.
+  only the attempt it ran itself. A new attempt retires and joins an old worker before running; duplicate delivery updates the latest startId without restarting work. Superseded workers cannot remove the replacement notification or stop its service.
 - **The notification** is generic (no amount, no merchant), private on the lock
   screen, on a low-importance channel, throttled to two updates a second with the
   latest value always posted. A finished payment leaves "Payment complete" or
   "Payment failed" on screen, dismissible and removed when tapped; only a cancel
   removes the notification.
 - **Notification permission** (API 33+) is requested through `requestNotificationPermission`,
-  by the Dart data source before every `startPayment`, with no timeout on the prompt.
+  in repository preparation before the final domain security read, with no timeout on the prompt. A screen change or disposal invalidates pending confirmation before it can start processing.
   **Denial never stops a payment**: the service runs, nothing is shown, and Dart still
   receives the progress.
 - **What survives what.** The state lives in memory in the process. The service and
@@ -300,3 +305,7 @@ notification (the native simulation always succeeds).
 person sees them, the lock screen, the notification on a physical phone's skin, other API levels (the
 type is masked to nothing below API 34 by `ServiceCompat`, which was read from its bytecode, not run),
 battery saver and Doze.
+
+## Validation after the attempt-isolation fix
+
+The v2 schema and service coordinator were verified by Dart contract tests, JVM tests and APK builds. The older device observations above describe the v1 implementation; the new rapid cancel/retry and stale-notification scenarios still require the manual run in [Manual QA](MANUAL_QA.md). No new 120 Hz or physical-device evidence is implied by the schema migration.

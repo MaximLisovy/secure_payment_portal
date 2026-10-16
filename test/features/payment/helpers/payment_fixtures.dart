@@ -28,6 +28,7 @@ const sampleRequest = StartPaymentRequestDto(
   paymentId: 'bill-1',
   amountMinor: 1100,
   currency: 'USD',
+  attemptId: 'attempt-1',
 );
 
 PaymentDetails detailsWith(List<BillLineItem> items) => PaymentDetails(
