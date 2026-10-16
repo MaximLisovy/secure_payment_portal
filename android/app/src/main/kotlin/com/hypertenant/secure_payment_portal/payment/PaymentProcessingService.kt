@@ -126,9 +126,12 @@ class PaymentProcessingService : Service() {
         currentPaymentId = null
         val spec = NotificationSpec.forState(store.state.value)
         if (spec != null && !spec.isOngoing) {
-            // Before detaching, so the notification that stays is the dismissible final one.
-            notify(spec)
+            // Detach first, then post the final notification: while it is still the foreground
+            // notification the system keeps it non-cancellable and drops its auto-cancel flag, so
+            // updating it after it has been detached is what makes it a normal, dismissible one
+            // that disappears when tapped.
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+            notify(spec)
         } else {
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         }
