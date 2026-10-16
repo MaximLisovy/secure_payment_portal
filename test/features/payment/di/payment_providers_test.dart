@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/domain/currency.dart';
 import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
@@ -14,6 +15,9 @@ import 'package:secure_payment_portal/features/payment/data/datasources/fake_bil
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
+import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
+import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_request_dto.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
@@ -25,6 +29,8 @@ import 'package:secure_payment_portal/features/security/di/security_data_source_
 import 'package:secure_payment_portal/features/security/security.dart';
 
 import '../../../helpers/fake_async_helpers.dart';
+import '../../../helpers/recording_logger.dart';
+import '../helpers/payment_fixtures.dart';
 
 const _step = Duration(milliseconds: 100);
 
@@ -82,7 +88,22 @@ ProviderContainer _container({
   return (seen: seen, confirmed: confirm.value);
 }
 
+/// A processing source whose progress stream fails with something no failure covers.
+class _BrokenProgressSource implements PaymentPlatformDataSource {
+  @override
+  Stream<PaymentProgressDto> watchProgress() =>
+      Stream<PaymentProgressDto>.error(StateError('card 4111'));
+
+  @override
+  Future<void> startPayment(StartPaymentRequestDto request) async {}
+
+  @override
+  Future<void> cancelPayment() async {}
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'confirming through the default wiring runs a payment to its receipt',
     () {
@@ -178,6 +199,59 @@ void main() {
       );
       expect(container.read(paymentScenarioControlProvider), isNull);
     });
+
+    test('the repository and the channel source use the app logger', () async {
+      final logger = RecordingLogger();
+      const methods = MethodChannel('test/payment/logging');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methods, (call) async {
+            if (call.method == PaymentChannel.requestNotificationPermission) {
+              return NotificationPermissionWire.granted;
+            }
+            throw PlatformException(code: 'BROKEN', message: 'card 4111');
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(methods, null),
+      );
+      final container = ProviderContainer.test(
+        overrides: [
+          loggerProvider.overrideWithValue(logger),
+          paymentMethodChannelProvider.overrideWithValue(methods),
+        ],
+      );
+
+      final result = await container
+          .read(paymentRepositoryProvider)
+          .startPayment(sampleDetails);
+
+      expect(result.isSuccess, isFalse);
+      expect(logger.warnings.single.message, contains('BROKEN'));
+      expect(logger.entries.single.everything, isNot(contains('4111')));
+    });
+
+    test(
+      'the repository logs an error nothing covers through the app logger',
+      () async {
+        final logger = RecordingLogger();
+        final container = ProviderContainer.test(
+          overrides: [
+            loggerProvider.overrideWithValue(logger),
+            realPaymentPlatformDataSourceProvider.overrideWithValue(
+              _BrokenProgressSource(),
+            ),
+          ],
+        );
+
+        final first = await container
+            .read(paymentRepositoryProvider)
+            .watchProgress()
+            .first;
+
+        expect(first, isA<PaymentFailed>());
+        expect(logger.errors.single.error, StateError);
+      },
+    );
 
     test('the channels are plain providers, so a test can replace them', () {
       const methods = MethodChannel('test/payment');

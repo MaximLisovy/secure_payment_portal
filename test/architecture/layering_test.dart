@@ -44,6 +44,28 @@ void main() {
     expect(all.length, greaterThan(50));
   });
 
+  group('logging', () {
+    test('nothing prints: the one way to say something is the Logger', () {
+      final bad = [
+        for (final MapEntry(key: file, value: source) in all.entries)
+          if (RegExp(r'(?<![\w.])(print|debugPrint)\(').hasMatch(source)) file,
+      ];
+
+      expect(bad, isEmpty, reason: 'print or debugPrint in: ${bad.join(', ')}');
+    });
+
+    test('only the logger talks to dart:developer', () {
+      final bad = [
+        for (final MapEntry(key: file, value: source) in all.entries)
+          if (!file.startsWith('core/logging/') &&
+              source.contains("import 'dart:developer"))
+            file,
+      ];
+
+      expect(bad, isEmpty, reason: bad.join(', '));
+    });
+  });
+
   group('the dependency rule', () {
     test('domain code is pure Dart', () {
       final domain = {

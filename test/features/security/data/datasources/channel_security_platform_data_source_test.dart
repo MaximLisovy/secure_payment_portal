@@ -6,20 +6,24 @@ import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/channel_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/security_status_repository_impl.dart';
 import 'package:secure_payment_portal/features/security/domain/root_assessment.dart';
 import 'package:secure_payment_portal/features/security/domain/security_status.dart';
 
+import '../../../../helpers/recording_logger.dart';
 import '../../helpers/native_security_simulator.dart';
 import '../security_platform_data_source_contract.dart';
 
 ChannelSecurityPlatformDataSource _source({
   Duration callTimeout = const Duration(seconds: 5),
+  Logger logger = const SilentLogger(),
 }) => ChannelSecurityPlatformDataSource(
   methods: securityMethodChannel,
   recordingEvents: securityRecordingChannel,
+  logger: logger,
   callTimeout: callTimeout,
 );
 
@@ -145,6 +149,121 @@ void main() {
           throwsA(isA<UnsupportedException>()),
         );
       });
+    });
+
+    group('what it logs', () {
+      test('says nothing when everything works', () async {
+        final logger = RecordingLogger();
+        _device();
+        final source = _source(logger: logger);
+        addTearDown(source.dispose);
+
+        await source.getSecurityStatus();
+        await source.enableSecureWindow();
+        await source.disableSecureWindow();
+        final subscription = source.watchScreenRecording().listen((_) {});
+        await pumpEventQueue();
+        await subscription.cancel();
+
+        expect(logger.entries, isEmpty);
+      });
+
+      test(
+        'an error reply is a warning with the method and the code only',
+        () async {
+          final logger = RecordingLogger();
+          _device().hasActivity = false;
+          final source = _source(logger: logger);
+
+          await expectLater(
+            source.enableSecureWindow(),
+            throwsA(isA<PlatformCallException>()),
+          );
+
+          final warning = logger.warnings.single;
+          expect(warning.message, contains(SecurityChannel.enableSecureWindow));
+          expect(warning.message, contains(ChannelErrorCodes.unavailable));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+        },
+      );
+
+      test('a call that is never answered is a warning', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          _device().hang = true;
+          final source = _source(
+            callTimeout: const Duration(seconds: 3),
+            logger: logger,
+          );
+          unawaited(
+            source.getSecurityStatus().then<void>(
+              (_) {},
+              onError: (Object _) {},
+            ),
+          );
+
+          async.elapse(const Duration(seconds: 4));
+
+          expect(
+            logger.warnings.single.message,
+            contains('did not answer in time'),
+          );
+          expect(
+            logger.warnings.single.message,
+            contains(SecurityChannel.getSecurityStatus),
+          );
+        });
+      });
+
+      test('no native side is expected, so it is not logged', () async {
+        final logger = RecordingLogger();
+        final source = _source(logger: logger);
+
+        await expectLater(
+          source.getSecurityStatus(),
+          throwsA(isA<UnsupportedException>()),
+        );
+
+        expect(logger.entries, isEmpty);
+      });
+
+      test(
+        'a malformed recording event is a warning without its content',
+        () async {
+          final logger = RecordingLogger();
+          final device = _device();
+          final source = _source(logger: logger);
+          addTearDown(source.dispose);
+          final subscription = source.watchScreenRecording().listen((_) {});
+          await pumpEventQueue();
+
+          device.sendRaw('card 4111 1111 1111 1111');
+          await pumpEventQueue();
+
+          expect(logger.warnings.single.message, contains('malformed'));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+          await subscription.cancel();
+        },
+      );
+
+      test(
+        'an error event is a warning with its code, not its message',
+        () async {
+          final logger = RecordingLogger();
+          final device = _device();
+          final source = _source(logger: logger);
+          addTearDown(source.dispose);
+          final subscription = source.watchScreenRecording().listen((_) {});
+          await pumpEventQueue();
+
+          device.sendError();
+          await pumpEventQueue();
+
+          expect(logger.warnings.single.message, contains('BOOM'));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+          await subscription.cancel();
+        },
+      );
     });
 
     group('a call that is never answered', () {
@@ -399,7 +518,10 @@ void main() {
     group('behind the repository', () {
       test('a clean device becomes a clear status', () async {
         _device();
-        final repository = SecurityStatusRepositoryImpl(_source());
+        final repository = SecurityStatusRepositoryImpl(
+          _source(),
+          logger: const SilentLogger(),
+        );
 
         final result = await repository.getStatus();
 
@@ -414,7 +536,10 @@ void main() {
       });
 
       test('no native side is an unsupported failure', () async {
-        final repository = SecurityStatusRepositoryImpl(_source());
+        final repository = SecurityStatusRepositoryImpl(
+          _source(),
+          logger: const SilentLogger(),
+        );
 
         final result = await repository.getStatus();
 
@@ -428,7 +553,10 @@ void main() {
         final device = _device();
         final source = _source();
         addTearDown(source.dispose);
-        final repository = SecurityStatusRepositoryImpl(source);
+        final repository = SecurityStatusRepositoryImpl(
+          source,
+          logger: const SilentLogger(),
+        );
         final flow = <Detection>[];
         final readout = <Detection>[];
         final a = repository.watchStatus().listen(
@@ -466,6 +594,7 @@ void main() {
         final seen = <Detection>[];
         final subscription = SecurityStatusRepositoryImpl(
           source,
+          logger: const SilentLogger(),
         ).watchStatus().listen((status) => seen.add(status.screenRecording));
         await pumpEventQueue();
 

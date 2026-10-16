@@ -61,6 +61,7 @@ lib/
     design_system/          # ThemeExtension tokens + primitive widgets that read them
     error/                  # Result, Failure base + generic failures, data-layer exceptions, failureFromError
     async/                  # small stream helpers (ReplayLatest)
+    logging/                # Logger (dart:developer behind an interface), loggerProvider; the only place that imports dart:developer
     format/                 # MoneyFormatter, DateTimeFormatter (no intl; not locale-aware)
     strings/                # AppStrings: every user-facing text, and the message for each failure key
     simulation/             # SourceMode: real or simulated, per controllable source

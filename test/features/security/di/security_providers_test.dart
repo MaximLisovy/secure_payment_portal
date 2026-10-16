@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/channel_security_platform_data_source.dart';
@@ -9,7 +10,11 @@ import 'package:secure_payment_portal/features/security/di/security_data_source_
 // The public barrel, as another feature sees it.
 import 'package:secure_payment_portal/features/security/security.dart';
 
+import '../../../helpers/recording_logger.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('by default the interfaces sit on the channel-based source', () {
     final container = ProviderContainer.test();
 
@@ -49,6 +54,33 @@ void main() {
 
     expect(container.read(securityMethodChannelProvider), same(methods));
     expect(container.read(securityRecordingEventChannelProvider), same(events));
+  });
+
+  test('the channel source and the repositories use the app logger', () async {
+    final logger = RecordingLogger();
+    const methods = MethodChannel('test/security/logging');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(methods, (_) async {
+          throw PlatformException(code: 'BROKEN', message: 'card 4111');
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(methods, null),
+    );
+    final container = ProviderContainer.test(
+      overrides: [
+        loggerProvider.overrideWithValue(logger),
+        securityMethodChannelProvider.overrideWithValue(methods),
+      ],
+    );
+
+    final result = await container
+        .read(secureWindowControllerProvider)
+        .enable();
+
+    expect(result.isSuccess, isFalse);
+    expect(logger.warnings.single.message, contains('BROKEN'));
+    expect(logger.entries.single.everything, isNot(contains('4111')));
   });
 
   test(

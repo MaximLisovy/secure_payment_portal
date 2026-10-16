@@ -13,6 +13,10 @@ const EventChannel securityRecordingChannel = EventChannel(
   SecurityChannel.recordingEvents,
 );
 
+/// Text the native side puts in every error message. A log must never repeat it:
+/// a message could carry anything, so only the code is ever logged.
+const nativeCanary = 'card 4111 1111 1111 1111';
+
 /// The native side of the security channels, played in Dart over the mock binary
 /// messenger, with the behaviour `docs/platform_channels.md` prescribes: a
 /// reference-counted secure window, `windowProtection` reported from the real
@@ -76,7 +80,7 @@ final class NativeSecuritySimulator {
 
   void sendRaw(Object? event) => _sink?.success(event);
 
-  void sendError() => _sink?.error(code: 'BOOM', message: 'native error');
+  void sendError() => _sink?.error(code: 'BOOM', message: nativeCanary);
 
   Future<Object?> _onCall(MethodCall call) async {
     calls.add(call.method);
@@ -96,7 +100,7 @@ final class NativeSecuritySimulator {
         if (!hasActivity) {
           throw PlatformException(
             code: ChannelErrorCodes.unavailable,
-            message: 'There is no window to protect.',
+            message: nativeCanary,
           );
         }
         secureCount++;

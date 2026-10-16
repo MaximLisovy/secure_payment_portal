@@ -7,6 +7,7 @@ import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
@@ -18,6 +19,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_details.da
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 
+import '../../../../helpers/recording_logger.dart';
 import '../../helpers/payment_fixtures.dart';
 
 class _MockRemote extends Mock implements PaymentRemoteDataSource {}
@@ -34,7 +36,11 @@ void main() {
   setUp(() {
     remote = _MockRemote();
     platform = _MockPlatform();
-    repository = PaymentRepositoryImpl(remote: remote, platform: platform);
+    repository = PaymentRepositoryImpl(
+      remote: remote,
+      platform: platform,
+      logger: const SilentLogger(),
+    );
   });
 
   group('getPaymentDetails', () {
@@ -159,6 +165,52 @@ void main() {
         await repository.cancelPayment(),
         const Err<void>(PlatformFailure(ChannelErrorCodes.internal)),
       );
+    });
+  });
+
+  group('an error that no failure covers', () {
+    test(
+      'ends the run as UnexpectedFailure and is logged by type and stack',
+      () async {
+        final logger = RecordingLogger();
+        final source = StreamController<PaymentProgressDto>();
+        addTearDown(source.close);
+        when(() => platform.watchProgress()).thenAnswer((_) => source.stream);
+        final repository = PaymentRepositoryImpl(
+          remote: remote,
+          platform: platform,
+          logger: logger,
+        );
+        final seen = <PaymentProgress>[];
+        final subscription = repository.watchProgress().listen(seen.add);
+        addTearDown(subscription.cancel);
+
+        source.addError(StateError('card 4111 1111 1111 1111'));
+        await pumpEventQueue();
+
+        expect(seen.single, const PaymentFailed(UnexpectedFailure()));
+        final entry = logger.errors.single;
+        expect(entry.error, StateError);
+        expect(entry.stackTrace, isNotNull);
+        expect(entry.everything, isNot(contains('4111')));
+      },
+    );
+
+    test('a failure of its own is not logged', () async {
+      final logger = RecordingLogger();
+      final repository = PaymentRepositoryImpl(
+        remote: remote,
+        platform: platform,
+        logger: logger,
+      );
+      when(
+        () => remote.fetchPaymentDetails(any()),
+      ).thenThrow(const NetworkException());
+
+      final result = await repository.getPaymentDetails('bill-1');
+
+      expect(result, const Err<PaymentDetails>(NetworkFailure()));
+      expect(logger.entries, isEmpty);
     });
   });
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure_mapper.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/screen_recording_dto.dart';
 import 'package:secure_payment_portal/features/security/data/mappers/security_status_mapper.dart';
@@ -10,17 +11,21 @@ import 'package:secure_payment_portal/features/security/domain/security_status.d
 import 'package:secure_payment_portal/features/security/domain/security_status_repository.dart';
 
 final class SecurityStatusRepositoryImpl implements SecurityStatusRepository {
-  const SecurityStatusRepositoryImpl(this._dataSource);
+  const SecurityStatusRepositoryImpl(this._dataSource, {required Logger logger})
+    : _logger = logger;
 
   final SecurityPlatformDataSource _dataSource;
+  final Logger _logger;
 
   @override
   Future<Result<SecurityStatus>> getStatus() async {
     try {
       final dto = await _dataSource.getSecurityStatus();
       return Success(SecurityStatusMapper.toEntity(dto));
-    } on DataSourceException catch (error) {
-      return Err(failureFromError(error));
+    } on DataSourceException catch (error, stackTrace) {
+      return Err(
+        failureFromError(error, logger: _logger, stackTrace: stackTrace),
+      );
     }
   }
 

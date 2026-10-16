@@ -4,6 +4,7 @@ import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/failure_mapper.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_remote_data_source.dart';
@@ -20,19 +21,22 @@ final class PaymentRepositoryImpl implements PaymentRepository {
   const PaymentRepositoryImpl({
     required PaymentRemoteDataSource remote,
     required PaymentPlatformDataSource platform,
+    required Logger logger,
   }) : _remote = remote,
-       _platform = platform;
+       _platform = platform,
+       _logger = logger;
 
   final PaymentRemoteDataSource _remote;
   final PaymentPlatformDataSource _platform;
+  final Logger _logger;
 
   @override
   Future<Result<PaymentDetails>> getPaymentDetails(String paymentId) async {
     try {
       final dto = await _remote.fetchPaymentDetails(paymentId);
       return Success(PaymentDetailsMapper.toEntity(dto));
-    } on DataSourceException catch (error) {
-      return Err(failureFromError(error));
+    } on DataSourceException catch (error, stackTrace) {
+      return Err(_failure(error, stackTrace));
     }
   }
 
@@ -56,12 +60,12 @@ final class PaymentRepositoryImpl implements PaymentRepository {
             handleData: (dto, sink) {
               try {
                 sink.add(PaymentProgressMapper.toEntity(dto));
-              } on DataSourceException catch (error) {
-                sink.add(PaymentFailed(failureFromError(error)));
+              } on DataSourceException catch (error, stackTrace) {
+                sink.add(PaymentFailed(_failure(error, stackTrace)));
               }
             },
             handleError: (error, stackTrace, sink) =>
-                sink.add(PaymentFailed(failureFromError(error))),
+                sink.add(PaymentFailed(_failure(error, stackTrace))),
           ),
         )
         .distinct();
@@ -73,10 +77,13 @@ final class PaymentRepositoryImpl implements PaymentRepository {
       return Success.unit;
     } on PlatformCallException catch (error) {
       return Err(_failureForPlatformCode(error));
-    } on DataSourceException catch (error) {
-      return Err(failureFromError(error));
+    } on DataSourceException catch (error, stackTrace) {
+      return Err(_failure(error, stackTrace));
     }
   }
+
+  Failure _failure(Object error, StackTrace stackTrace) =>
+      failureFromError(error, logger: _logger, stackTrace: stackTrace);
 
   Failure _failureForPlatformCode(PlatformCallException error) {
     return switch (error.code) {
@@ -84,7 +91,7 @@ final class PaymentRepositoryImpl implements PaymentRepository {
       ChannelErrorCodes.invalidArgs => const InvalidPaymentFailure(),
       ChannelErrorCodes.startNotAllowed =>
         const PaymentStartNotAllowedFailure(),
-      _ => failureFromError(error),
+      _ => failureFromError(error, logger: _logger),
     };
   }
 }

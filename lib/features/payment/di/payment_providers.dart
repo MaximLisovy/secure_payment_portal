@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/payment/data/repositories/payment_repository_impl.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_data_source_providers.dart';
@@ -23,6 +24,7 @@ final paymentRepositoryProvider = Provider<PaymentRepository>(
   (ref) => PaymentRepositoryImpl(
     remote: ref.watch(paymentRemoteDataSourceProvider),
     platform: ref.watch(paymentPlatformDataSourceProvider),
+    logger: ref.watch(loggerProvider),
   ),
 );
 

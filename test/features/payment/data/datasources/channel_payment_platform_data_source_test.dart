@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
@@ -18,6 +19,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_failures.d
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 
 import '../../../../helpers/fake_async_helpers.dart';
+import '../../../../helpers/recording_logger.dart';
 import '../../helpers/native_payment_simulator.dart';
 import '../payment_platform_data_source_contract.dart';
 
@@ -29,10 +31,12 @@ const _request = StartPaymentRequestDto(
 
 ChannelPaymentPlatformDataSource _source({
   Duration callTimeout = const Duration(seconds: 5),
+  Logger logger = const SilentLogger(),
 }) {
   final source = ChannelPaymentPlatformDataSource(
     methods: paymentMethodChannel,
     progressEvents: paymentProgressChannel,
+    logger: logger,
     callTimeout: callTimeout,
   );
   addTearDown(source.dispose);
@@ -166,6 +170,139 @@ void main() {
           });
         });
       }
+    });
+
+    group('what it logs', () {
+      test('says nothing when everything works', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          final service = _service();
+          final source = _source(logger: logger);
+
+          unawaited(source.startPayment(_request));
+          async.elapse(service.completionTime);
+          source.watchProgress().listen((_) {});
+          async.flushMicrotasks();
+
+          expect(logger.entries, isEmpty);
+        });
+      });
+
+      test('an error reply is a warning with the method and the code only', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          _service().startFailsWith = ChannelErrorCodes.startNotAllowed;
+          final source = _source(logger: logger);
+
+          unawaited(
+            source
+                .startPayment(_request)
+                .then<void>((_) {}, onError: (Object _) {}),
+          );
+          async.flushMicrotasks();
+
+          final warning = logger.warnings.single;
+          expect(warning.message, contains(PaymentChannel.startPayment));
+          expect(warning.message, contains(ChannelErrorCodes.startNotAllowed));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+          expect(
+            logger.entries.single.everything,
+            isNot(contains('bill-1')),
+            reason: 'nor the arguments of the call',
+          );
+        });
+      });
+
+      test(
+        'a failed permission request is logged and the payment still starts',
+        () {
+          fakeAsync((async) {
+            final logger = RecordingLogger();
+            final service = _service()..permissionFails = true;
+            final source = _source(logger: logger);
+
+            final start = FutureProbe(source.startPayment(_request));
+            async.flushMicrotasks();
+
+            expect(start.isDone && start.error == null, isTrue);
+            expect(service.calls, contains(PaymentChannel.startPayment));
+            expect(
+              logger.warnings.single.message,
+              contains('notification permission'),
+            );
+            expect(logger.entries.single.everything, isNot(contains('4111')));
+            unawaited(source.cancelPayment());
+            async.flushMicrotasks();
+          });
+        },
+      );
+
+      test('a start that is never answered is a warning', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          _service().hangOnStart = true;
+          final source = _source(
+            callTimeout: const Duration(seconds: 3),
+            logger: logger,
+          );
+          unawaited(
+            source
+                .startPayment(_request)
+                .then<void>((_) {}, onError: (Object _) {}),
+          );
+
+          async.elapse(const Duration(seconds: 4));
+
+          expect(
+            logger.warnings.single.message,
+            contains('did not answer in time'),
+          );
+        });
+      });
+
+      test('no native side is expected, so it is not logged', () async {
+        final logger = RecordingLogger();
+        final source = _source(logger: logger);
+
+        await expectLater(
+          source.startPayment(_request),
+          throwsA(isA<UnsupportedException>()),
+        );
+
+        expect(logger.entries, isEmpty);
+      });
+
+      test('a malformed event is a warning without its content', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          final service = _service();
+          final source = _source(logger: logger);
+          source.watchProgress().listen((_) {}, onError: (Object _) {});
+          async.flushMicrotasks();
+
+          service.sendRaw('card 4111 1111 1111 1111');
+          async.flushMicrotasks();
+
+          expect(logger.warnings.single.message, contains('malformed'));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+        });
+      });
+
+      test('an error event is a warning with its code, not its message', () {
+        fakeAsync((async) {
+          final logger = RecordingLogger();
+          final service = _service();
+          final source = _source(logger: logger);
+          source.watchProgress().listen((_) {}, onError: (Object _) {});
+          async.flushMicrotasks();
+
+          service.sendError();
+          async.flushMicrotasks();
+
+          expect(logger.warnings.single.message, contains('BOOM'));
+          expect(logger.entries.single.everything, isNot(contains('4111')));
+        });
+      });
     });
 
     group('a start that is never answered', () {
@@ -365,6 +502,7 @@ void main() {
           final source = ChannelPaymentPlatformDataSource(
             methods: paymentMethodChannel,
             progressEvents: paymentProgressChannel,
+            logger: const SilentLogger(),
           );
           var done = false;
           source.watchProgress().listen((_) {}, onDone: () => done = true);
@@ -386,6 +524,7 @@ void main() {
       ) => PaymentRepositoryImpl(
         remote: FakePaymentRemoteDataSource(),
         platform: source,
+        logger: const SilentLogger(),
       );
 
       test('a second start is a payment already in progress', () {

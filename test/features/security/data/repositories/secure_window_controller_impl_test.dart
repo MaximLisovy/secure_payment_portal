@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/secure_window_controller_impl.dart';
@@ -15,7 +16,10 @@ void main() {
 
   setUp(() {
     dataSource = _MockDataSource();
-    controller = SecureWindowControllerImpl(dataSource);
+    controller = SecureWindowControllerImpl(
+      dataSource,
+      logger: const SilentLogger(),
+    );
   });
 
   test('enable asks the platform to protect the window', () async {

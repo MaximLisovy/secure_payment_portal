@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:secure_payment_portal/core/async/replay_latest.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
@@ -36,9 +37,11 @@ final class ChannelPaymentPlatformDataSource
   ChannelPaymentPlatformDataSource({
     required MethodChannel methods,
     required EventChannel progressEvents,
+    required Logger logger,
     this.callTimeout = const Duration(seconds: 5),
   }) : _methods = methods,
-       _progressEvents = progressEvents {
+       _progressEvents = progressEvents,
+       _logger = logger {
     _progress = ReplayLatest<PaymentProgressDto>.empty(
       onFirstListener: _openNative,
       onLastCancel: _closeNative,
@@ -48,6 +51,7 @@ final class ChannelPaymentPlatformDataSource
 
   final MethodChannel _methods;
   final EventChannel _progressEvents;
+  final Logger _logger;
 
   /// How long a method call may take before it counts as unavailable.
   final Duration callTimeout;
@@ -79,8 +83,12 @@ final class ChannelPaymentPlatformDataSource
       await _methods.invokeMethod<Object?>(
         PaymentChannel.requestNotificationPermission,
       );
-    } on PlatformException {
-      // Denial, or no way to ask, only means no notification. Start anyway.
+    } on PlatformException catch (error) {
+      // Denial, or no way to ask, only means no notification. Start anyway, and say so.
+      _logger.warning(
+        'Asking for the notification permission failed with ${error.code}; '
+        'starting the payment anyway.',
+      );
     } on MissingPluginException {
       // No native side: startPayment fails as unsupported right after.
     }
@@ -92,10 +100,13 @@ final class ChannelPaymentPlatformDataSource
           .invokeMethod<Object?>(method, arguments)
           .timeout(callTimeout);
     } on PlatformException catch (error) {
+      // The code and the method, never the message or the arguments.
+      _logger.warning('Payment call "$method" failed with ${error.code}.');
       throw PlatformCallException(error.code, error.message);
     } on MissingPluginException {
       throw const UnsupportedException();
     } on TimeoutException {
+      _logger.warning('Payment call "$method" did not answer in time.');
       throw const PlatformCallException(
         ChannelErrorCodes.unavailable,
         'The platform did not answer in time.',
@@ -109,14 +120,21 @@ final class ChannelPaymentPlatformDataSource
         try {
           _progress.add(PaymentProgressDto.fromMap(event));
         } on MalformedPayloadException catch (error) {
+          _logger.warning('A payment progress event was malformed.');
           _progress.addError(error);
         }
       },
-      onError: (Object error) => _progress.addError(
-        error is PlatformException
-            ? PlatformCallException(error.code, error.message)
-            : const UnsupportedException(),
-      ),
+      onError: (Object error) {
+        _logger.warning(
+          'The payment progress events failed '
+          '(${error is PlatformException ? error.code : error.runtimeType}).',
+        );
+        _progress.addError(
+          error is PlatformException
+              ? PlatformCallException(error.code, error.message)
+              : const UnsupportedException(),
+        );
+      },
     );
   }
 

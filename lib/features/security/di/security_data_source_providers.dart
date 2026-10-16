@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/channel_security_platform_data_source.dart';
@@ -31,6 +32,7 @@ final realSecurityPlatformDataSourceProvider =
       final source = ChannelSecurityPlatformDataSource(
         methods: ref.watch(securityMethodChannelProvider),
         recordingEvents: ref.watch(securityRecordingEventChannelProvider),
+        logger: ref.watch(loggerProvider),
       );
       ref.onDispose(source.dispose);
       return source;

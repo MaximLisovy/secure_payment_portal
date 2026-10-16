@@ -6,6 +6,10 @@ import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/payment_progress_dto.dart';
 import 'package:secure_payment_portal/features/payment/data/dtos/start_payment_request_dto.dart';
 
+/// Text the native side puts in every error message. A log must never repeat it:
+/// a message could carry anything, so only the code is ever logged.
+const nativeCanary = 'card 4111 1111 1111 1111';
+
 const MethodChannel paymentMethodChannel = MethodChannel(
   PaymentChannel.methods,
 );
@@ -84,7 +88,7 @@ final class NativePaymentSimulator {
 
   void sendRaw(Object? event) => _sink?.success(event);
 
-  void sendError() => _sink?.error(code: 'BOOM', message: 'native error');
+  void sendError() => _sink?.error(code: 'BOOM', message: nativeCanary);
 
   Future<Object?> _onCall(MethodCall call) async {
     calls.add(call.method);
@@ -93,12 +97,16 @@ final class NativePaymentSimulator {
         if (permissionDelay > Duration.zero) {
           await Future<void>.delayed(permissionDelay);
         }
-        if (permissionFails) throw PlatformException(code: 'INTERNAL');
+        if (permissionFails) {
+          throw PlatformException(code: 'INTERNAL', message: nativeCanary);
+        }
         return permissionAnswer;
       case PaymentChannel.startPayment:
         if (hangOnStart) return Completer<Object?>().future;
         final failure = startFailsWith;
-        if (failure != null) throw PlatformException(code: failure);
+        if (failure != null) {
+          throw PlatformException(code: failure, message: nativeCanary);
+        }
         final StartPaymentRequestDto request;
         try {
           request = StartPaymentRequestDto.fromMap(call.arguments);

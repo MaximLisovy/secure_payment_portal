@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:secure_payment_portal/core/async/replay_latest.dart';
 import 'package:secure_payment_portal/core/error/data_exceptions.dart';
+import 'package:secure_payment_portal/core/logging/logger.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/data/dtos/screen_recording_dto.dart';
@@ -36,9 +37,11 @@ final class ChannelSecurityPlatformDataSource
   ChannelSecurityPlatformDataSource({
     required MethodChannel methods,
     required EventChannel recordingEvents,
+    required Logger logger,
     this.callTimeout = const Duration(seconds: 5),
   }) : _methods = methods,
-       _recordingEvents = recordingEvents {
+       _recordingEvents = recordingEvents,
+       _logger = logger {
     _recordings = ReplayLatest<ScreenRecordingDto>.empty(
       onFirstListener: _openNative,
       onLastCancel: _closeNative,
@@ -52,6 +55,7 @@ final class ChannelSecurityPlatformDataSource
 
   final MethodChannel _methods;
   final EventChannel _recordingEvents;
+  final Logger _logger;
 
   /// How long a method call may take before it counts as unavailable.
   final Duration callTimeout;
@@ -88,10 +92,13 @@ final class ChannelSecurityPlatformDataSource
     try {
       return await _methods.invokeMethod<Object?>(method).timeout(callTimeout);
     } on PlatformException catch (error) {
+      // The code and the method, never the message or the arguments.
+      _logger.warning('Security call "$method" failed with ${error.code}.');
       throw PlatformCallException(error.code, error.message);
     } on MissingPluginException {
       throw const UnsupportedException();
     } on TimeoutException {
+      _logger.warning('Security call "$method" did not answer in time.');
       throw const PlatformCallException(
         ChannelErrorCodes.unavailable,
         'The platform did not answer in time.',
@@ -102,7 +109,12 @@ final class ChannelSecurityPlatformDataSource
   void _openNative() {
     _native = _recordingEvents.receiveBroadcastStream().listen(
       (event) => _recordings.add(_parse(event)),
-      onError: (Object error) => _recordings.add(_unknownRecording),
+      onError: (Object error) {
+        _logger.warning(
+          'The recording events failed (${_describe(error)}); reading it as unknown.',
+        );
+        _recordings.add(_unknownRecording);
+      },
     );
   }
 
@@ -115,7 +127,14 @@ final class ChannelSecurityPlatformDataSource
     try {
       return ScreenRecordingDto.fromMap(event);
     } on MalformedPayloadException {
+      _logger.warning(
+        'A recording event was malformed; reading it as unknown.',
+      );
       return _unknownRecording;
     }
   }
+
+  /// A code or a type name: never the text of an error.
+  static String _describe(Object error) =>
+      error is PlatformException ? error.code : '${error.runtimeType}';
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/logging/logger_provider.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/secure_window_controller_impl.dart';
 import 'package:secure_payment_portal/features/security/data/repositories/security_status_repository_impl.dart';
@@ -15,6 +16,7 @@ import 'package:secure_payment_portal/features/security/domain/security_status_r
 final securityStatusRepositoryProvider = Provider<SecurityStatusRepository>(
   (ref) => SecurityStatusRepositoryImpl(
     ref.watch(securityPlatformDataSourceProvider),
+    logger: ref.watch(loggerProvider),
   ),
 );
 
@@ -23,6 +25,7 @@ final securityStatusRepositoryProvider = Provider<SecurityStatusRepository>(
 final secureWindowControllerProvider = Provider<SecureWindowController>(
   (ref) => SecureWindowControllerImpl(
     ref.watch(secureWindowPlatformDataSourceProvider),
+    logger: ref.watch(loggerProvider),
   ),
 );
 
