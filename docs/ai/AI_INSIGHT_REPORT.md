@@ -10,7 +10,7 @@ Features depend on pure-Dart entities, policies and repository interfaces. Data 
 
 ## 2. How AI accelerated development
 
-The [Prompt Log](PROMPT_LOG.md) records milestone prompts, approved plans, rejected alternatives and corrections. Agents helped scaffold boundaries, implement deterministic fakes, draft channel contracts, generate edge-case tests and investigate platform behavior. Repository rules constrained implementation; installed framework sources, compiler checks, emulator observations and independent review checked the output.
+The [working log](appendix/working_log.md) records milestone prompts, approved plans, rejected alternatives and corrections. Agents helped scaffold boundaries, implement deterministic fakes, draft channel contracts, generate edge-case tests and investigate platform behavior. Repository rules constrained implementation; installed framework sources, compiler checks, emulator observations and independent review checked the output.
 
 How the work was run: `AGENTS.md` and five topic rule files were written first and re-read before each task; every milestone began with a plan-only turn (files, layers, risks, numbered questions) that the developer approved, usually with changes, before any code; and the work landed as small commits, each passing formatting, analysis and the whole test suite, with both flavor builds as the gate for a milestone. The agents ran their own checks as well: they broke new code on purpose to see a test fail, drove the emulator through `adb` (notifications, services, recents, window flags), and ran the CI steps in a clean clone, which found that a fresh checkout had no `./gradlew`. The first eight milestones' log entries record 58 corrections, and the checks that need a person and a phone are collected in [Manual QA](../MANUAL_QA.md) rather than guessed.
 
@@ -18,7 +18,7 @@ The benefit is concrete but not timed: shared fake/native contract suites, layer
 
 ## 3. A sub-optimal AI solution and how I corrected it
 
-**Brand colors that passed their own test and failed on screen** ([Prompt Log, entries 01 and 02](PROMPT_LOG.md)).
+**Brand colors that passed their own test and failed on screen** ([working log, entries 01 and 02](appendix/working_log.md#01-white-label-foundation-milestone-1--2026-10-15)).
 
 - **The AI's solution.** Retail's vivid orange was the color scheme's `primary`, and the contrast test checked only the "on"
   pairs (primary on its on-color, surface on its text). Everything passed.
@@ -37,7 +37,7 @@ The benefit is concrete but not timed: shared fake/native contract suites, layer
   the final milestone that table rejected the careless colors of a scratch third brand (4.41:1 against 4.5:1) before anything
   was built.
 
-**A second example, found by an independent reviewer** ([entry 13](PROMPT_LOG.md)). When the first agent's quota ran out I ran a
+**A second example, found by an independent reviewer** ([working log, entry 13](appendix/working_log.md#13-isolate-payment-attempts-across-flutter-and-android--2026-10-16)). When the first agent's quota ran out I ran a
 second agent (OpenAI Codex) on purpose as an independent reviewer, and it found a defect that the first agent's passing tests
 had not. The payment store kept its atomic transitions keyed only by `paymentId`, but that ID is a bill, not an execution:
 a cancelled attempt could finish its retry with an old transaction and amount, and Flutter could consume another bill's live
@@ -64,4 +64,5 @@ in [Manual QA](../MANUAL_QA.md).
 | [B. Scaling path](appendix/scaling-path.md) | what would change past about ten brands, described and not built |
 | [C. Payments in production](appendix/payments-in-production.md) | idempotency keys and reconciliation, described and not built |
 | [D. Final review against the checklist](appendix/review.md) | the whole repository checked item by item, with what was found and fixed |
-| [Prompt Log](PROMPT_LOG.md) | every significant interaction, with its corrections |
+| [Prompt Log](PROMPT_LOG.md) | the three interactions that best show how the work was steered |
+| [Working log](appendix/working_log.md) | every significant interaction, with its corrections and the developer's recorded decisions |

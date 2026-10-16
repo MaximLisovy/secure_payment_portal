@@ -140,8 +140,8 @@ Allowed imports:
 3. **Implement in small steps.** One concern per change. Keep diffs reviewable. No drive-by refactors, no placeholder `TODO` implementations presented as done.
 4. **Verify.** Don't invent APIs. For every Android API you use, state its minimum API level and guard it (`Build.VERSION.SDK_INT`, `@RequiresApi`). If you're unsure an API exists, say so instead of guessing.
 5. **Self-review** against `.agents/rules/review-checklist.md` before saying "done", and report what you checked.
-6. **Log.** After each significant task, append an entry to `docs/ai/PROMPT_LOG.md` using the template there. Be honest about weak spots or alternatives you rejected — that file feeds the AI Insight Report.
-7. **Commit.** After each green step (format, analyze and tests pass) make a small commit with a Conventional Commits message (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, `build:`) and propose that message to the developer. Never commit a red state. Never push or rewrite history without asking. Close each milestone with a commit that updates `docs/ai/PROMPT_LOG.md`.
+6. **Log.** After each significant task, append an entry to `docs/ai/appendix/working_log.md` using the template there. (`docs/ai/PROMPT_LOG.md` holds the three highlights, which the developer curates.) Be honest about weak spots or alternatives you rejected — that file feeds the AI Insight Report.
+7. **Commit.** After each green step (format, analyze and tests pass) make a small commit with a Conventional Commits message (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, `build:`) and propose that message to the developer. Never commit a red state. Never push or rewrite history without asking. Close each milestone with a commit that updates `docs/ai/appendix/working_log.md`.
 
 Talk to the developer in the language they write in. Code, identifiers, comments, docs and commit messages are in English.
 

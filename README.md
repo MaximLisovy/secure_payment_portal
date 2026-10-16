@@ -27,7 +27,8 @@ What is in it:
 - **Backend: none.** Payment APIs are simulated behind the interfaces a real backend would use.
 
 Written with AI coding agents (Claude Code, and OpenAI Codex as an independent reviewer), under written rules, with every milestone planned and approved first:
-[AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md) and [Prompt Log](docs/ai/PROMPT_LOG.md).
+[AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md), [Prompt Log](docs/ai/PROMPT_LOG.md) (three highlights) and the
+[working log](docs/ai/appendix/working_log.md) (everything).
 
 ## Run it
 
@@ -310,7 +311,7 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
   notification throttle and handlers, and a guard over the manifest (permissions, one exported component, a
   `shortService`-only service, backups off).
 - **Mutation checks.** New logic was checked by breaking the code and seeing a test fail; the survivors are listed in the
-  [Prompt Log](docs/ai/PROMPT_LOG.md).
+  [working log](docs/ai/appendix/working_log.md).
 - **CI** (`.github/workflows/ci.yml`) runs the format check, analysis and both test suites on every push to `main` and every
   pull request, then builds a release APK per brand (the list comes from `android/brands.json`) and uploads it as an
   artifact. Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA.
@@ -363,7 +364,8 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 | | |
 |---|---|
 | [AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md) | multi-tenant structure, how AI accelerated the work, one sub-optimal AI solution and its correction, with appendices |
-| [Prompt Log](docs/ai/PROMPT_LOG.md) | highlights, then every significant interaction with its corrections |
+| [Prompt Log](docs/ai/PROMPT_LOG.md) | the three interactions that best show how the work was steered: context, prompt, what the AI proposed, the decision, the outcome |
+| [Working log](docs/ai/appendix/working_log.md) | every significant interaction, with its corrections and the developer's recorded decisions |
 | [Platform channels](docs/platform_channels.md) | the Dart ⇄ Kotlin wire contract, with what was verified on a device |
 | [Manual QA](docs/MANUAL_QA.md) | what needs a person and a phone |
 | [Demo script](docs/DEMO_SCRIPT.md) | the shot list for the demo video |

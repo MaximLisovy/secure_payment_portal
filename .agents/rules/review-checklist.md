@@ -55,4 +55,4 @@ Typical sub-optimal patterns to look for and call out explicitly:
 - swallowed exceptions
 - invented APIs or wrong API levels
 
-When you find one, fix it, and append a short "AI suggestion → problem → correction" note to `docs/ai/PROMPT_LOG.md`.
+When you find one, fix it, and append a short "AI suggestion → problem → correction" note to `docs/ai/appendix/working_log.md`.
