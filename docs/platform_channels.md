@@ -7,22 +7,24 @@ Update this file in the same change that alters the contract.
 
 **Status.**
 
-- **Security (`…/security`, `…/security/screen_recording`): draft v2, implemented.**
+- **Security (`…/security`, `…/security/screen_recording`): v2, final.**
   Kotlin (`SecurityPlugin`) and Dart (`ChannelSecurityPlatformDataSource`) both
-  exist and were checked on a Pixel_9 emulator (API 36), as listed under
-  [Verified on a device](#verified-on-a-device-security). It stays **draft** until
-  one manual check is done and written down: what the recording callback does
-  while the window is secure (**pending manual verification**, below). It becomes
-  final then, in a small docs commit.
-- **Payment (`…/payment`, `…/payment/progress`): draft v2, implemented.** The Kotlin
+  exist. They were checked on a Pixel_9 emulator (API 36), as listed under
+  [Verified on a device](#verified-on-a-device-security), and on a phone, as listed
+  under [Verified on a phone](#verified-on-a-phone-2026-10-16). The one open check,
+  what the recording callback does while the window is secure, was settled on the
+  phone: **defense in depth** (below).
+- **Payment (`…/payment`, `…/payment/progress`): v2, final.** The Kotlin
   foreground service (`PaymentProcessingService`, `PaymentServicePlugin`) and the
   Dart `ChannelPaymentPlatformDataSource` both exist, the Dart one passes the
   payment contract suite unchanged, and what `adb` could check on a Pixel_9
   emulator (API 36) is listed under
-  [Verified on a device (payment)](#verified-on-a-device-payment). It stays
-  **draft** until the items that need a person (the permission prompt, the shade,
-  the lock screen, other API levels) are run on a physical phone from
-  [`docs/MANUAL_QA.md`](MANUAL_QA.md): **pending manual verification**.
+  [Verified on a device (payment)](#verified-on-a-device-payment). On the phone the
+  live progress notification, Cancel and backgrounding during a payment were seen
+  working. The items **not tested** on the phone (the permission prompt, the lock
+  screen, swiping the app away, other API levels, battery saver) check Android's
+  behavior around the contract, not the contract itself, so they do not hold the
+  status back; each stays listed as *not tested* in [`docs/MANUAL_QA.md`](MANUAL_QA.md).
 
 `bridge/Channels.kt` mirrors `lib/core/platform/channel_contract.dart` for both
 halves; a Dart test (`test/core/platform/channel_contract_sync_test.dart`) fails if
@@ -245,7 +247,7 @@ read with `adb`; the app's own view comes from the debug log of `SecurityPlugin`
 | Source swap Real → Simulated → Real | `SECURE` stays present and the screenshot stays black in both modes: the window always goes through the real source, the simulation only replaces readings. (An earlier build, where the simulation owned a window of its own, left the window unprotected in Simulated mode; that was changed.) |
 | Simulated scenario "screen protection unavailable" | the page shows "Screen protection could not be turned on, so payment is paused" with "Check again", while `SECURE` stays present and the screenshot stays black |
 | `adb shell screenrecord` | **not detected**: the recording readout stayed `notDetected` for the whole recording. It is not a MediaProjection capture, which is what the API 35 callback reports |
-| Screen record quick-settings tile (MediaProjection) | **pending manual verification**, see below |
+| Screen record quick-settings tile (MediaProjection) | not run on the emulator; run on the phone, see [below](#recording-callback-while-the-window-is-secure-defense-in-depth) |
 
 Notes from the device:
 
@@ -259,19 +261,25 @@ Notes from the device:
   a `google_apis` (non-Play) userdebug image has `test-keys` and `userdebug`, both
   weak and allowed by default, and often ships `su`, which is strong and blocks.
 
-### Recording callback while the window is secure (pending manual verification)
+### Recording callback while the window is secure (defense in depth)
 
 Whether `addScreenRecordingCallback` still reports the app as visible in a recording
-when the window carries `FLAG_SECURE` (the recording then shows black) is **not yet
-known**: the check is a manual one with the Screen record quick-settings tile, to be
-done by the developer. Until it is, the detection stays as implemented and nothing
-below is claimed. The finding will be written here as one of:
+when the window carries `FLAG_SECURE` was checked on a phone on 2026-10-16 (`M4-5`).
+On Android 16 (ZTE RedMagic 10 Pro, the phone's own screen recorder) the callback did
+not fire: nothing changed in the app and no recording block appeared. The finding is
+**defense in depth**.
 
-- **verified**: the callback fires with `FLAG_SECURE` on, so the recording block
-  works as a second line; or
-- **defense in depth**: the callback never fires for a secure window; the block is
-  then redundant with `FLAG_SECURE`, which already blacks the recording out. The
-  detection is kept regardless.
+- **Likely reason, a hypothesis and not proven:** a secure window is excluded from the
+  capture, so the app is not "visible in the recording" and the callback has nothing to
+  report. This run cannot rule out another explanation, that this maker's recorder is not
+  reported to the callback at all; telling the two apart would need a recording of a
+  window without `FLAG_SECURE`, and none was made.
+- **What stays:** the detection, as an extra layer. `FLAG_SECURE` is the primary control.
+  The recording block is not to be relied on.
+- **Not seen:** that the saved recording shows the app black was not checked (`M4-4`), so
+  that is expected from `FLAG_SECURE`, not observed on this phone. The panel's Screen
+  recording readout during the recording was not noted either.
+- **Scope:** one phone, one recorder, Android 16.
 
 ## Verified on a device (payment)
 
@@ -301,11 +309,30 @@ Not reproducible by hand, covered by JVM tests only: `ForegroundServiceStartNotA
 (it needs a start from the background), the 3 minute `onTimeout`, and the "Payment failed"
 notification (the native simulation always succeeds).
 
-**Pending manual verification** (`docs/MANUAL_QA.md`, M5): the permission prompt and the shade as a
-person sees them, the lock screen, the notification on a physical phone's skin, other API levels (the
-type is masked to nothing below API 34 by `ServiceCompat`, which was read from its bytecode, not run),
-battery saver and Doze.
+**Not tested on a phone** (`docs/MANUAL_QA.md`, M5): the permission prompt, the look of the shade in
+detail, the lock screen, swiping the app away, other API levels (the type is masked to nothing below
+API 34 by `ServiceCompat`, which was read from its bytecode, not run), battery saver and Doze. What the
+phone did show is under [Verified on a phone](#verified-on-a-phone-2026-10-16).
+
+## Verified on a phone (2026-10-16)
+
+ZTE RedMagic 10 Pro, Android 16 (API 36). The build was the Retail profile APK built at 12:34, copied to
+the phone by hand: the code of `90862ac`, so **before** the last three code commits (`086992c`, `d50d208`,
+`d572cff`); it already had schema v2 and the attempt ids. The run was not repeated on the final code. The
+phone was observed by a person, not driven with `adb`; items marked *not tested* were not reported.
+
+| Check | Result |
+|---|---|
+| Root check | the device was verified, Pay was enabled and payments went through |
+| `FLAG_SECURE` | screenshots are blocked by the system; the app is blacked out in Recents |
+| Screen recording (the phone's own recorder) | no recording block appeared: **defense in depth**, see [above](#recording-callback-while-the-window-is-secure-defense-in-depth) |
+| Live progress notification | seen |
+| Cancel | works; which path (the notification's or the app's) was not recorded each time |
+| Home during a payment, then back | the progress was shown |
+| Both brands, demo panel scenarios | look right and work; no bug noticed |
+| Frame rate | 120 FPS on the performance overlay, no visible drops: qualitative, the frame-timing harness was not run |
+| **Not tested** | the notification permission prompt, which Cancel path each time, Utility's 1.6 s scan speed, the saved recording video, and the other items marked so in [`MANUAL_QA.md`](MANUAL_QA.md) |
 
 ## Validation after the attempt-isolation fix
 
-The v2 schema and service coordinator were verified by Dart contract tests, JVM tests and debug/release APK builds for both brands. The older device observations above describe the v1 implementation; the new rapid cancel/retry and stale-notification scenarios still require the manual run in [Manual QA](MANUAL_QA.md). No new 120 Hz or physical-device evidence is implied by the schema migration.
+The v2 schema and service coordinator were verified by Dart contract tests, JVM tests, the emulator device suites and debug/release APK builds for both brands. The older device observations above describe the v1 implementation. The phone run (2026-10-16) used a build that already had the v2 schema, but it did not test the rapid cancel/retry and stale-notification scenarios (see the review-fix table in [Manual QA](MANUAL_QA.md)); those rest on the automated suites. The only phone evidence for 120 Hz is the qualitative observation above.

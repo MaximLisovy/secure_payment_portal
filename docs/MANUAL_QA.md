@@ -3,12 +3,30 @@
 Everything that needs a person. Whatever `adb` and the emulator can check is checked by the agent and
 written down in `docs/platform_channels.md` ("Verified on a device"); what is left is here.
 
-The whole list is run **once, at the end, on a physical phone** with a profile build, and the results
-are reported in one go. Until then, a finding that depends on an item below is marked **pending manual
-verification** wherever it is stated.
+The whole list was meant to be run **once, at the end, on a physical phone** with a profile build. It was run once, on
+2026-10-16, on one phone: see [Phone run, 2026-10-16](#phone-run-2026-10-16). An item with no reported result says
+*not tested*, and a finding that depends on one says so wherever it is stated.
 
 Items are grouped by milestone and appended as milestones land. Each has exact steps, the expected
 result, and a place for the outcome.
+
+## Phone run, 2026-10-16
+
+- **Phone:** ZTE RedMagic 10 Pro, Android 16 (API 36).
+- **Build:** the Retail profile APK in `dist/`, built at 12:34 and copied to the phone by hand (ADB installation needs a
+  manufacturer account). It holds the code of `90862ac`, so it **predates the last three code commits** (`086992c` request and
+  brand layout, `d50d208` confirmation cancellation, `d572cff` invalidation when the host request changes). The run was not
+  repeated on the final code. Both brands were looked at (a profile build has the brand switcher).
+- **Seen working:** the root check (the device was verified, Pay was enabled, payments went through); `FLAG_SECURE` (screenshots
+  blocked by the system, the app blacked out in Recents); the live progress notification and Cancel; backgrounding during a
+  payment and returning (the progress was shown); both brands' look; the demo panel scenarios; no bugs noticed.
+- **Finding:** the system's screen recorder did not make the app show a recording block. That is the `M4-5` finding, **defense
+  in depth**, in `docs/platform_channels.md`.
+- **Frame rate:** 120 FPS on the performance overlay with no visible drops. This is qualitative: the frame-timing harness
+  (`M6-6`) was not run on the phone, so there are no phone numbers.
+- **Not tested** (not explicitly checked, or not reported): the notification permission prompt, which Cancel path was used each
+  time (the notification's or the app's), Utility's 1.6 s scan speed, the saved recording video, and every item below that says
+  *not tested*.
 
 ## How to run
 
@@ -23,7 +41,7 @@ result, and a place for the outcome.
   `build/app/outputs/flutter-apk/app-retail-profile.apk`; `tool/build_release_apks.sh` keeps whatever else is in `dist/`).
 - Note the phone's model and **Android version (API level)** in the table at the end: several items
   differ by API level.
-- Fill in the Result column: ✅ as expected, ❌ with what happened, or n/a with why.
+- Fill in the Result column: ✅ as expected, ❌ with what happened, n/a with why, or *not tested*.
 
 ## Run the automated device suites first
 
@@ -54,15 +72,15 @@ the emulator window from outside the guest, so the payment screen shows.
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| M4-1 | Open the demo panel (tune icon). Note the **Device reports** block: Root, Screen recording, Window protection. Close the panel. Open Quick Settings (swipe down twice), tap the **Screen record** tile (add it with the pencil icon if it is missing), choose **Record entire screen**, press **Start**. Go back to the app. Wait about two seconds. | The page shows **"Payment is paused while the screen is being recorded."** with the hint "This continues by itself when the recording stops.", and **Pay is disabled**. Reopen the panel: Screen recording says **Detected**. *Write down how many seconds it took.* | |
-| M4-2 | Stop the recording (status-bar chip, or the tile again). | Within about two seconds the page returns to **"This device is verified"** with Pay enabled, with no tap. The panel reads **Not detected**. | |
-| M4-3 | Repeat M4-1 and M4-2 choosing **Record a single app** and picking the app. | Same as M4-1 and M4-2. *Write down whether it differs from entire-screen.* | |
-| M4-4 | Open the recorded video (Photos or Files). | The app window is **black** in the video (`FLAG_SECURE`). The rest of the screen (status bar, shade) is visible. | |
-| M4-5 | **If nothing changed in M4-1 and M4-3** (the readout stays Not detected the whole time): this is the finding "defense in depth". Report it as such. If it changed: report "verified". | The result decides the wording in `docs/platform_channels.md` and entry 06 of the working log (`docs/ai/appendix/working_log.md`): *verified* (the callback fires with `FLAG_SECURE` on) or *defense in depth* (it never fires for a secure window; `FLAG_SECURE` already blacks the recording out). | |
-| M4-6 | Press the hardware screenshot buttons on the payment screen. | The phone says it cannot take a screenshot because of the security policy (or saves a black image). The Recents (overview) card for the app is blank. | |
-| M4-7 | On a phone **below Android 15 (API 35)**, open the panel. | Screen recording reads **Unknown**, never Not detected. Starting a recording does **not** block the page. *Skip if the phone is on API 35 or above.* | |
-| M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | |
-| M4-9 | Panel: switch **Device security** to *Simulated*, then back to *Real*. | The screen stays black in a screenshot attempt (M4-6) in both modes. Real shows the Device reports block again. | |
+| M4-1 | Open the demo panel (tune icon). Note the **Device reports** block: Root, Screen recording, Window protection. Close the panel. Open Quick Settings (swipe down twice), tap the **Screen record** tile (add it with the pencil icon if it is missing), choose **Record entire screen**, press **Start**. Go back to the app. Wait about two seconds. | The page shows **"Payment is paused while the screen is being recorded."** with the hint "This continues by itself when the recording stops.", and **Pay is disabled**. Reopen the panel: Screen recording says **Detected**. *Write down how many seconds it took.* | ❌ as written, and expected (see M4-5): with the system recorder running, nothing changed in the app and no recording block appeared. |
+| M4-2 | Stop the recording (status-bar chip, or the tile again). | Within about two seconds the page returns to **"This device is verified"** with Pay enabled, with no tap. The panel reads **Not detected**. | n/a: no block appeared, so there was nothing to clear. |
+| M4-3 | Repeat M4-1 and M4-2 choosing **Record a single app** and picking the app. | Same as M4-1 and M4-2. *Write down whether it differs from entire-screen.* | *not tested*: which recording mode (entire screen or single app) was used was not noted. |
+| M4-4 | Open the recorded video (Photos or Files). | The app window is **black** in the video (`FLAG_SECURE`). The rest of the screen (status bar, shade) is visible. | *not tested*: the saved video was not checked. |
+| M4-5 | **If nothing changed in M4-1 and M4-3** (the readout stays Not detected the whole time): this is the finding "defense in depth". Report it as such. If it changed: report "verified". | The result decides the wording in `docs/platform_channels.md` and entry 06 of the working log (`docs/ai/appendix/working_log.md`): *verified* (the callback fires with `FLAG_SECURE` on) or *defense in depth* (it never fires for a secure window; `FLAG_SECURE` already blacks the recording out). | **Defense in depth** (final). On Android 16 (ZTE RedMagic 10 Pro, the OEM recorder) the recording callback did not fire while `FLAG_SECURE` was set. Likely reason, **a hypothesis and not proven**: secure windows are excluded from the capture, so the app is not "visible in the recording". The detection stays as an extra layer; `FLAG_SECURE` is the primary control. |
+| M4-6 | Press the hardware screenshot buttons on the payment screen. | The phone says it cannot take a screenshot because of the security policy (or saves a black image). The Recents (overview) card for the app is blank. | ✅ Screenshots are blocked by the system; the app is blacked out in Recents (swipe up). |
+| M4-7 | On a phone **below Android 15 (API 35)**, open the panel. | Screen recording reads **Unknown**, never Not detected. Starting a recording does **not** block the page. *Skip if the phone is on API 35 or above.* | n/a: the phone is on Android 16 (API 36). |
+| M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | ✅ Root: the device was verified, Pay was enabled and payments went through. The panel's Device reports block was not noted separately. |
+| M4-9 | Panel: switch **Device security** to *Simulated*, then back to *Real*. | The screen stays black in a screenshot attempt (M4-6) in both modes. Real shows the Device reports block again. | *not tested*: the demo panel scenarios worked, but the screenshot attempt in each source mode was not noted. |
 
 ## M5: payment foreground service
 
@@ -74,18 +92,18 @@ not been answered: uninstall and reinstall, or Settings > Apps > Retail Shop > P
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| M5-1 | **Android 13+, fresh install.** Get to the review page and tap **Pay**. | The system asks **"Allow Retail Shop to send you notifications?"** *before* the payment starts. Choose **Allow**. The payment then runs and ends on the receipt. A "Processing your payment" notification appears while it runs. | |
-| M5-2 | **Permission denied.** Start from a fresh install, tap **Pay**, choose **Don't allow**. Then pay once more. | The payment still runs to the receipt, and **no notification** appears. *Write down whether the system asks again on the second payment* (Android stops asking after two denials). | |
-| M5-3 | **Look of the notification.** Allow the permission. Tap **Pay** and pull the shade down at once. Expand the card. | It sits in the **Silent** section (no sound, no vibration, no heads-up banner). It reads "Processing your payment" with the app's small icon (a clean white glyph, **not** a grey square), a **progress bar that moves** about twice a second without flicker, and a **Cancel** button when expanded. Utility flavor: the app name is "Utility Pay". | |
-| M5-4 | **Cancel from the shade.** Start a payment, pull the shade down, expand the card, tap **Cancel**. | The notification disappears at once, and the app (reopen it) shows **"Payment cancelled"** with Try again. On Android 13+ the shade's active-apps list (the "N apps are active" row) no longer lists the app. | |
-| M5-5 | **Lock screen.** Start a payment, press the power button, then wake the screen **without unlocking**. | The notification shows **nothing about the payment**: either the system's "Sensitive notification content hidden" placeholder or generic text only. **No amount, no merchant.** *Write down which.* | |
-| M5-6 | **Final notification.** Start a payment, press Home, wait about 10 seconds. | A **"Payment complete"** notification is left in the shade (not ongoing). Swipe it away: it goes. Repeat and **tap** it instead: the app opens on the receipt and the notification is removed. | |
-| M5-7 | **Backgrounded.** Start a payment, press Home, wait for it to finish, open the app from the launcher. | The receipt is shown. There is **one** payment, not two. | |
-| M5-8 | **Swiped away.** Start a payment, open Recents, swipe the app away, watch the shade for a few seconds, open the app again. | The notification keeps updating after the swipe, and the app reopens on the receipt (or on the review page if the phone killed the process: *write down which*). | |
-| M5-9 | **Notifications switched off.** Settings > Apps > Retail Shop > Notifications: off. Pay. | The payment completes, no notification, no crash. | |
-| M5-10 | **Battery saver.** Turn battery saver on and pay with the screen on; then pay again and lock the screen straight away. | Both payments complete (about 8 seconds on the screen-on one). *Write down the time of the locked one.* | |
-| M5-11 | **Stop from the active-apps list** (Android 13+). Start a payment, pull the shade, tap the "N apps are active" row, and **Stop** the app. Reopen it. | The notification is gone and the app starts from a clean review page. The interrupted payment is neither confirmed nor failed (documented behaviour for a killed process). | |
-| M5-12 | **API levels** (only if more than one phone is at hand). Below Android 13: no permission prompt, the notification appears at once. Below 14 and 10: the payment works, no crash (the service type is masked by `ServiceCompat`). | As described. *Fill in the Devices table for each phone.* | |
+| M5-1 | **Android 13+, fresh install.** Get to the review page and tap **Pay**. | The system asks **"Allow Retail Shop to send you notifications?"** *before* the payment starts. Choose **Allow**. The payment then runs and ends on the receipt. A "Processing your payment" notification appears while it runs. | *not tested*: the notification permission prompt was not explicitly checked. |
+| M5-2 | **Permission denied.** Start from a fresh install, tap **Pay**, choose **Don't allow**. Then pay once more. | The payment still runs to the receipt, and **no notification** appears. *Write down whether the system asks again on the second payment* (Android stops asking after two denials). | *not tested*. |
+| M5-3 | **Look of the notification.** Allow the permission. Tap **Pay** and pull the shade down at once. Expand the card. | It sits in the **Silent** section (no sound, no vibration, no heads-up banner). It reads "Processing your payment" with the app's small icon (a clean white glyph, **not** a grey square), a **progress bar that moves** about twice a second without flicker, and a **Cancel** button when expanded. Utility flavor: the app name is "Utility Pay". | ✅ in part: the live progress notification appeared. Its look (Silent section, icon, bar, Cancel when expanded, Utility's name) was not itemised. |
+| M5-4 | **Cancel from the shade.** Start a payment, pull the shade down, expand the card, tap **Cancel**. | The notification disappears at once, and the app (reopen it) shows **"Payment cancelled"** with Try again. On Android 13+ the shade's active-apps list (the "N apps are active" row) no longer lists the app. | ✅ in part: Cancel works. Which path was used each time (the notification's Cancel or the app's) was not recorded, so the notification's own Cancel is not separately confirmed on the phone. |
+| M5-5 | **Lock screen.** Start a payment, press the power button, then wake the screen **without unlocking**. | The notification shows **nothing about the payment**: either the system's "Sensitive notification content hidden" placeholder or generic text only. **No amount, no merchant.** *Write down which.* | *not tested*. |
+| M5-6 | **Final notification.** Start a payment, press Home, wait about 10 seconds. | A **"Payment complete"** notification is left in the shade (not ongoing). Swipe it away: it goes. Repeat and **tap** it instead: the app opens on the receipt and the notification is removed. | *not tested*. |
+| M5-7 | **Backgrounded.** Start a payment, press Home, wait for it to finish, open the app from the launcher. | The receipt is shown. There is **one** payment, not two. | ✅ Backgrounded during a payment and returned: the progress was shown. The final receipt and "one payment, not two" were not itemised. |
+| M5-8 | **Swiped away.** Start a payment, open Recents, swipe the app away, watch the shade for a few seconds, open the app again. | The notification keeps updating after the swipe, and the app reopens on the receipt (or on the review page if the phone killed the process: *write down which*). | *not tested*. |
+| M5-9 | **Notifications switched off.** Settings > Apps > Retail Shop > Notifications: off. Pay. | The payment completes, no notification, no crash. | *not tested*. |
+| M5-10 | **Battery saver.** Turn battery saver on and pay with the screen on; then pay again and lock the screen straight away. | Both payments complete (about 8 seconds on the screen-on one). *Write down the time of the locked one.* | *not tested*. |
+| M5-11 | **Stop from the active-apps list** (Android 13+). Start a payment, pull the shade, tap the "N apps are active" row, and **Stop** the app. Reopen it. | The notification is gone and the app starts from a clean review page. The interrupted payment is neither confirmed nor failed (documented behaviour for a killed process). | *not tested*. |
+| M5-12 | **API levels** (only if more than one phone is at hand). Below Android 13: no permission prompt, the notification appears at once. Below 14 and 10: the payment works, no crash (the service type is masked by `ServiceCompat`). | As described. *Fill in the Devices table for each phone.* | n/a: one phone. |
 
 Covered by JVM tests only, not reproducible by hand: the refusal to start the service from the background
 (`ForegroundServiceStartNotAllowedException`), the 3 minute `onTimeout`, and the "Payment failed" notification.
@@ -100,38 +118,37 @@ really runs fast: `adb shell dumpsys display | grep -i "refreshRate\|fps"`, and 
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| M6-1 | **Retail.** Open the app (Retail flavor). Watch the security card from the moment the page appears. | A radar with a gold sweep turning clockwise and soft rings expanding from the centre. The sweep goes **all the way round once** (about 2.4 s), then fades into the shield and **"This device is verified"**, and Pay becomes enabled just then. No stutter, no flicker. | |
-| M6-2 | **Utility.** The same on the Utility flavor, or switch brand in the app bar. | The sky-blue sweep turns once in about 1.6 s with quicker rings. *Does it look frantic or fine? If it is too fast, say so: the minimum period is one constant.* | |
-| M6-3 | **Held scan.** Demo panel > Device security > **Simulated** > Device check takes **15 s**. Watch the card for the whole 15 s. | The sweep and the rings run smoothly for the whole time, with no stutter, no change in speed and no jump when the sweep passes the top. The grid, rings and ticks stay perfectly still. The verdict appears at the end of a revolution (up to a period after the 15 s). | |
-| M6-4 | **The loop has no seam.** During M6-3 watch at least three revolutions, looking at the top of the circle and at the centre. | No jump of the sweep when it passes 12 o'clock. A ring appears at the centre without popping and fades out at the rim without a visible cut. | |
-| M6-5 | **Reduced motion.** Settings > Accessibility > **Remove animations** (or "Reduce motion"). Open the payment page. | The scan is drawn **still** (a sweep wedge and three rings), nothing moves, and the verdict shows **at once**: Pay is enabled without waiting. Turn the setting off again and re-open the page: the scan moves. | |
-| M6-6 | **Frame timing on the phone.** Run the command from the README with `-d <phone id>` and `--dart-define=DEVICE_NAME="<model, Android version>"` (about 6 minutes, phone unlocked and awake). Paste `build/scan_performance/summary.md` below. | Mode `profile`, FPS close to the display's rate (60, 90 or 120), **0 or almost 0 frames over budget** for the scan, build and raster times under the budget (16.7 ms at 60 Hz, 8.3 ms at 120 Hz) and in the same range as the spinner reference. *If a 120 Hz phone reports 60 Hz, say so: the display, not the app, is limiting it.* | |
-| M6-7 | **Performance overlay.** Demo panel > Display > Performance overlay on, then M6-3. | Both graphs stay under the green budget line while the scan runs; no red bars. | |
-| M6-8 | **Only the radar repaints.** Debug build (`flutter run --debug`), DevTools > Inspector > **Highlight repaints**, then M6-3. | Only the radar layer changes colour frame after frame; the text beside it, the card and the rest of the page do not. Then **Track widget rebuilds**: no rebuild counts rise during the scan. | |
-| M6-9 | **Sustained.** Run M6-3 four times in a row (about a minute), screen on. | No visible slow-down; the phone is not noticeably hot. | |
-| M6-10 | **Battery saver.** Turn it on, repeat M6-3. | Still smooth (Android may lower the refresh rate to 60 Hz; that is fine if it is steady). | |
-| M6-11 | **Away and back.** During M6-3 press Home, wait 5 s, return. | The scan carries on from where the clock is, with no jump or freeze; the verdict still arrives at the end of a revolution. | |
+| M6-1 | **Retail.** Open the app (Retail flavor). Watch the security card from the moment the page appears. | A radar with a gold sweep turning clockwise and soft rings expanding from the centre. The sweep goes **all the way round once** (about 2.4 s), then fades into the shield and **"This device is verified"**, and Pay becomes enabled just then. No stutter, no flicker. | ✅ in part: both brands look right and no bug was noticed. The single revolution and the verdict timing were not itemised. |
+| M6-2 | **Utility.** The same on the Utility flavor, or switch brand in the app bar. | The sky-blue sweep turns once in about 1.6 s with quicker rings. *Does it look frantic or fine? If it is too fast, say so: the minimum period is one constant.* | *not tested*: Utility's 1.6 s scan speed was not explicitly checked, so whether it looks frantic is still open. |
+| M6-3 | **Held scan.** Demo panel > Device security > **Simulated** > Device check takes **15 s**. Watch the card for the whole 15 s. | The sweep and the rings run smoothly for the whole time, with no stutter, no change in speed and no jump when the sweep passes the top. The grid, rings and ticks stay perfectly still. The verdict appears at the end of a revolution (up to a period after the 15 s). | *not tested*. |
+| M6-4 | **The loop has no seam.** During M6-3 watch at least three revolutions, looking at the top of the circle and at the centre. | No jump of the sweep when it passes 12 o'clock. A ring appears at the centre without popping and fades out at the rim without a visible cut. | *not tested*. |
+| M6-5 | **Reduced motion.** Settings > Accessibility > **Remove animations** (or "Reduce motion"). Open the payment page. | The scan is drawn **still** (a sweep wedge and three rings), nothing moves, and the verdict shows **at once**: Pay is enabled without waiting. Turn the setting off again and re-open the page: the scan moves. | *not tested*. |
+| M6-6 | **Frame timing on the phone.** Run the command from the README with `-d <phone id>` and `--dart-define=DEVICE_NAME="<model, Android version>"` (about 6 minutes, phone unlocked and awake). Paste `build/scan_performance/summary.md` below. | Mode `profile`, FPS close to the display's rate (60, 90 or 120), **0 or almost 0 frames over budget** for the scan, build and raster times under the budget (16.7 ms at 60 Hz, 8.3 ms at 120 Hz) and in the same range as the spinner reference. *If a 120 Hz phone reports 60 Hz, say so: the display, not the app, is limiting it.* | not run on the phone: the harness needs an ADB install, which this phone only allows with a manufacturer account. There are no phone numbers. |
+| M6-7 | **Performance overlay.** Demo panel > Display > Performance overlay on, then M6-3. | Both graphs stay under the green budget line while the scan runs; no red bars. | ✅ qualitative: 120 FPS on the performance overlay and no visible drops. Not a measurement. |
+| M6-8 | **Only the radar repaints.** Debug build (`flutter run --debug`), DevTools > Inspector > **Highlight repaints**, then M6-3. | Only the radar layer changes colour frame after frame; the text beside it, the card and the rest of the page do not. Then **Track widget rebuilds**: no rebuild counts rise during the scan. | *not tested*. |
+| M6-9 | **Sustained.** Run M6-3 four times in a row (about a minute), screen on. | No visible slow-down; the phone is not noticeably hot. | *not tested*. |
+| M6-10 | **Battery saver.** Turn it on, repeat M6-3. | Still smooth (Android may lower the refresh rate to 60 Hz; that is fine if it is steady). | *not tested*. |
+| M6-11 | **Away and back.** During M6-3 press Home, wait 5 s, return. | The scan carries on from where the clock is, with no jump or freeze; the verdict still arrives at the end of a revolution. | *not tested*. |
 
 Frame timing result (M6-6), paste the table here:
 
-```
-(paste summary.md)
-```
+Not run on the phone (`M6-6`). The only phone observation is qualitative: 120 FPS on the performance overlay and no visible
+drops. The numbers in the README and in `docs/ai/appendix/performance.md` are from the emulator.
 
 ## Devices
 
 | Phone model | Android version / API level | Build | Date |
 |---|---|---|---|
-| | | | |
+| ZTE RedMagic 10 Pro | Android 16 (API 36) | Retail profile APK built at 12:34, code of `90862ac` | 2026-10-16 |
 
 ## Review-fix regression checks (schema v2)
 
-These scenarios have automated coverage and still need a device run. Invoking a saved stale PendingIntent requires an instrumented trigger; the JVM cancellation-action regression is the current evidence for that case.
+These scenarios have automated coverage; the phone run of 2026-10-16 did not cover them. Invoking a saved stale PendingIntent requires an instrumented trigger; the JVM cancellation-action regression is the current evidence for that case.
 
 | Steps | Expected | Result |
 |---|---|---|
-| Enable reduced motion, cancel and immediately retry the same bill repeatedly. | Distinct attempts; no hang, old receipt or premature completion; one worker and notification. | |
-| Invoke an old notification Cancel action while a replacement attempt runs. | The replacement continues; its own Cancel action works. | |
-| On a fresh install leave the notification prompt open and start a recording before answering. | Security is read after preparation; a detected recording blocks native start. Callback behavior under FLAG_SECURE remains the separate M4 check. | |
-| Change brand or leave the page during permission preparation or the final security read. | The obsolete confirmation never starts processing. Already accepted work follows the documented service lifecycle. | |
-| Attempt cancellation while the bridge is unavailable, then restore it. | A visible error accompanies continuing progress; retry cancels the matching attempt. | |
+| Enable reduced motion, cancel and immediately retry the same bill repeatedly. | Distinct attempts; no hang, old receipt or premature completion; one worker and notification. | *not tested* on the phone. |
+| Invoke an old notification Cancel action while a replacement attempt runs. | The replacement continues; its own Cancel action works. | *not tested* on the phone. |
+| On a fresh install leave the notification prompt open and start a recording before answering. | Security is read after preparation; a detected recording blocks native start. Callback behavior under FLAG_SECURE is the separate `M4-5` finding (defense in depth). | *not tested* on the phone. |
+| Change brand or leave the page during permission preparation or the final security read. | The obsolete confirmation never starts processing. Already accepted work follows the documented service lifecycle. | *not tested* on the phone. |
+| Attempt cancellation while the bridge is unavailable, then restore it. | A visible error accompanies continuing progress; retry cancels the matching attempt. | *not tested* on the phone. |
