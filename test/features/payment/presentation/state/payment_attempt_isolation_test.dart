@@ -160,6 +160,36 @@ void main() {
     },
   );
 
+  test(
+    'cancel during uncertain permission preparation prevents a later start',
+    () {
+      fakeAsync((async) {
+        final payments = _Payments()..preparation = Completer<Result<void>>();
+        final container = _container(_Security(), payments);
+        final flow = container.read(paymentFlowProvider.notifier)
+          ..begin(sampleDetails);
+        async.flushMicrotasks();
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        payments.progress.addError(
+          StateError('progress unavailable during permission prompt'),
+        );
+        async.flushMicrotasks();
+        expect(flow.state, const PaymentFlowCheckingStatus());
+        unawaited(flow.cancel());
+        async.flushMicrotasks();
+        payments.preparation?.complete(Success.unit);
+        async.flushMicrotasks();
+        expect(payments.starts, isEmpty);
+        expect(payments.cancels, ['attempt-1']);
+        expect(flow.state, const PaymentFlowCancelled());
+        container.dispose();
+        async.flushMicrotasks();
+        expectNoPendingTimers(async);
+      });
+    },
+  );
+
   test('security subscription errors fail closed instead of escaping', () {
     fakeAsync((async) {
       final security = _Security()

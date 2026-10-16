@@ -104,6 +104,16 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
           state = const PaymentFlowProcessing(percent: 0);
         }
       case Err<void>(:final failure):
+        final current = state;
+        if (failure is PaymentConfirmationObsoleteFailure &&
+            current is PaymentFlowCheckingStatus &&
+            current.cancelRequested) {
+          // Obsolete is returned only before start dispatch, so cancellation is
+          // conclusive here even if progress transport was unavailable.
+          _finishAttempt();
+          state = const PaymentFlowCancelled();
+          return;
+        }
         // A pre-acceptance progress event cannot erase a command rejection.
         if (failure is PaymentOutcomeUnknownFailure) {
           _checkPaymentStatus();
@@ -129,6 +139,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     if (requested) return;
     final attemptId = _activeAttemptId;
     if (attemptId == null) return;
+    // Prevent a still-pending preparation/security read from dispatching a start.
+    // If dispatch already happened, native cancellation targets the same ID.
+    _confirmationCancellation?.cancel();
     _setCancellation(requested: true);
 
     final result = await ref
