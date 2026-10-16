@@ -1,3 +1,4 @@
+import 'package:secure_payment_portal/core/async/cancellation.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_failures.dart';
@@ -32,15 +33,15 @@ final class ConfirmPayment {
   Future<Result<void>> call(
     PaymentDetails details, {
     required String attemptId,
-    bool Function()? isCurrent,
+    CancellationSignal? cancellation,
   }) async {
     if (!details.isPayable) return const Err(InvalidPaymentFailure());
 
-    if (isCurrent?.call() == false) {
+    if (cancellation?.isCancelled == true) {
       return const Err(PaymentConfirmationObsoleteFailure());
     }
     final prepared = await _payments.preparePayment();
-    if (isCurrent?.call() == false) {
+    if (cancellation?.isCancelled == true) {
       return const Err(PaymentConfirmationObsoleteFailure());
     }
     if (prepared is Err<void>) return prepared;
@@ -48,7 +49,7 @@ final class ConfirmPayment {
     // A status that cannot be read is an unknown one: the policy decides.
     final status =
         (await _security.getStatus()).valueOrNull ?? SecurityStatus.unknown;
-    if (isCurrent?.call() == false) {
+    if (cancellation?.isCancelled == true) {
       return const Err(PaymentConfirmationObsoleteFailure());
     }
     final decision = _policy.evaluate(status);

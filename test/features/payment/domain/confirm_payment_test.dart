@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:secure_payment_portal/core/async/cancellation.dart';
 import 'package:secure_payment_portal/core/domain/currency.dart';
 import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/failure.dart';
@@ -10,6 +14,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_failures.d
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
 import 'package:secure_payment_portal/features/security/security_domain.dart';
 
+import '../../../helpers/fake_async_helpers.dart';
 import '../../security/helpers/security_fixtures.dart';
 import '../helpers/payment_fixtures.dart';
 
@@ -44,6 +49,90 @@ void main() {
 
   ConfirmPayment confirm([SecurityPolicy policy = const SecurityPolicy()]) =>
       ConfirmPayment(security: security, payments: payments, policy: policy);
+
+  group('confirmation cancellation', () {
+    test('a cancelled command never prepares or starts payment', () {
+      fakeAsync((async) {
+        final cancellation = CancellationSource()..cancel();
+        final result = FutureProbe(
+          confirm()(
+            sampleDetails,
+            attemptId: 'attempt-1',
+            cancellation: cancellation,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(
+          result.value,
+          const Err<void>(PaymentConfirmationObsoleteFailure()),
+        );
+        verifyNever(() => payments.preparePayment());
+        verifyNever(() => security.getStatus());
+        verifyNever(() => payments.startPayment(any(), attemptId: 'attempt-1'));
+      });
+    });
+
+    for (final stage in ['preparation', 'security']) {
+      test('cancellation during $stage prevents native acceptance', () {
+        fakeAsync((async) {
+          final preparation = Completer<Result<void>>();
+          final status = Completer<Result<SecurityStatus>>();
+          when(
+            () => payments.preparePayment(),
+          ).thenAnswer((_) => preparation.future);
+          when(() => security.getStatus()).thenAnswer((_) => status.future);
+          final cancellation = CancellationSource();
+          final result = FutureProbe(
+            confirm()(
+              sampleDetails,
+              attemptId: 'attempt-1',
+              cancellation: cancellation,
+            ),
+          );
+          async.flushMicrotasks();
+          if (stage == 'security') {
+            preparation.complete(Success.unit);
+            async.flushMicrotasks();
+          }
+          cancellation.cancel();
+          if (stage == 'preparation') preparation.complete(Success.unit);
+          status.complete(const Success(cleanStatus));
+          async.flushMicrotasks();
+          expect(
+            result.value,
+            const Err<void>(PaymentConfirmationObsoleteFailure()),
+          );
+          verifyNever(
+            () => payments.startPayment(any(), attemptId: 'attempt-1'),
+          );
+          if (stage == 'preparation') verifyNever(() => security.getStatus());
+          expectNoPendingTimers(async);
+        });
+      });
+    }
+
+    test(
+      'cancellation after acceptance does not cancel the running payment',
+      () {
+        fakeAsync((async) {
+          deviceReads(cleanStatus);
+          final cancellation = CancellationSource();
+          final result = FutureProbe(
+            confirm()(
+              sampleDetails,
+              attemptId: 'attempt-1',
+              cancellation: cancellation,
+            ),
+          );
+          async.flushMicrotasks();
+          expect(result.value, Success.unit);
+          cancellation.cancel();
+          verifyNever(() => payments.cancelPayment(attemptId: 'attempt-1'));
+          expectNoPendingTimers(async);
+        });
+      },
+    );
+  });
 
   group('when the device is fine', () {
     test('checks the device first, then starts processing', () async {

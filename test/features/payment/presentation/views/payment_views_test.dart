@@ -213,8 +213,8 @@ void main() {
       expect(find.text('FAKE-TX-000001'), findsOneWidget);
       expect(find.text('2026-10-15 12:00 UTC'), findsOneWidget);
 
-      await tester.tap(find.text(AppStrings.newPayment));
-      expect(flow.calls, contains('newPayment'));
+      await tester.tap(find.text(AppStrings.repeatDemoPayment));
+      expect(flow.calls, contains('repeatPayment'));
     });
 
     testWidgets('a failed payment says why and offers to try again', (

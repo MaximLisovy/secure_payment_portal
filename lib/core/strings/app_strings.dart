@@ -67,7 +67,7 @@ abstract final class AppStrings {
   static const receiptAmount = 'Amount';
   static const receiptTransaction = 'Transaction';
   static const receiptTime = 'Completed';
-  static const newPayment = 'New payment';
+  static const repeatDemoPayment = 'Repeat demo payment';
 
   static String payAction(String amount) => 'Pay $amount';
 

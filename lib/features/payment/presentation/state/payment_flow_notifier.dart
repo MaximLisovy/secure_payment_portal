@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/async/cancellation.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
@@ -24,6 +25,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
   int _confirmationGeneration = 0;
+  CancellationSource? _confirmationCancellation;
   String? _activeAttemptId;
 
   /// Bumped to drop a device check that is still waiting for the secure window.
@@ -57,6 +59,9 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     final details = _details;
     if (details == null || state is! PaymentFlowReady) return;
     final generation = ++_confirmationGeneration;
+    _confirmationCancellation?.cancel();
+    final cancellation = CancellationSource();
+    _confirmationCancellation = cancellation;
     final attemptId = ref.read(paymentAttemptIdFactoryProvider)();
     _activeAttemptId = attemptId;
     state = const PaymentFlowConfirming();
@@ -64,7 +69,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     final result = await ref.read(confirmPaymentProvider)(
       details,
       attemptId: attemptId,
-      isCurrent: () => ref.mounted && generation == _confirmationGeneration,
+      cancellation: cancellation,
     );
     if (!ref.mounted || generation != _confirmationGeneration) return;
 
@@ -122,8 +127,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     await _restart();
   }
 
-  /// Starts over after a finished payment.
-  Future<void> newPayment() async {
+  /// Repeats the same bill after success; the demo does not create a new order.
+  Future<void> repeatPayment() async {
     if (state is! PaymentFlowSuccess) return;
     await _restart();
   }
@@ -237,6 +242,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _stopListening() {
+    _confirmationCancellation?.cancel();
+    _confirmationCancellation = null;
     _confirmationGeneration++;
     _activeAttemptId = null;
     _hold.stop();

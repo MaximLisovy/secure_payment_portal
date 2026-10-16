@@ -617,7 +617,7 @@ void main() {
         h.confirm(async, harnessStep * (harnessSteps + 1));
         h.states.clear();
 
-        unawaited(h.flow.newPayment());
+        unawaited(h.flow.repeatPayment());
         async.flushMicrotasks();
 
         expect(h.states, [_checking, _ready]);
@@ -631,7 +631,7 @@ void main() {
         h.begin(async);
         final before = List.of(h.states);
 
-        unawaited(h.flow.newPayment());
+        unawaited(h.flow.repeatPayment());
         async.flushMicrotasks();
 
         expect(h.states, before);

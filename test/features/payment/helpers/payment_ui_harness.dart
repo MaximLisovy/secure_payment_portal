@@ -43,7 +43,7 @@ class FixedFlow extends PaymentFlowNotifier {
   Future<void> retry() async => calls.add('retry');
 
   @override
-  Future<void> newPayment() async => calls.add('newPayment');
+  Future<void> repeatPayment() async => calls.add('repeatPayment');
 }
 
 Override fixedFlowOverride(FixedFlow flow) =>

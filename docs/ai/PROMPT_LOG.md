@@ -404,3 +404,16 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 849 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: separate payment requests from brand layout.
 
 ---
+
+### 20. Make confirmation cancellation and demo replay explicit — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** express pre-acceptance cancellation without a presentation callback in the use-case contract and label the repeated fixture honestly.
+- **Prompt (key part, verbatim):**
+  > давай
+- **Context given:** approved architecture-completion plan and existing attempt-isolation regressions.
+- **AI output (summary):** introduced pure-Dart CancellationSignal/CancellationSource; the notifier owns cancellation, and ConfirmPayment checks the read-only signal around preparation and security awaits. The receipt action and notifier method now explicitly repeat the existing demo payment. Added direct use-case regressions for cancellation before preparation, during each await and after acceptance.
+- **Assumptions & risks flagged by the agent:** cancelling confirmation does not stop an accepted payment; native attempt-scoped cancellation remains a separate operation. Presentation generation/mounted checks still protect stale state writes. The demo does not create a new backend order.
+- **Developer review:** approved the concrete plan before implementation.
+- **Result:** 854 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: clarify confirmation cancellation and demo replay.
+
+---

@@ -89,7 +89,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(AppStrings.paymentSuccessful), findsOneWidget);
 
-        await tester.tap(find.text(AppStrings.newPayment));
+        await tester.tap(find.text(AppStrings.repeatDemoPayment));
         await tester.pumpAndSettle();
         expect(_payEnabled(tester), isTrue);
 

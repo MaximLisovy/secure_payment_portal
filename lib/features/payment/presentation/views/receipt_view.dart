@@ -73,8 +73,8 @@ class ReceiptView extends ConsumerWidget {
               SizedBox(height: density.spaceLg),
               FilledButton(
                 onPressed: () =>
-                    ref.read(paymentFlowProvider.notifier).newPayment(),
-                child: const Text(AppStrings.newPayment),
+                    ref.read(paymentFlowProvider.notifier).repeatPayment(),
+                child: const Text(AppStrings.repeatDemoPayment),
               ),
             ],
           ),
