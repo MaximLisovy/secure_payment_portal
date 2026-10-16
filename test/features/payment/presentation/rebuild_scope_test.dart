@@ -9,20 +9,8 @@ import 'package:secure_payment_portal/features/payment/presentation/views/paymen
 import 'package:secure_payment_portal/features/payment/presentation/views/phase_switcher.dart';
 import 'package:secure_payment_portal/features/payment/presentation/views/processing_view.dart';
 
+import '../../../helpers/rebuild_tracker.dart';
 import '../helpers/payment_ui_harness.dart';
-
-/// Which widget types rebuild while [body] runs.
-Future<List<Type>> _rebuiltDuring(Future<void> Function() body) async {
-  final rebuilt = <Type>[];
-  debugOnRebuildDirtyWidget = (element, _) =>
-      rebuilt.add(element.widget.runtimeType);
-  try {
-    await body();
-  } finally {
-    debugOnRebuildDirtyWidget = null;
-  }
-  return rebuilt;
-}
 
 void main() {
   testWidgets('a progress tick rebuilds the readout and nothing above it', (
@@ -46,7 +34,7 @@ void main() {
     expect(find.text(AppStrings.processingTitle), findsOneWidget);
     final before = tester.widget<Text>(find.textContaining('%')).data;
 
-    final rebuilt = await _rebuiltDuring(() async {
+    final rebuilt = await rebuiltDuring(() async {
       for (var tick = 0; tick < 5; tick++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
