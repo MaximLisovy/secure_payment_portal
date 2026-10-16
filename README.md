@@ -1,5 +1,7 @@
 # Secure Payment Portal
 
+[![CI](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MaximLisovy/secure_payment_portal/actions/workflows/ci.yml)
+
 A multi-tenant **payment confirmation module** built from one Flutter codebase. Two brands ship from it, each its own
 Android app:
 
