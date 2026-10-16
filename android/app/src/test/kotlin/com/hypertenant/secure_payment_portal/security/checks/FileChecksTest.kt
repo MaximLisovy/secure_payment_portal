@@ -2,8 +2,10 @@ package com.hypertenant.secure_payment_portal.security.checks
 
 import com.hypertenant.secure_payment_portal.bridge.RootReasonCodes
 import com.hypertenant.secure_payment_portal.security.probes.FileProbe
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,5 +63,39 @@ class MagiskArtifactsCheckTest {
         for (path in MagiskArtifactsCheck.MAGISK_PATHS) {
             assertEquals(path, CheckOutcome.Fired, MagiskArtifactsCheck(filesThat(path)).run())
         }
+    }
+}
+
+/** A probe that is denied on some paths, and answers for the others. */
+private fun filesDenied(denied: Set<String>, vararg existing: String) =
+    FileProbe { path ->
+        if (path in denied) throw SecurityException("denied")
+        path in existing
+    }
+
+class DeniedFileAccessTest {
+    private val paths = listOf("/a", "/b", "/c")
+
+    @Test
+    fun aPathThatExistsAfterADeniedOneStillFires() = runTest {
+        val check = SuBinaryCheck(filesDenied(setOf("/a"), "/c"), paths)
+
+        assertEquals(CheckOutcome.Fired, check.run())
+    }
+
+    @Test
+    fun aDeniedPathWithNothingFoundIsInconclusive() = runTest {
+        val check = MagiskArtifactsCheck(filesDenied(setOf("/b")), paths)
+
+        assertThrows(SecurityException::class.java) { runBlocking { check.run() } }
+    }
+
+    @Test
+    fun everyPathIsProbedEvenAfterADenial() = runTest {
+        val asked = mutableListOf<String>()
+        val check = SuBinaryCheck({ asked += it; throw SecurityException("denied") }, paths)
+
+        assertThrows(SecurityException::class.java) { runBlocking { check.run() } }
+        assertEquals(paths, asked)
     }
 }

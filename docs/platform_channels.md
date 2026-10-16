@@ -435,7 +435,9 @@ unanswered, and bounded Dart command deadlines handle unavailable replies.
   `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
   when strong-check confidence is incomplete and no strong signal fired. Weak signals cannot upgrade confidence.
   These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
-  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring conclusive strong checks
+  so an ordinary false result is treated as clean for availability and may miss hidden artifacts. Explicit
+  `SecurityException` access denial makes the file check inconclusive when no probed path exists; a path that does exist
+  still fires. Requiring conclusive strong checks
   can also block legitimate devices when a strong probe is inconclusive.
 - **Screen recording.** From API 35, the callback reports whether this app is visible in a recording, rather than whether
   any recorder is active. Below API 35 it is `unknown` (the policy allows it). This only partially meets the brief's

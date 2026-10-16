@@ -12,7 +12,7 @@ class SuBinaryCheck(
     override val isStrong = true
 
     override suspend fun run(): CheckOutcome =
-        if (paths.any(files::exists)) CheckOutcome.Fired else CheckOutcome.Clear
+        files.outcomeFor(paths)
 
     companion object {
         val SU_PATHS =
