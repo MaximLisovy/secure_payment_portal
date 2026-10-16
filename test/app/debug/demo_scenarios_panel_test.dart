@@ -58,10 +58,9 @@ Future<_Sources> _pumpPanel(
             ? (realDevice ?? FakeSecurityPlatformDataSource())
             : null,
       ),
-      if (withRealSources)
-        realPaymentPlatformDataSourceProvider.overrideWithValue(
-          FakePaymentPlatformDataSource(),
-        ),
+      realPaymentPlatformDataSourceProvider.overrideWithValue(
+        withRealSources ? FakePaymentPlatformDataSource() : null,
+      ),
       ...extra,
     ],
   );

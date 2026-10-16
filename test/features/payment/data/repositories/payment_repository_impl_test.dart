@@ -121,7 +121,7 @@ void main() {
       (
         'START_NOT_ALLOWED',
         const PlatformCallException(ChannelErrorCodes.startNotAllowed),
-        const PlatformFailure(ChannelErrorCodes.startNotAllowed),
+        const PaymentStartNotAllowedFailure(),
       ),
       (
         'an unsupported platform',

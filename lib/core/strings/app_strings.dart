@@ -92,6 +92,7 @@ abstract final class AppStrings {
     'payment.declined' => 'The payment was declined.',
     'payment.in_progress' => 'A payment is already in progress.',
     'payment.invalid' => 'There is nothing valid to pay.',
+    'payment.start_not_allowed' => 'Open the app to pay.',
     'payment.processing_failed' => 'The payment could not be completed.',
     'security.blocked.root_detected' =>
       'Payments are turned off because this device appears to be rooted.',

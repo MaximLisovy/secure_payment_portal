@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/domain/currency.dart';
@@ -8,6 +9,7 @@ import 'package:secure_payment_portal/core/domain/money.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_bills.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
@@ -43,6 +45,9 @@ ProviderContainer _container({
       realSecurityPlatformDataSourceProvider.overrideWithValue(
         device ?? FakeSecurityPlatformDataSource(),
       ),
+      // The tests below run the feature on the simulation, so say so: the
+      // channel source is the default and has no native side here.
+      realPaymentPlatformDataSourceProvider.overrideWithValue(null),
     ],
   );
 }
@@ -163,6 +168,31 @@ void main() {
   });
 
   group('the source mode', () {
+    test('by default the feature runs on the channel-based source', () {
+      final container = ProviderContainer.test();
+
+      expect(container.read(paymentSourceModeProvider), SourceMode.real);
+      expect(
+        container.read(paymentPlatformDataSourceProvider),
+        isA<ChannelPaymentPlatformDataSource>(),
+      );
+      expect(container.read(paymentScenarioControlProvider), isNull);
+    });
+
+    test('the channels are plain providers, so a test can replace them', () {
+      const methods = MethodChannel('test/payment');
+      const events = EventChannel('test/payment/events');
+      final container = ProviderContainer.test(
+        overrides: [
+          paymentMethodChannelProvider.overrideWithValue(methods),
+          paymentProgressEventChannelProvider.overrideWithValue(events),
+        ],
+      );
+
+      expect(container.read(paymentMethodChannelProvider), same(methods));
+      expect(container.read(paymentProgressEventChannelProvider), same(events));
+    });
+
     ProviderContainer containerWithReal(FakePaymentPlatformDataSource real) =>
         ProviderContainer.test(
           overrides: [
@@ -173,7 +203,11 @@ void main() {
     test(
       'is simulated while no real source is wired, with controls to steer it',
       () {
-        final container = ProviderContainer.test();
+        final container = ProviderContainer.test(
+          overrides: [
+            realPaymentPlatformDataSourceProvider.overrideWithValue(null),
+          ],
+        );
 
         expect(container.read(paymentSourceModeProvider), SourceMode.simulated);
         expect(

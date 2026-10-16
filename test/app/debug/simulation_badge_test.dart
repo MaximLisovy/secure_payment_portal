@@ -24,10 +24,9 @@ Future<ProviderContainer> _pumpBadge(
       realSecurityPlatformDataSourceProvider.overrideWithValue(
         realSecurity ? FakeSecurityPlatformDataSource() : null,
       ),
-      if (realPayment)
-        realPaymentPlatformDataSourceProvider.overrideWithValue(
-          FakePaymentPlatformDataSource(),
-        ),
+      realPaymentPlatformDataSourceProvider.overrideWithValue(
+        realPayment ? FakePaymentPlatformDataSource() : null,
+      ),
     ],
   );
 }

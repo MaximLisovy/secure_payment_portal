@@ -1,5 +1,8 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/platform/channel_contract.dart';
 import 'package:secure_payment_portal/core/simulation/source_mode.dart';
+import 'package:secure_payment_portal/features/payment/data/datasources/channel_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_config.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_platform_data_source.dart';
 import 'package:secure_payment_portal/features/payment/data/datasources/fake_payment_remote_data_source.dart';
@@ -28,9 +31,30 @@ final paymentRemoteDataSourceProvider = Provider<PaymentRemoteDataSource>(
   (ref) => ref.watch(fakePaymentRemoteDataSourceProvider),
 );
 
-/// The foreground-service source. Null until the native milestone wires it.
+/// The channels to the Kotlin foreground service. Plain providers, so a test
+/// can replace them.
+final paymentMethodChannelProvider = Provider<MethodChannel>(
+  (ref) => const MethodChannel(PaymentChannel.methods),
+);
+
+final paymentProgressEventChannelProvider = Provider<EventChannel>(
+  (ref) => const EventChannel(PaymentChannel.progressEvents),
+);
+
+/// The channel-based source: the real foreground service. It is the default.
+/// Where there is no native side (iOS, desktop, plain `flutter test`) starting a
+/// payment fails as unsupported; a debug build can switch to the simulation.
+/// Nullable so a test can override it with null and get the simulation back as
+/// the only option.
 final realPaymentPlatformDataSourceProvider =
-    Provider<PaymentPlatformDataSource?>((ref) => null);
+    Provider<PaymentPlatformDataSource?>((ref) {
+      final source = ChannelPaymentPlatformDataSource(
+        methods: ref.watch(paymentMethodChannelProvider),
+        progressEvents: ref.watch(paymentProgressEventChannelProvider),
+      );
+      ref.onDispose(source.dispose);
+      return source;
+    });
 
 /// The simulated processing. Typed as the fake on purpose: it is both the data
 /// source and the [PaymentScenarioControl]. Override this one, not the

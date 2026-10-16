@@ -21,6 +21,13 @@ final class InvalidPaymentFailure extends PaymentFailure {
   const InvalidPaymentFailure() : super('payment.invalid');
 }
 
+/// The system did not allow the payment to start, which happens when the app is
+/// not in the foreground: a payment can only begin while the user is looking at
+/// the app.
+final class PaymentStartNotAllowedFailure extends PaymentFailure {
+  const PaymentStartNotAllowedFailure() : super('payment.start_not_allowed');
+}
+
 /// Processing started but did not complete, for a reason other than a decline.
 final class PaymentProcessingFailure extends PaymentFailure {
   const PaymentProcessingFailure() : super('payment.processing_failed');

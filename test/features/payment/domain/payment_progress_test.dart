@@ -88,6 +88,7 @@ void main() {
         PaymentDeclinedFailure() => 'declined',
         PaymentInProgressFailure() => 'in progress',
         InvalidPaymentFailure() => 'invalid',
+        PaymentStartNotAllowedFailure() => 'not allowed',
         PaymentProcessingFailure() => 'processing',
       };
 

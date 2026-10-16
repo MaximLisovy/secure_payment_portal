@@ -19,6 +19,7 @@ void main() {
       const UnexpectedFailure(),
       const PaymentDeclinedFailure(),
       const PaymentInProgressFailure(),
+      const PaymentStartNotAllowedFailure(),
       const InvalidPaymentFailure(),
       const PaymentProcessingFailure(),
     ];

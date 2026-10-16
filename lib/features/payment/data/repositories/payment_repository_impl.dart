@@ -82,6 +82,8 @@ final class PaymentRepositoryImpl implements PaymentRepository {
     return switch (error.code) {
       ChannelErrorCodes.alreadyRunning => const PaymentInProgressFailure(),
       ChannelErrorCodes.invalidArgs => const InvalidPaymentFailure(),
+      ChannelErrorCodes.startNotAllowed =>
+        const PaymentStartNotAllowedFailure(),
       _ => failureFromError(error),
     };
   }
