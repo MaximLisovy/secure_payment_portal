@@ -4,10 +4,10 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.hypertenant.secure_payment_portal.R
 
 /**
@@ -74,7 +74,7 @@ class PaymentNotificationFactory(private val context: Context) {
                 .setAction(PaymentCancelAction.ACTION_CANCEL)
                 // Intent data (API 1) makes each PendingIntent identity distinct. Extras alone
                 // do not: an old notification must never cancel a replacement attempt.
-                .setData(Uri.parse("payment-cancel:$attemptId"))
+                .setData("payment-cancel:$attemptId".toUri())
                 .putExtra(PaymentCancelAction.EXTRA_ATTEMPT_ID, attemptId)
         return PendingIntent.getBroadcast(
             context,

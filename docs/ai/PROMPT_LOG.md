@@ -337,3 +337,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 844 Dart tests and 220 JVM tests pass, format/analyze clean, Android Lint has no errors, both debug APKs build. Documentation links and anchors pass after the final report edits. Six focused commits, with no push or history rewrite. Commit: docs: complete the review report and validation notes.
 
 ---
+
+### 15. Clear the new Android KTX warning — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** leave no newly introduced Android Lint warning in the notification-cancel change.
+- **Prompt (key part, verbatim):**
+  > да, погнали
+- **Context given:** final Android Lint output and the existing core-ktx dependency.
+- **AI output (summary):** used the already available String.toUri extension for the attempt-specific cancel Intent data. Its underlying Uri parsing is API 1; no dependency or permission was added.
+- **Assumptions & risks flagged by the agent:** two existing version notes remain for deliberately pinned Gradle and core-ktx. Release validation remains blocked as recorded in entry 13.
+- **Corrections made (AI suggestion → problem → correction):** direct Uri.parse introduced UseKtx → use the existing extension instead of suppressing the warning.
+- **Developer review:** routine verification fix within the approved implementation.
+- **Result:** 844 Dart tests, 220 JVM tests, zero-issue Flutter analysis, clean formatting and both rebuilt debug APKs. Android Lint: zero errors, only the two pre-existing pinned-version warnings. Commit: chore: clear the Android KTX lint warning.
+
+---
