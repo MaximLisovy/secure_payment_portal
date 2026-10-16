@@ -1,10 +1,50 @@
 # AI Prompt Log
 
-Key interactions with AI tools (Antigravity / Cursor / …) during this task.
-The agent appends an entry after each significant task; the **Developer review**
-part is written by me — that is where I show how I audited and refined the output.
+Key interactions with AI tools during this task. The agent appends an entry after each significant task; the **Developer
+review** part is where I show how I audited and refined the output.
+
+Entries 01 to 08 and 22 were written by Claude Code (`claude-sonnet-5-5`). Entries 09 to 21 were written by a second agent
+(OpenAI Codex), used as an independent reviewer and implementer of the review fixes. The developer reviews of entries 01
+to 08 and 22 are **DRAFT**: the agent wrote them from the decisions the developer gave during the work, for the
+developer to edit in their own words.
+
+## Highlights
+
+Three interactions that show how the work was steered. The full log follows as the appendix.
+
+### 1. The plan gate changed the architecture before any code existed ([entry 03](#03-domain-and-fake-data-for-payment-and-security-milestone-2--2026-10-15))
+
+The AI's plan for the domain layer made `Failure` extend `Result<Never>`, with a non-sealed extension point for features,
+and put status reading and window protection behind one `SecurityRepository`. The developer rejected both before a line was
+written: a sealed `Result<T>` (`Success` or `Err(Failure)`) with an abstract `Failure` in core and a sealed family per
+feature, so that a `switch` over a feature's failures is exhaustive; and two small interfaces over one platform data
+source, so the screen that only protects the window does not depend on reading status. Every later layer (the payment flow,
+the native bridge, the tests) was built on those shapes. The same milestone shows the other half of the loop: the AI's own
+`async*` stream, which cancelled only at its next event, was found by a test that hung, not by review.
+
+### 2. The device overruled the AI's plan, its comments and the rule file ([entry 07](#07-payment-foreground-service-milestone-5--2026-10-16))
+
+The plan, the KDoc and the Android rule file all said the same thing: post the final "Payment complete" notification, then
+stop the foreground service. On the emulator, `dumpsys notification` showed the result was a notification that could not be
+dismissed and lost its auto-cancel flag, because the system keeps the foreground notification non-cancellable until the
+service detaches. The order was reversed (detach first, then post) and all three texts were corrected. In the same milestone
+the developer changed the Cancel action from a service start to a non-exported broadcast receiver, so cancelling does not
+depend on the service being alive, and changed the process: the agent runs every `adb` step itself, and what needs a person
+goes into one checklist, run once on a phone at the end. A plausible-looking result ("instant success after swiping the app
+away") turned out to be a slow `uiautomator` dump, and was proved so with fixed-coordinate taps and a notification-only probe.
+
+### 3. A product rule from the developer, and an honest measurement ([entry 08](#08-the-security-scanning-animation-milestone-6--2026-10-16))
+
+The developer observed that a real device check takes 0.1 to 0.5 s, so the scan would be a flash that nobody sees in a
+release build, and changed the plan: the verdict waits for the sweep to complete a revolution, derived from the brand's own
+period with no number to configure, with the period clamped to 1.6 to 3 s. The AI then measured the animation on an
+emulator and the first raster numbers looked like a failure (about 40 % of frames over budget). Instead of reporting the
+good half, it added two references to the harness, Material's spinner and a layer that draws one dot, which showed the same
+numbers: that is the emulator's swap path, not the drawing. The report states the UI-thread cost, the allocation count and
+the frame rate that carry over, says what does not, and leaves the phone run to the manual checklist.
 
 ---
+
 
 ## Template
 
@@ -44,7 +84,7 @@ part is written by me — that is where I show how I audited and refined the out
   - Utility `controlHeight` was applied on top of `VisualDensity.compact` (-8dp), shrinking buttons twice → documented the order and set the value on purpose.
   - A test named "does not rebuild" passed even with `.select` removed (mutation check), because `ThemeData` equality already suppresses the emission → renamed it to what it really proves.
   - A theme test first asserted before `await container.pump()`, so it saw only the initial value → pump added.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Approved the plan with four decisions: `BrandConfig` lives in `lib/brands/` so brands never import `app`; an unknown flavor always throws and only a missing one falls back, outside release; the brand switcher is behind `!kReleaseMode`; light theme only. `mocktail` and the brand assets and launcher icons were deferred (the icons landed in the final milestone). Accepted the `brandOnSurface` role and the table of component contrasts that the AI added after finding Retail's orange unreadable as a foreground on a device screenshot, and asked that the `.vscode/launch.json` promised in the plan be included.
 - **Result:** Gradle flavors + manifest label; `lib/core/design_system/**`, `lib/brands/**`, `lib/app/**`; `test/**` (80 tests); `.vscode/launch.json`; README, AGENTS.md (use-case and git rules) and the multi-tenant rule file updated. Committed on `main`: one feature commit, then this log entry as the milestone-closing commit.
 
 ---
@@ -64,7 +104,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **Foregrounds patched one component at a time while `ColorScheme.primary` stayed the vivid fill** (my own fix in entry 01) → every widget nobody themed (Switch, Checkbox, Slider, focus, progress) still read the vivid color, so the trap stayed open for the next feature. The developer pointed it out → made the scheme the safe default (`primary` = accessible tone) and made the vivid fill the explicit, opt-in case; added table rows for the scheme defaults so that is enforced.
   - **One `outline` role for control borders and decorative borders** (entry 01 raised it to 3:1 for inputs) → Retail's card borders and dividers inherited the heavy tan and lost the soft look → split a decorative `outlineSubtle`, documented the WCAG 1.4.11 exemption in the table, and added a meta-test so the soft role cannot be used for a control without failing.
   - **Documentation drift:** adding `brandOnSurface` in entry 01 did not update the rule file's `BrandColors` row, which still listed the old roles → corrected together with this change, with a short "Color roles and contrast" rule.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Pointed out that fixing one component at a time left `ColorScheme.primary` vivid, and asked for the safe default instead: `primary` mapped to the accessible `brandOnSurface`, the vivid `brandPrimary` applied explicitly only where a fill is meant. Asked for a separate decorative outline role, exempt from the 3:1 table with a comment saying why. The later work (a brands manifest, CI, launcher icons) was to be written down and not built until the final milestone, where it was delivered; JSON design tokens and a monorepo stay described in the appendix. Accepted the known weak spot: an unthemed Slider's inactive track is faint.
 - **Result:** commits `c0de752` (scheme), `5db62a4` (outlineSubtle), `21a2c0b` (docs), then this log entry. History re-authored to the configured identity.
 
 ---
@@ -90,7 +130,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **`ConfirmPayment` (domain) importing the security barrel** that now exports the DI providers → pure-Dart domain pulled Riverpod and the data layer into its import graph → added `security_domain.dart`, a pure-Dart barrel that `security.dart` re-exports.
   - **Planned to use `fakeAsync` for time-based tests** → `flutter_test` does not export it, and `fake_async` is not in the approved stack table → used `testWidgets` with `tester.pump(duration)`. That exposed two fake-clock pitfalls that cost two hung test runs: awaiting a subscription `cancel()` inside `testWidgets` never completes, and a `Stream.multi` done event is not delivered under the fake clock. Documented in `test/helpers/fake_time.dart` and in `testing.md`, and added a per-file watchdog to find hangs quickly. **Update, see entry 04: these "pitfalls" were really a `ReplayLatest` bug** (a `Stream.multi`, then nested forwarding, loses the done event and never completes `cancel()` under a fake clock), not widget-test quirks. They were fixed at the root and the notes deleted.
   - **Contrived test helpers** (a copy-with extension on the entity, a `copyAmount` extension on a DTO) written instead of building the expected value directly → noticed while writing, removed, expected values are now plain constants.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Approved the plan with two changes: a sealed `Result<T>` (`Success` or `Err(Failure)`) with an abstract `Failure` in core and a sealed family per feature, instead of `Failure extends Result<Never>`; and `SecurityRepository` split into `SecurityStatusRepository` and `SecureWindowController`. Decided that a recording that starts during processing does not cancel a payment that is already authorised. Accepted splitting the bill backend from the processing source, which departed from the request because only the processing is replaced by native code. When asked, approved `fake_async` (entry 04): the AI should have asked instead of working around it.
 - **Result:** commits `056a8ad` (core), `977790c` (security), `233b355` (payment), `5b20132` (channel contract draft and rules), then this log entry. Contract draft in `docs/platform_channels.md`.
 
 ---
@@ -107,7 +147,7 @@ part is written by me — that is where I show how I audited and refined the out
 - **Corrections made (AI suggestion → problem → correction):**
   - **The M2 workaround.** When `flutter_test` did not export `fakeAsync`, I avoided the unapproved dependency, built on `testWidgets`, and documented two "pitfalls" plus a `settle` helper in `testing.md` → the developer approved the dependency when asked. I should have asked at the time instead of working around it for a milestone.
   - **Assuming the pitfalls would vanish with `fakeAsync`.** I expected `cancel()` and stream completion to behave under `fakeAsync`; a probe showed they did not, so they were never a `testWidgets` quirk → the cause was in `ReplayLatest`: a `Stream.multi`, and nested forwarding, lose the done event under a fake clock, and a `cancel()` whose `onCancel` returns nothing completes on the root zone, which a fake clock never runs. Rebuilt it from per-listener controllers with their own `onCancel` futures, and added a regression group. The pitfall notes could then be deleted instead of carried forward.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Approved `fake_async` as a dev dependency and its row in the stack table, and asked for the pure-Dart time-based tests to move to `fakeAsync` (`testWidgets` for widget tests only), for the workaround notes to be deleted from `testing.md`, and for the work in separate commits. The cause turned out to be `ReplayLatest`, not widget tests, and was fixed at the root.
 - **Result:** commits `414531e` (dependency), `2aaff65` (`ReplayLatest`), `3fedec3` (migration), then this log entry.
 
 ---
@@ -139,7 +179,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **A progress view that flashed 0% / 100% while fading out** into the result (it read the live flow state) → the processing and result views keep the last state they were given, which also keeps the percentage where it ended.
   - **Labels for the panel in `core/strings`** needed feature enums, and `core` may not import features → the strings stay constants in `AppStrings`; the enum→label mapping sits in the panel. An architecture test (new, unplanned) now holds the import rules, tenancy, domain purity and the "no fake in `app/`" rule, because until now only review enforced them.
   - A widget test harness added `instantBackend()` twice (once itself, once from a caller) → Riverpod refuses a duplicate override; the helper now takes the payment script as a parameter.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Decided that screen protection fails closed: if the secure window cannot be enabled the flow goes to a recoverable `Blocked` with a "Check again" action, the same principle as an unverifiable root. Changed the demo plan: a *Simulated* mode per controllable source, real sources the default, a visible SIMULATED badge while anything is simulated, and no `is Fake…` downcasts, only small control interfaces that the fakes implement and `di/` exposes as nullable providers. Accepted money and dates not being locale-aware (no `intl`) and said so in the README. Before the native milestone asked for two fixes, each its own commit with tests: the device check must not read window protection until the window has answered, and the source switch is locked during a payment.
 - **Result:** commits `0e0bab7` (formatters), `3dca855` (window protection in the policy), `5f6b16c` (SecureScreen), `a1b1316` (brand payment config), `8ae4a54` (flow state machine), `45bbd82` (the screen), `0a06d11` (control interfaces), `2431a90` (source modes), `29d7cb5` (demo panel and badge), `b6f1db3`, `c8adfb9` (docs), then this log entry. Before this milestone's final gate: format clean, analyze no issues, 516 tests pass, `flutter build apk --debug --flavor retail` and `--flavor utility` both built.
 
 ---
@@ -174,7 +214,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **A Riverpod error in the new "Device reports" block** ("markNeedsBuild during build") when security was switched back to Real → the block's provider was created while its dependency chain was stale from the switch, and the rebuild invalidated it mid-build. Reproduced in a minimal widget, fixed by keeping the repository watched in the panel.
   - **Tests I wrote wrongly**: a concurrent-reply test appended to a thread-unsafe list (flaky, caught only when the whole suite ran again), three channel tests with timing mistakes, a contract-sync parser that first missed the template and camelCase mapping, and an assertion `+ 0.also { }` that meant nothing. One mutation (the default simulation is built with a scripted window) survived until a test was added for it. Scripted edits now assert they applied: one patch missed after `dart format` re-wrapped a test and failed loudly instead of silently.
   - **Dependency versions** from memory would have been wrong: `core-ktx` 1.19 needs `compileSdk` 37 and AGP 9.1. Read the AAR metadata and pinned 1.18.0.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Answered the eleven questions: below API 35 the recording state is always `unknown` with no heuristic; root is `unknown` only when every check is inconclusive; add a read-only "Device reports" block in Real mode; skip `setRecentsScreenshotEnabled`; timeouts are fine; add `./gradlew testDebugUnitTest` to the definition of done and the README; pin versions that resolve and report them; the security half of the contract stays draft until the device check; add the `Channels.kt` sync test; no extra emulator image. Asked for the shared stream to be built on `ReplayLatest` unless there was a concrete reason, and for the recording finding to be recorded honestly ("verified" or "defense in depth"). Decided that the secure window is real in every mode: simulation replaces readings only, never `FLAG_SECURE`. Chose to run the Screen record check later, on a phone, and not to block on it.
 - **Result:** commits `bfb6690` and `6f08381` (the two fixes), `3655293` (Gradle and manifest), `27bfbb8` (`Channels.kt`, `SafeResult`, sync test), `2c9bc1c` (root detection), `e8f161d` (secure window controller), `f57b035` (recording monitor), `3ad0819` (`SecurityPlugin`), `deb68f7` (`ReplayLatest`), `38ec2f9` (channel data source), `3d0f7f2` (Real slot and Device reports), `e56b2da` (`Build.TYPE`), `dbc4594` (docs), `584a4e9` (window real in every mode), then this entry. The security half of the contract is draft; the recording finding is pending manual verification.
 
 ---
@@ -205,7 +245,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **"The payment succeeds at once after the app is swiped away"** (my first reading of the device) → a measurement artifact: `uiautomator dump` takes about ten seconds while the screen never idles, so by the time I looked the payment had finished. Proved with fixed-coordinate taps and notification-only sampling: the service really keeps running (55% to 75% with no app).
   - **A contract-suite test that created the Dart stand-in at declaration time** → `addTearDown` may only be called inside a test; the suite now uses a constant duration.
   - **Mutations that did not count:** one (`Stopped → store.fail`) was an equivalent mutant because the store itself refuses the transition, and one did not compile under null safety. Neither proves anything; both are noted here so that a green mutation list is not read as stronger than it is.
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Answered the questions: `shortService` alone; an explicit `requestNotificationPermission` before `startPayment`; leave "Payment complete" or "Payment failed" and remove it only on cancel; generic text only, private on the lock screen; native processing of 20 steps of 400 ms that always succeeds (declines stay in Simulated); the process-death limit documented, with the idempotency-key and reconciliation note in the insight report; a typed failure "Open the app to pay"; `addError` for the stream; a manifest guard test; no extra emulator, the physical phone covers another API level at the end. Changed the plan: the notification's Cancel is a non-exported `BroadcastReceiver` (`PendingIntent.getBroadcast`, immutable) calling `store.cancelIfRunning()`. Changed the process: the agent runs every `adb` step, and everything that needs a person goes into `docs/MANUAL_QA.md`, run once on a phone with a profile build at the end. Decided that the agent never pushes.
 - **Result:** commits `7a9ae18` (manual QA checklist), `62fbe9d` (resources and permissions), `22748ec` (manifest as a test input), `dd4416a` (`requestNotificationPermission` in the contract), `f8179e0` (store), `933db0a` (processor and session), `2236579` (notification, throttle, cancel receiver), `ad40868` (start logic and handlers), `d0505a3` (service, plugin, manifest), `ece9233` (channel payment source), `49f6a2e` (Real slot), `52cb030` (detach, then notify), `6276f74` (drop `failIfRunning`), then this entry. Device checks on the emulator all passed (service type `0x800`, notification record, live progress, permission allowed and denied, cancel from the shade and the app, background, swipe-away, force-stop, release build). The payment half of the contract is draft, pending manual verification.
 
 ### 08. The Security Scanning animation (Milestone 6) — 2026-10-16
@@ -237,7 +277,7 @@ part is written by me — that is where I show how I audited and refined the out
   - **Raster 15 to 16 ms in "over budget in 40% of frames"** in the first measurement looked like a failure of the scan and was true of the stock spinner too → a fourth variant, a layer drawing one dot, was added to the harness as a floor. It showed the same, so the numbers are reported with that reading and not without it.
   - **Riverpod's refresh timer** left a pending timer in `testWidgets` after a provider changed → `pumpAndSettle` at the end of those tests.
   - **`flutter pub get` changed `ios/Flutter/*.xcconfig` and created `ios/Podfile`** when the plugin was added → reverted before every commit, never committed (the rule: do not touch `ios/`).
-- **Developer review:** _(to be written by the developer)_
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Approved the plan: a mark one and a half control heights tall, radar only, reduced motion as a still pose, the demo knob for how long the check takes and a performance overlay switch (their own commit), and `integration_test` (added to the stack table). Changed the plan twice: the verdict waits for the sweep to complete a revolution, `max(actual check time, one period)` aligned to the end of the current revolution, derived from the brand's period with no number to configure, because a real check takes 0.1 to 0.5 s and a release build would otherwise never show the animation; and the period stays derived (slow × 4) but clamped to 1.6 to 3 s, because 0.96 s would probably look frantic. Asked for the profile-mode spike first, and that the phone-side checks go into `docs/MANUAL_QA.md`. Open: whether 1.6 s feels right is not decided from still images and is item `M6-2` for the phone.
 - **Result:** commits `7978a72` (rebuild tracker helper), `0fd2c28` (maths and style), `0624a5c` (painters), `46ed8a9` (`ScanAnimation`), `4aba800` (the security card), `8938a25` (the verdict dwell), `8f4c2d3` (demo duration and performance overlay), `b63b703` (frame timing harness), `156bae4` (docs), then this entry. Emulator, profile mode, median of three 8 s runs: the scan costs 1.07 to 1.18 ms of UI thread per frame (floor 0.92 to 1.08, stock spinner 1.40), two garbage collections in 8 s (the floor two, the spinner six), 59 to 60 frames per second on a 60 Hz display. The phone checks are `M6-1` to `M6-11` in `docs/MANUAL_QA.md`.
 
 ---
@@ -429,5 +469,32 @@ part is written by me — that is where I show how I audited and refined the out
 - **Corrections made (AI suggestion → problem → correction):** waiting for begin(newDetails) or a provider rebuild → old confirmation could start during replacement loading → bind cancellation to the current input ID as well as disposal, and test before new details exist.
 - **Developer review:** necessary correctness fix within the approved request-separation and integration work.
 - **Result:** 855 Dart tests pass; analysis and formatting are clean. Commit: fix: invalidate confirmation when the host request changes.
+
+### 22. Final delivery (Milestone 7): brands manifest, icons, CI, logger and a review pass — 2026-10-16
+- **Tool / model:** Claude Code, claude-sonnet-5-5
+- **Goal:** make the project deliverable: flavors created from a manifest, a launcher icon per brand, CI that builds a release APK per brand, a logger where errors would vanish, release builds that are documented as debug-signed, and a review pass over the whole repository against the checklist, with the documents brought up to date.
+- **Prompt (key part, verbatim):**
+  > Q4 change: use Java 21 (temurin) in CI, the same version you verified locally, instead of 17. Update the README requirement accordingly. Do install actionlint (brew install actionlint) and validate the workflow with it. No JDK 17.
+  >
+  > Logger: add a minimal Logger abstraction (dart:developer under the hood, no sensitive data) and use it where errors would otherwise vanish: the failure mapper when it produces UnexpectedFailure, and the platform data sources when they map PlatformException. That closes the observability gap and satisfies AGENTS.md §3.4. Do it as part of the review fixes.
+- **Context given:** `AGENTS.md`, the review checklist, the multi-tenant rule (§6 "later work"), and an emulator and a clean clone to run things in.
+- **AI output (summary):** `android/brands.json` read by Gradle in a loop (with readable failures for a duplicate, a malformed id, a wrong suffix, an empty name or a missing icon) and a test that keeps it equal to the registry; adaptive launcher icons with a themed layer plus legacy PNGs drawn from the same glyph path, with the colors tied to the tokens by a test; the GitHub Actions workflow (format, analyze, Dart and Kotlin tests, then a release APK per brand read from the manifest, Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA) and `tool/build_release_apks.sh`; the official Gradle wrapper; a `Logger` with tests that plant a card number in every native message; Android Lint cleared and backups turned off; the iOS Pods integration; a test that checks every relative link and anchor in the documentation; a scratch third brand; the scan dwell timing extracted into `VerdictHold`; the README, the appendices and the demo script.
+- **Assumptions & risks flagged by the agent:**
+  - **The workflow has been validated, not run.** `actionlint` is clean and the `verify` and `build` jobs were run step by step in a clean clone, but the first real run is on GitHub.
+  - **The icons were only seen on API 36.** The legacy PNGs for API 24 and 25 were checked by looking at them and by their dimensions and colors, with no older emulator.
+  - **A second agent worked in the same working tree** while this session was stopped by a usage limit: it committed 13 times (entries 09 to 21), including my then-uncommitted README and appendices, and left its own integration-test work uncommitted. The documents were reconciled afterwards, not rewritten; where they disagree with what was approved, that is called out in the final report.
+  - **The DRAFT developer reviews are the developer's voice** written by the agent, limited to recorded decisions.
+- **Corrections made (AI suggestion → problem → correction):**
+  - **`./gradlew testDebugUnitTest` as a CI step, and in the README** → Flutter git-ignores the wrapper and only creates it during a build, so a fresh clone had no `./gradlew`: the Kotlin step would have failed on the first push. Found only by running the job in a clean clone. The wrapper is now committed, generated by Gradle itself: the jar Flutter copies identifies itself as Gradle 2.10 and does not match the published checksum, and the distribution is pinned by SHA-256.
+  - **A first Retail icon that read as a padlock** (a closed arch over a rectangle) → seen in a rendered PNG, redrawn as a tapered bag with the handle looping through it.
+  - **Android Lint on the release variant through raw Gradle** → fails to compile, because `flutter pub get` regenerates the plugin registrant with the dev-only test plugin and only `flutter build --release` rewrites it. A tooling order, not an app bug; documented in the rule.
+  - **A Gradle test that "passed" for a broken rules file** → the file was not a declared input of the test task, so Gradle reported the task up to date (the same trap as the manifest in entry 07). Declared; the mutation now fails.
+  - **A mutation check that hung** → a zero-length periodic timer under fake time loops for ever. Each mutant now runs under a timeout, and a hang counts as caught. Several of my search patterns also missed because `dart format` had re-wrapped the line; scripted edits assert that they applied.
+  - **Tests stricter than the rule** → a scratch third brand showed that an exact registry list and a distinct bill per brand would force an edit to a test when a brand is added. Relaxed, with the reason in a comment.
+  - **The scan dwell timing inside the notifier** → 243 lines, at the review threshold. Extracted into `VerdictHold`, and the extraction itself turned up the hanging mutant.
+  - **Logging the error** → the first thought was to log the error object; its text could carry anything. The logs carry the error's type, a code, a method name and a stack trace, never a message or an argument, and a test enforces it.
+  - **`allowBackup="false"` alone** → Lint says it is deprecated on Android 12 and wants data-extraction rules, then asks for `fullBackupContent` as well. Both attributes are set, the one remaining redundant warning is ignored with its reason, and the manifest test checks every domain is excluded.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Approved the plan with these answers: highlights 03, 07 and 08 and the insight report's correction from entry 02; APKs not committed (`dist/` and CI artifacts, attached to a GitHub Release by the developer); actions pinned by full commit SHA with the tag in a comment; Java 21 in CI instead of 17, the README requirement updated, `actionlint` installed to validate the workflow, no JDK 17; the format check also covering `integration_test` and `test_driver`; the icon design (a bag and a bolt, with a themed layer); the review result as an appendix; the launcher image only in the README for now, with a placeholder for the brand-switch GIF; profile builds for the demo; no version bump and no LICENSE. Added the `Logger` requirement as part of the review fixes. Committed the Flutter-generated iOS files so that the tool stops dirtying the tree.
+- **Result:** commits `3d3a3a1`, `5116f06` (brands manifest), `982af33` (TODOs, JDK 21), `92cb8b1` (icons), `b008774` (CI), `8f580c2` (Gradle wrapper), `1826227` (Logger), `f9daecd` (Lint, backups), `8d3d906` (iOS Pods), `273632f` (link test), `e5adcfc` (relaxed tests), `dcffc6b` (pubspec), `2dbdce4` (rule files), `21f29e9` (`VerdictHold`), then the documents. A scratch third brand: one config file, one registry line, one manifest entry, one icon folder, all tests green and an APK built, nothing under `lib/features` or `lib/core`.
 
 ---

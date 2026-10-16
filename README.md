@@ -26,7 +26,7 @@ What is in it:
   enforced by tests ([architecture](#architecture)).
 - **Backend: none.** Payment APIs are simulated behind the interfaces a real backend would use.
 
-Written with an AI coding agent, under rules and with every milestone planned and approved first:
+Written with AI coding agents (Claude Code, and OpenAI Codex as an independent reviewer), under written rules, with every milestone planned and approved first:
 [AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md) and [Prompt Log](docs/ai/PROMPT_LOG.md).
 
 ## Run it
@@ -191,7 +191,7 @@ lib/app/brand/brand_registry.dart one line
 
 Tests and Gradle enforce each step: the manifest must match the registry, a brand without an icon fails the build, icon
 colors must equal the tokens, and every per-brand test (renders the page, contrast, tokens read, bill exists) picks the new
-brand up from the registry. This was tried on a scratch third brand: those four things, 844 tests green, a built APK, and
+brand up from the registry. This was tried on a scratch third brand: those four things, every test green, a built APK, and
 nothing changed under `lib/features` or `lib/core`.
 
 ## Native Android features
@@ -213,7 +213,7 @@ call replies exactly once, on the main thread.
   payment at a time, `onTimeout` handled, `ServiceCompat` for the foreground type and the stop. Denying the notification
   permission (Android 13+) never stops a payment.
 - **State** that the service, the plugin and a cancel from the notification all touch lives in one process-wide store with
-  atomic transitions, so the first of a cancel and a finish wins and a refused start gives its claim back.
+  atomic transitions, so the first of a cancel and a finish wins and a refused start gives its claim back. Every execution has its own attempt id (wire schema 2), so a late event, a stale cancel or a duplicate delivery from an earlier attempt cannot touch a retry.
 
 ### Security policy
 
@@ -298,8 +298,8 @@ window is protected).
 ```bash
 dart format --set-exit-if-changed lib test integration_test test_driver
 flutter analyze                                  # zero issues
-flutter test                                     # 819 Dart tests
-(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # Kotlin JVM tests
+flutter test                                     # 855 Dart tests
+(cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 220 Kotlin JVM tests
 flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
 ```
 

@@ -73,7 +73,7 @@ a test points to the test; one that rests on a search says what was searched.
 
 ## Tests and tooling
 
-- ✅ **New domain logic and notifiers have tests**, and the all-brands tests pass: 825 Dart tests, 208 Kotlin JVM tests.
+- ✅ **New domain logic and notifiers have tests**, and the all-brands tests pass: 855 Dart tests and 220 Kotlin JVM tests (counted at the end, after the review fixes).
 - ✅ **`dart format`, `flutter analyze` (zero issues), `flutter test`** are green, and both flavors build in debug and in
   release; both release APKs were installed and run on an emulator (scan shown, a payment completed, no crash, not
   debuggable). `dart fix --dry-run`: nothing to fix.
@@ -112,4 +112,4 @@ marked draft until then. The CI workflow has been validated but has not yet run 
 
 The initial checklist above records the earlier milestone's checks. Independent review subsequently reproduced cross-attempt corruption, stale Flutter confirmation, unrelated progress hiding a command rejection, a security snapshot taken before a permission prompt, overlapping window acquisitions and writable domain collections. The fixes and regressions are described in AI Insight Report section 3 and PROMPT_LOG entries 09 onward. Existing device/profile results are historical; schema v2 and worker coordination have automated validation, with new device scenarios still pending in Manual QA.
 
-Follow-up automated validation: 844 Dart tests and 220 Kotlin/JVM tests pass; formatting and Flutter analysis are clean, and Android Lint reports no errors. Current schema-v2 debug and release APKs were rebuilt for both brands. After the developer explicitly authorized Flutter to regenerate plugin registration, ordinary release build commands resolved the earlier stale integration_test registration failure without manual generated-file edits. The initial approval rejection and successful follow-up are recorded in PROMPT_LOG entries 13 and 16. No physical-device or high-refresh-rate rerun is claimed.
+Follow-up automated validation: 855 Dart tests and 220 Kotlin/JVM tests pass; formatting and Flutter analysis are clean, and Android Lint reports no errors. Current schema-v2 debug and release APKs were rebuilt for both brands. After the developer explicitly authorized Flutter to regenerate plugin registration, ordinary release build commands resolved the earlier stale integration_test registration failure without manual generated-file edits. The initial approval rejection and successful follow-up are recorded in PROMPT_LOG entries 13 and 16. No physical-device or high-refresh-rate rerun is claimed.
