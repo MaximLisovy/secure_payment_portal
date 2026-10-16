@@ -179,17 +179,6 @@ class PaymentProgressStoreTest {
     }
 
     @Test
-    fun failIfRunningFailsWhateverIsRunning() {
-        assertFalse(store.failIfRunning(PaymentFailureCodes.PROCESSING))
-
-        store.tryStart(request)
-        assertTrue(store.failIfRunning(PaymentFailureCodes.PROCESSING))
-
-        assertEquals(PaymentProgress.Failed("processing_failed"), store.state.value)
-        assertFalse(store.failIfRunning(PaymentFailureCodes.PROCESSING))
-    }
-
-    @Test
     fun aClaimThatCouldNotStartTheServiceIsGivenBackToWhatWasThere() {
         store.tryStart(request)
         succeed()

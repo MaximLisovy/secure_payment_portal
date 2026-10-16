@@ -85,12 +85,6 @@ class PaymentProgressStore(initial: PaymentProgress = PaymentProgress.Idle) {
     fun fail(paymentId: String, errorCode: String): Boolean =
         finish(paymentId) { PaymentProgress.Failed(errorCode) }
 
-    /** Fails whatever payment is running, for the timeout and for a service that is going away. */
-    fun failIfRunning(errorCode: String): Boolean =
-        transition { current ->
-            if (current is PaymentProgress.Running) PaymentProgress.Failed(errorCode) else null
-        }
-
     /** Cancels the running payment. With nothing running it does nothing. */
     fun cancelIfRunning(): Boolean =
         transition { current ->
