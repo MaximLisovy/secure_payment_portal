@@ -4,9 +4,6 @@ Three interactions that show how this project was steered: context, my prompt, w
 and the outcome. The complete record is the [working log](appendix/working_log.md); the main findings are in the
 [AI Insight Report](AI_INSIGHT_REPORT.md). All three are from the milestones written with Claude Code (`claude-sonnet-5-5`).
 
-Only the parts marked **DRAFT** are not final: they are my review and decision, written by the agent from the decisions I gave
-during the work. I will rewrite them in my own words.
-
 ## 1. The plan gate changed the architecture before any code existed
 
 Milestone 2, [working log entry 03](appendix/working_log.md#03-domain-and-fake-data-for-payment-and-security-milestone-2--2026-10-15).
@@ -23,10 +20,15 @@ Milestone 2, [working log entry 03](appendix/working_log.md#03-domain-and-fake-d
 - **What the AI proposed.** `Failure` extending `Result<Never>`, with a non-sealed extension point for each feature's failures;
   one `SecurityRepository` for both reading the device status and protecting the window; and the bill backend split from the
   payment-processing source, which the request had described as one fake.
-- **My review and decision (DRAFT).** I rejected the first two before a line was written: a sealed `Result<T>` with a sealed
-  `Failure` family per feature, so that a `switch` over a feature's failures is exhaustive; and two small interfaces over one
-  platform data source, so that the screen that only protects the window does not depend on reading status. I accepted the
-  backend split, since only the processing is replaced by native code.
+- **My review and decision.** I read the plan together with a second AI assistant I used as a reviewer, and rejected two
+  shapes before any code existed. `Failure extends Result<Never>` relied on covariant generics and a non-sealed extension
+  point, which would have made failure switches only partly exhaustive and was hard to explain; a plain
+  `Success | Err(Failure)` with one sealed failure family per feature is conventional and exhaustive where it matters. One
+  `SecurityRepository` mixed two responsibilities — reading device status and protecting the window — so I split it into
+  `SecurityStatusRepository` and `SecureWindowController` (interface segregation): the secure screen needs only the second,
+  the payment policy only the first. I accepted the split of the bill backend from payment processing, because only
+  processing is later replaced by native code, and answered the policy questions: an unverifiable root blocks payment
+  (fail-closed), and a recording that starts after the payment is authorised does not cancel it.
 - **Outcome.** The payment flow, the Kotlin bridge and the tests were all built on those shapes; the milestone ended with 326
   tests and both flavors building. The same milestone shows the other half of the loop: the AI's own `async*` status stream
   could not be cancelled until its next event, which a test that hung found and a review would not have.
@@ -47,10 +49,12 @@ Milestone 5, [working log entry 07](appendix/working_log.md#07-payment-foregroun
   > the expected result.
 - **What the AI proposed.** A plan, its KDoc and the Android rule file that all said the same thing: post the final "Payment
   complete" notification, then stop the service. Cancel from the notification went through `PendingIntent.getService`.
-- **My review and decision (DRAFT).** I made Cancel a non-exported broadcast receiver, so that it does not depend on the
-  service being alive, and changed the process: the agent runs every `adb` step itself, and what needs a person goes into one
-  checklist that I run once on a phone at the end. I also answered the plan's questions: `shortService` alone, an explicit
-  permission request, generic notification text, and native processing that always succeeds.
+- **My review and decision.** I approved `shortService` alone, an explicit permission request and generic notification text,
+  and changed two things. Cancel from the notification became a non-exported broadcast receiver, so it works whether or not
+  the service is still alive and is not subject to service-start restrictions. And I changed the process: instead of stopping
+  for me at every device check, the agent runs every `adb` step itself and collects only what genuinely needs a person into
+  one checklist that I run on a phone at the end. That is what let the device, not the plan, have the last word on the
+  notification order.
 - **Outcome.** On the emulator, `dumpsys notification` showed that posting the final notification before the service detached
   left it without its auto-cancel flag, so it could not be dismissed. The order was reversed and the plan, the KDoc and the
   rule were corrected; no test would have caught it. A plausible result ("instant success after swiping the app away") was a
@@ -74,10 +78,12 @@ Milestone 6, [working log entry 08](appendix/working_log.md#08-the-security-scan
 - **What the AI proposed.** A scan shown only while the check runs, with no minimum time and a period of four times the
   brand's `slow` duration, unclamped (0.96 s for Utility). Its first raster measurements then looked like a failure: about 40 %
   of frames over budget.
-- **My review and decision (DRAFT).** I changed the plan twice: the verdict waits for a full revolution, derived from the
-  brand's own period, because a release build would otherwise never show the animation; and the period is clamped to 1.6 to
-  3 s. I asked for a profile-mode spike first. Whether 1.6 s feels right cannot be decided from still images, so it is an open
-  item for the phone.
+- **My review and decision.** I changed the plan in two places. The real device check takes 0.1–0.5 s, so the animation would
+  only flash, and a reviewer installing the release APK — which has no demo panel — would never see it. Instead of an
+  arbitrary delay, the verdict waits until the sweep completes one full revolution, derived from the brand's own period; a
+  short, visible security check is also a common trust-building pattern in payment apps. I clamped the period to 1.6–3 s,
+  because 0.96 s would look frantic for the "professional" brand, and asked for a profile-mode spike before building the
+  measurement harness. Whether 1.6 s feels right is left open for the phone run.
 - **Outcome.** The hold is a timer in the payment flow, off for reduced motion, so Pay and the card never disagree. Rather
   than report only the half of the measurement that looked good, the AI added two references to the harness, Material's
   spinner and a layer that draws one dot, which showed the same raster numbers: that is the emulator's swap path, not the
