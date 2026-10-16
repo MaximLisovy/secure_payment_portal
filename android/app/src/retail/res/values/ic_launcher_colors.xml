@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon colours. A test keeps them equal to the brand tokens in lib/brands/retail:
+     background = brandPrimary, glyph = onBrandPrimary, accent = brandAccent. -->
+<resources>
+    <color name="ic_launcher_background">#F57C00</color>
+    <color name="ic_launcher_glyph">#231403</color>
+    <color name="ic_launcher_accent">#FFC107</color>
+</resources>

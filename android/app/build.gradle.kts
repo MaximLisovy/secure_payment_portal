@@ -27,6 +27,9 @@ brands.forEach { brand ->
     check(!brand["displayName"].isNullOrBlank()) {
         "android/brands.json: \"$id\" needs a displayName: $brand"
     }
+    check(file("src/$id/res/mipmap-anydpi-v26/ic_launcher.xml").exists()) {
+        "android/app/src/$id/res has no launcher icon. Every brand brings its own: see \"Add a brand\" in the README."
+    }
 }
 check(brands.map { it.getValue("id") }.toSet().size == brands.size) {
     "android/brands.json lists a brand id twice."

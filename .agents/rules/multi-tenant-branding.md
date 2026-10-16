@@ -92,7 +92,7 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 
 - `android/brands.json` lists the brands: `id`, `displayName` and `applicationIdSuffix` (always `.<id>`). `android/app/build.gradle.kts` reads it and creates one product flavor per entry in a loop (`dimension = "brand"`, the suffix, and `resValue("string", "app_name", displayName)`), and fails the configuration with a readable message for a duplicate or malformed entry. It holds no brand by name. `test/brands/brands_manifest_test.dart` checks the manifest against `BrandRegistry`: same ids, same display names, suffix `.<id>`.
 - `AndroidManifest.xml` uses `android:label="@string/app_name"`.
-- Per-brand launcher icons go in `android/app/src/<id>/res/mipmap-*`. Per-brand Dart assets go in `assets/brands/<id>/`, declared in `pubspec.yaml`.
+- Per-brand launcher icons go in `android/app/src/<id>/res/`: an adaptive icon (`mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml`, with a themed `<monochrome>` layer), its glyph (`drawable/ic_launcher_foreground.xml`, 108 dp, inside the 66 dp safe zone), its three colours (`values/ic_launcher_colors.xml`: background = `brandPrimary`, glyph = `onBrandPrimary`, accent = `brandAccent`, kept equal to the tokens by `test/brands/launcher_icons_test.dart`), and legacy PNGs for API 24-25 in `mipmap-<density>/`. `tool/make_launcher_icons.py` draws the PNGs from the same glyph path (it needs ImageMagick; the PNGs are committed, no build runs it). Gradle refuses a brand without an icon, and `main` holds no default icon that could hide a missing one. Per-brand Dart assets go in `assets/brands/<id>/`, declared in `pubspec.yaml`.
 - Native code is brand-agnostic too. If Kotlin ever needs brand data, such as the notification accent color, pass it from Dart as config or as a flavor `resValue`. Never branch on the flavor in Kotlin.
 - iOS flavors are out of scope unless the developer asks.
 
@@ -100,7 +100,7 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 
 1. `lib/brands/<id>/<id>_brand.dart` — a `const BrandConfig` with tokens + feature configs (+ assets once `BrandAssets` exists). Configuration only.
 2. Register it in `brand_registry.dart` — one import and one list entry.
-3. One entry in `android/brands.json` (`id`, `displayName`, `applicationIdSuffix`: `.<id>`). The flavor name must equal the brand id. Gradle needs no edit.
+3. One entry in `android/brands.json` (`id`, `displayName`, `applicationIdSuffix`: `.<id>`). The flavor name must equal the brand id. Gradle needs no edit. Then the launcher icon: copy another brand's `android/app/src/<id>/res`, change the three colours to the new tokens and draw a new glyph, run `python3 tool/make_launcher_icons.py`.
 4. Once `BrandAssets` exists: `assets/brands/<id>/` + `pubspec.yaml` asset entry.
 5. Nothing in `features/` or `core/` changes. If something has to, the abstraction is leaking: stop and propose a fix to the abstraction first.
 6. The "all brands" tests pick the new brand up automatically through the registry: the real payment page renders its bill, every section it declares has a widget, rows have its row height, and a payment goes through to the receipt.

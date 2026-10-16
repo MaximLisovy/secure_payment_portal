@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A bolt. The same path is rendered to the legacy PNGs by tool/make_launcher_icons.py. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_glyph"
+        android:pathData="M59 28 L39 57 H51 L46 82 L69 49 H56 L63 28 Z" />
+</vector>

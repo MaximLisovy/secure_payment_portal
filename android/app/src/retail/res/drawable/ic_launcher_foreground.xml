@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A shopping bag: a body that tapers up to its mouth, and a handle that loops through it.
+     The body is drawn first and the handle over it. The same paths are rendered to the legacy
+     PNGs by tool/make_launcher_icons.py. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_glyph"
+        android:pathData="M41 45 H67 L75 75 A5 5 0 0 1 70 81 H38 A5 5 0 0 1 33 75 Z" />
+    <path
+        android:strokeColor="@color/ic_launcher_accent"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:pathData="M46 57 V42 A8 8 0 0 1 62 42 V57" />
+</vector>
