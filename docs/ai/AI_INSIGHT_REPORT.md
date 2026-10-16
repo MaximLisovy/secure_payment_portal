@@ -16,19 +16,45 @@ How the work was run: `AGENTS.md` and five topic rule files were written first a
 
 The benefit is concrete but not timed: shared fake/native contract suites, layering tests, automatic per-brand checks and focused JVM tests reduce repeated manual setup. No exact time-saving percentage is claimed. Independent review exposed gaps in the original passing suite, especially retries of the same bill and asynchronous preparation. Follow-up changes added regressions and full analysis/build checks in focused commits. The physical-device checks remain separate and explicitly pending.
 
-## 3. A sub-optimal AI solution and how it was corrected
+## 3. A sub-optimal AI solution and how I corrected it
 
-The original store used atomic transitions keyed only by `paymentId`. Tests of a cancel racing a finish passed, but that ID represented a bill, not an execution. Independent review reproduced a cancelled attempt completing its retry with an old transaction and amount. Flutter could also consume another bill's live progress during confirmation and hide `ALREADY_RUNNING` behind a processing state.
+**Brand colors that passed their own test and failed on screen** ([Prompt Log, entries 01 and 02](PROMPT_LOG.md)).
 
-The correction assigns a fresh `attemptId` to each execution across domain, DTOs, commands, events, store, session and notification cancellation. The shared in-app wire schema is version 2. The worker coordinator cancels and joins retired work, distinguishes duplicates from replacements and binds foreground cleanup to its current worker. Flutter invalidates obsolete confirmation, filters events by bill and attempt and preserves command rejection. Permission preparation finishes before the final security read, so a long prompt cannot preserve an old verdict.
+- **The AI's solution.** Retail's vivid orange was the color scheme's `primary`, and the contrast test checked only the "on"
+  pairs (primary on its on-color, surface on its text). Everything passed.
+- **The problem.** Material also uses `primary` as a *foreground*: text buttons, outlined buttons, icons, the focus ring,
+  progress, the cursor, and every widget nobody themed (a Switch, a Checkbox). Orange on cream is 2.6:1 there, where text needs
+  4.5:1 and UI 3:1. The test was blind to those pairs; the problem showed up on a device screenshot, not in the suite. The AI's
+  first fix patched one component at a time and left `primary` vivid, so the trap stayed open for the next feature, and I
+  pointed that out.
+- **The correction.** A role split that I asked for: `ColorScheme.primary` is the accessible tone (`brandOnSurface`), and the
+  vivid `brandPrimary` is applied explicitly, only where a fill is meant. Decorative borders got their own soft role
+  (`outlineSubtle`, exempt under WCAG 1.4.11) so control borders could be held at 3:1. The test became one table of every color
+  the components and the scheme defaults use, run for every registered brand, with tests that prove it still fails on the old
+  vivid value and on a soft border used for a control.
+- **Why it matters here.** In a white-label product the next brand is chosen by someone else, with colors the AI never saw. A
+  safe default plus a table that runs for every registered brand means a low-contrast palette fails a test before it ships. In
+  the final milestone that table rejected the careless colors of a scratch third brand (4.41:1 against 4.5:1) before anything
+  was built.
 
-Regressions cover late progress, success, failure and rollback after retry; stale notification cancellation; rapid worker replacement; duplicate delivery; stale timeouts; switching bills or disposing during preparation/security; and command failure after optimistic progress. Other fixes share pending window commands, reconcile overlapping ownership changes, and copy domain collections defensively. Structural cleanliness and a large test count did not replace testing lifecycle boundaries.
+**A second example, found by an independent reviewer** ([entry 13](PROMPT_LOG.md)). When the first agent's quota ran out I ran a
+second agent (OpenAI Codex) on purpose as an independent reviewer, and it found a defect that the first agent's passing tests
+had not. The payment store kept its atomic transitions keyed only by `paymentId`, but that ID is a bill, not an execution:
+a cancelled attempt could finish its retry with an old transaction and amount, and Flutter could consume another bill's live
+progress and hide `ALREADY_RUNNING` behind a processing state. The fix gives every execution a fresh `attemptId` across domain,
+DTOs, commands, events, store, session and notification cancellation (the in-app wire schema is now version 2), makes the worker
+coordinator cancel and join retired work, and lets Flutter drop obsolete confirmations and filter events by bill and attempt. I
+approved the plan after reviewing it and verified the fix: regressions for late progress, stale notification cancellation, rapid
+worker replacement, duplicate delivery, stale timeouts and a changed bill during preparation; the full suites; and both brands'
+release APKs installed on an emulator and taking a payment. The lesson is that a clean structure and a large test count had not
+tested a lifecycle boundary. The attempt ID is not server idempotency or durable recovery: the
+[production-payments appendix](appendix/payments-in-production.md) describes those unimplemented requirements, and this task has
+no backend and moves no real money.
 
-The attempt ID is not server idempotency or durable recovery. The [production-payments appendix](appendix/payments-in-production.md) describes those unimplemented requirements. This task has no backend and moves no real money.
-
-Current validation: **855 Dart tests**, **220 Kotlin/JVM tests**, clean formatting and Flutter analysis, and Android Lint with no errors. Both schema-v2 debug and release APKs build. After explicit permission to let Flutter regenerate plugin registration, ordinary release build commands resolved the earlier stale integration-test registration failure without manual generated-file edits. APK validation and the remaining device-only checks are recorded in the [Prompt Log](PROMPT_LOG.md) and [Manual QA](../MANUAL_QA.md).
-
-An earlier, smaller example of the same lesson ([entries 01 and 02](PROMPT_LOG.md)): the first brand colors passed their own contrast test and failed on a screenshot. Retail's vivid orange was the color scheme's `primary`, the test checked only the "on" pairs, and Material also uses `primary` as a foreground (text buttons, icons, the focus ring, every widget nobody themed), where orange on cream is 2.6:1. The AI's first fix patched one component at a time and left the trap open; the developer pointed that out. The fix was a role split (`primary` is the accessible tone, the vivid color is applied explicitly where a fill is meant) and one contrast table, run for every registered brand. In the final milestone that table rejected the careless colors of a scratch third brand (4.41:1 against 4.5:1) before anything was built.
+Current validation: **855 Dart tests**, **220 Kotlin/JVM tests**, clean formatting and Flutter analysis, and Android Lint with no
+errors. After explicit permission to let Flutter regenerate plugin registration, the ordinary release build commands resolved an
+earlier stale integration-test registration failure without manual edits to generated files. The remaining device-only checks are
+in [Manual QA](../MANUAL_QA.md).
 
 ## Appendices
 

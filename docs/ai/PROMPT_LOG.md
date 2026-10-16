@@ -4,9 +4,10 @@ Key interactions with AI tools during this task. The agent appends an entry afte
 review** part is where I show how I audited and refined the output.
 
 Entries 01 to 08 and 22 were written by Claude Code (`claude-sonnet-5-5`). Entries 09 to 21 were written by a second agent
-(OpenAI Codex), used as an independent reviewer and implementer of the review fixes. The developer reviews of entries 01
-to 08 and 22 are **DRAFT**: the agent wrote them from the decisions the developer gave during the work, for the
-developer to edit in their own words.
+(OpenAI Codex), which I ran deliberately as an independent reviewer when the first agent's quota ran out: it found the
+defects the first agent's tests had not, proposed the fixes, and I approved each plan after reviewing it. Every developer
+review in this log is **DRAFT**: written by an agent from the decisions I gave during the work, with `[confirm]` where it
+is unsure, for me to edit in my own words.
 
 ## Highlights
 
@@ -292,7 +293,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** added docs/DEMO_SCRIPT.md with the recording setup, brand/native/simulated scenarios, and honest device-performance limits. Preserved the developer's uncommitted README and appendix drafts.
 - **Assumptions & risks flagged by the agent:** the script is a recording plan, not evidence that manual QA has been performed.
 - **Corrections made (AI suggestion → problem → correction):** README linked a demo script that did not exist, making the documentation test fail → added the actual script instead of weakening the test.
-- **Developer review:** approved the complete review-fix plan before implementation.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** I ran Codex on purpose as an independent reviewer when the first agent's quota ran out, and its first act was to read the repository and report what it found. This is the first finding: the demo script that the documents pointed to did not exist. I approved the complete review-fix plan before it changed anything. [confirm: when and how much of the plan you read]
 - **Result:** 825 Dart tests pass; flutter analyze has zero issues; Dart formatting passes. Commit: docs: add the missing demo recording script.
 
 ---
@@ -306,7 +307,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** one reconciliation owns the in-flight platform command, retries share it, and holder changes are applied before the final state is published. A failed disable retains the native claim for a later holder instead of stacking another enable.
 - **Assumptions & risks flagged by the agent:** a platform timeout still cannot prove whether the native operation happened; the existing typed failure remains visible. No Android API changed.
 - **Corrections made (AI suggestion → problem → correction):** tracking the pending future without sharing it allowed duplicate enable calls → share the reconciliation and test overlapping retry, replacement during enable, replacement during disable and failed disable/reacquire.
-- **Developer review:** covered by the approved fix plan.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Part of the review-fix plan I approved: acquire, release and retry of the secure window are serialised, so overlapping calls balance. [confirm: you read the diff and the new notifier tests]
 - **Result:** format and analyze pass; all 831 Dart tests pass (includes the following immutable-entity step). Commit: fix: serialize secure window ownership changes.
 
 ---
@@ -320,7 +321,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** PaymentDetails copies lines into an unmodifiable list; RootDetected copies signals into an unmodifiable set. Updated only the affected const construction and fixtures, and tested both input aliasing and mutation through the entity.
 - **Assumptions & risks flagged by the agent:** these two constructors can no longer be const because copying collections executes at construction time. This exception to the const preference was explicitly included in the approved plan.
 - **Corrections made (AI suggestion → problem → correction):** final collection references were described as immutable entities → their contents and aliases remained writable → own immutable copies and verify the original collection can be cleared without changing the entity.
-- **Developer review:** covered by the approved fix plan.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Part of the same plan: the bill's and the root assessment's collections become immutable snapshots, so a caller cannot change a total or a signal list after the fact. [confirm: you read the diff]
 - **Result:** format and analyze pass; all 831 Dart tests pass. Commit: fix: protect domain entities from collection mutation.
 
 ---
@@ -334,7 +335,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** reconciliation checks desired ownership again after its deferred no-op state update, and continues to enable if a new holder arrived. Added a failed-enable → overlapping release/acquire regression.
 - **Assumptions & risks flagged by the agent:** failed native operations still report typed failure; no newer Android API was introduced.
 - **Corrections made (AI suggestion → problem → correction):** the first serialized reconciliation could return after a holder changed during its no-op await → continue reconciliation until the current desired ownership is applied.
-- **Developer review:** covered by the approved review-fix plan.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** A follow-up found by the same review: a replacement screen arriving while a no-op release was being reconciled. Covered by the plan I approved.
 - **Result:** formatting, zero-issue analysis, all 844 Dart tests and both debug APKs pass. Commit: fix: reconcile replacement holders after protection failure.
 
 ---
@@ -359,7 +360,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
   - Ref.mounted alone did not invalidate a changed bill → generation guards prevent obsolete preparation/security completions from starting payment.
   - An optimistic progress event hid a later command rejection → process rejection for the current attempt even after progress.
   - A rejected cancellation only reset a flag → keep the typed failure in processing state and show user-safe guidance with retry.
-- **Developer review:** approved the complete fix plan before implementation.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** The finding that justified a second, independent reviewer. The store was keyed by the bill, not by the execution, so a cancelled attempt could finish its retry with an old transaction and amount, and Flutter could consume another bill's progress. Codex proposed an attempt id across Flutter and Android (wire schema 2); I approved the complete plan after reviewing it, and I verified the fix. [confirm how: the regression tests, the emulator runs, the release APKs that install and pay]
 - **Result:** 844 Dart tests, 220 JVM tests, clean format/analyze, Android Lint without errors, retail and utility debug APKs. Release validation is blocked as described above. Commit: fix: isolate payment attempts across Flutter and Android.
 
 ---
@@ -373,7 +374,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** completed the three report sections on multi-tenancy, AI assistance and the corrected cross-attempt design; integrated the existing appendix drafts, updated the sequence diagram, and added schema-v2 manual regression scenarios. Preserved earlier emulator measurements and labeled them as historical rather than claiming a new phone run.
 - **Assumptions & risks flagged by the agent:** no quantified development-time saving is invented; no 120 Hz or physical-device validation is claimed. Current debug APKs build, but release validation remains blocked by the stale generated integration_test registration and the approval rejection described in entry 13. A saved stale PendingIntent needs an instrumented device trigger; the JVM action test is the current evidence.
 - **Corrections made (AI suggestion → problem → correction):** three report headings were still template comments despite a nearly finished project → filled them from actual implementation/history and review evidence; an old checklist that claimed every failure was visible is now explicitly historical and includes the follow-up defects and corrections.
-- **Developer review:** covered by the approved review-fix plan; existing README and appendix content was retained and completed.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** I asked for the handoff documents to be completed. The README and appendices written earlier by the first agent were kept and completed, not replaced. [confirm: you read them]
 - **Result:** 844 Dart tests and 220 JVM tests pass, format/analyze clean, Android Lint has no errors, both debug APKs build. Documentation links and anchors pass after the final report edits. Six focused commits, with no push or history rewrite. Commit: docs: complete the review report and validation notes.
 
 ---
@@ -387,7 +388,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** used the already available String.toUri extension for the attempt-specific cancel Intent data. Its underlying Uri parsing is API 1; no dependency or permission was added.
 - **Assumptions & risks flagged by the agent:** two existing version notes remain for deliberately pinned Gradle and core-ktx. Release validation remains blocked as recorded in entry 13.
 - **Corrections made (AI suggestion → problem → correction):** direct Uri.parse introduced UseKtx → use the existing extension instead of suppressing the warning.
-- **Developer review:** routine verification fix within the approved implementation.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Routine: a new Android Lint warning introduced by the notification-cancel change was cleared.
 - **Result:** 844 Dart tests, 220 JVM tests, zero-issue Flutter analysis, clean formatting and both rebuilt debug APKs. Android Lint: zero errors, only the two pre-existing pinned-version warnings. Commit: chore: clear the Android KTX lint warning.
 
 ---
@@ -401,7 +402,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** ran flutter build apk --release --flavor retail and the corresponding utility command without --no-pub. Flutter refreshed its own plugin registration; the release registrant no longer references the dev-only integration_test plugin. Both builds succeeded without manually editing generated files. Updated the current validation status in the AI Insight Report, review appendix and channel documentation; retained the earlier log entries as historical records.
 - **Assumptions & risks flagged by the agent:** these are locally built review APKs with the existing debug signing configuration. No signing settings, dependencies, iOS files or source code changed. Physical-device, rapid cancel/retry, stale-notification and high-refresh-rate checks remain pending in Manual QA; successful compilation does not establish those results.
 - **Corrections made (AI suggestion → problem → correction):** the initial --no-pub release attempt reused a stale dev-plugin registration → the developer authorized standard Flutter regeneration, and ordinary release build commands succeeded. No manual generated-file workaround was needed.
-- **Developer review:** explicitly approved the regeneration retry before execution.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Release validation was blocked by a stale generated plugin registration for the dev-only test plugin. I explicitly approved letting Flutter regenerate its own files, and the normal release commands then built both brands' schema-v2 APKs.
 - **Result:** retail release APK: 45,345,302 bytes; utility release APK: 45,342,654 bytes, both under build/app/outputs/flutter-apk/. Release Android Lint: zero errors and the same two existing pinned-version warnings. Documentation links and anchors pass. The earlier 844 Dart tests, 220 JVM tests, format/analyze and debug-build checks remain the evidence for unchanged source code. Commit: docs: record successful release validation.
 
 ---
@@ -414,7 +415,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **Context given:** the phone is Android arm64; profile mode preserves the demo panel and brand switcher; existing APK signing and packaging rules.
 - **AI output (summary):** built Retail with flutter build apk --profile --flavor retail --target-platform android-arm64 and copied it to the ignored dist/retail-profile-arm64.apk. Verified the APK signature with apksigner and inspected its manifest and ABI with aapt: package com.hypertenant.secure_payment_portal.retail, minSdk 24, targetSdk 36, arm64-v8a only, no testOnly attribute. No source, signing configuration or dependency changes were needed.
 - **Assumptions & risks flagged by the agent:** profile was selected to retain manual QA controls. The user still needs to transfer the APK and approve installation through the phone's system UI; this build does not establish physical-device validation or guarantee that manufacturer restrictions will allow manual installation.
-- **Developer review:** requested a standalone build for installation on the phone.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Installing over ADB on my phone needs a manufacturer account, so I asked for a standalone APK to install by hand. It is the profile APK in `dist/`, which the manual checklist on the phone starts from. [confirm]
 - **Result:** signed profile APK, 27,252,703 bytes, SHA-256 3f77cfe64e0326764c2f774d20982816ab24e377dde08c50af08947789bec327. Build and documentation-link checks pass; prior source validation remains applicable because source code is unchanged. APKs remain untracked. Commit: docs: record manual-install profile APK.
 
 ---
@@ -427,7 +428,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **Context given:** current composition root, brand and section configuration, domain use case and security policy, Riverpod flow, native worker/store/service, architecture tests and previous validation results.
 - **AI output (summary):** subjective assessment of 8.5/10 for the assignment. Strengths are the dependency boundaries, configuration-driven branding, domain security policy, attempt isolation and testable native lifecycle. Discussion points are the bill ID living in brand screen configuration, the implicit cancellation contract of ConfirmPayment.isCurrent, and the need for device integration coverage of the Dart/native lifecycle scenarios in addition to unit tests.
 - **Assumptions & risks flagged by the agent:** the assessment concerns the assignment's scope, not a production payment backend. Prior 844 Dart and 220 JVM test results remain historical evidence for unchanged source; the full suite was not rerun for this code-reading assessment. The user's reported 120 Hz behavior is encouraging but is not a captured frame-timing report.
-- **Developer review:** pending; the developer requested the assessment.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** I asked for the assessment of the architecture that a senior reviewer of a test task would give, after the fixes. It scored the assignment 8.5 out of 10 and raised three discussion points (the bill id living in the brand's screen configuration, the implicit cancellation contract of `ConfirmPayment.isCurrent`, device integration coverage of the lifecycle), which led to entries 19 to 21. I take the score as an opinion, not as evidence.
 - **Result:** no application changes. Recorded the architecture assessment and checked documentation links. Commit: docs: record follow-up architecture assessment.
 
 ---
@@ -440,7 +441,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **Context given:** approved architecture-completion plan; branding, testing and review rules.
 - **AI output (summary):** PaymentScreenConfig now contains only sections. App-owned BrandRegistration holds the initial demo request; selectedPaymentIdProvider exposes explicit host selection through the feature's independent paymentIdProvider. Default requests follow demo brand switching, while an explicit request survives a theme/layout switch and does not reload unnecessarily. Adapted existing fixtures and added request-selection/data-loading regressions.
 - **Assumptions & risks flagged by the agent:** app demo defaults still differ by registration, but features and BrandConfig contain no order selection. An explicit order is not replaced when the user changes the demo brand. Documentation explaining the previous wiring will be synchronized in the final approved step.
-- **Developer review:** approved the concrete plan before implementation.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Codex proposed separating the payment request from the brand layout: a brand now declares only the screen's layout and the host selects the order. I approved the concrete plan after reviewing it.
 - **Result:** 849 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: separate payment requests from brand layout.
 
 ---
@@ -453,7 +454,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **Context given:** approved architecture-completion plan and existing attempt-isolation regressions.
 - **AI output (summary):** introduced pure-Dart CancellationSignal/CancellationSource; the notifier owns cancellation, and ConfirmPayment checks the read-only signal around preparation and security awaits. The receipt action and notifier method now explicitly repeat the existing demo payment. Added direct use-case regressions for cancellation before preparation, during each await and after acceptance.
 - **Assumptions & risks flagged by the agent:** cancelling confirmation does not stop an accepted payment; native attempt-scoped cancellation remains a separate operation. Presentation generation/mounted checks still protect stale state writes. The demo does not create a new backend order.
-- **Developer review:** approved the concrete plan before implementation.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** Proposed by Codex after the assessment: cancelling a pending confirmation becomes an explicit pure-Dart signal instead of a presentation callback in the use-case contract, and the receipt's repeat action is labelled as the demo replay it is. I approved the concrete plan after reviewing it.
 - **Result:** 854 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: clarify confirmation cancellation and demo replay.
 
 ---
@@ -467,7 +468,7 @@ the frame rate that carry over, says what does not, and leaves the phone run to 
 - **AI output (summary):** a stricter fakeAsync regression reproduced a stale native start (starts contained attempt-1) when only the request ID changed before the new details arrived. The flow now watches its request input, and its presentation-owned cancellation signal also checks that the original request still matches the host input. Domain only sees CancellationSignal. The latter check closes the interval before Riverpod rebuilds dependents.
 - **Assumptions & risks flagged by the agent:** dependency invalidation alone is scheduled and did not close the race; the failing regression proved that. Native work already accepted remains governed by its attempt-scoped service lifecycle.
 - **Corrections made (AI suggestion → problem → correction):** waiting for begin(newDetails) or a provider rebuild → old confirmation could start during replacement loading → bind cancellation to the current input ID as well as disposal, and test before new details exist.
-- **Developer review:** necessary correctness fix within the approved request-separation and integration work.
+- **Developer review (DRAFT, written by the agent from the developer's recorded decisions; edit in your own words):** A gap found while implementing entry 19: the request could change after the old confirmation had checked it and before the replacement bill arrived. I accepted it as a necessary correctness fix within the approved plan. [confirm]
 - **Result:** 855 Dart tests pass; analysis and formatting are clean. Commit: fix: invalidate confirmation when the host request changes.
 
 ### 22. Final delivery (Milestone 7): brands manifest, icons, CI, logger and a review pass — 2026-10-16
