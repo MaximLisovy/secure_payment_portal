@@ -38,9 +38,9 @@ result, and a place for the outcome.
   `flutter run --profile --flavor retail -d <device id>`
   (the native debug log needs a debuggable build; a profile build is not one, so use `--debug` when an
   item says to read `adb logcat`).
-- Without a cable (a phone whose ADB installation needs an account), build a standalone profile APK, copy it to the phone and
-  install it by hand: `flutter build apk --profile --flavor retail --target-platform android-arm64` (the file is
-  `build/app/outputs/flutter-apk/app-retail-profile.apk`; `tool/build_release_apks.sh` keeps whatever else is in `dist/`).
+- Without a cable, run `tool/build_release_apks.sh`, copy the matching `dist/retail-profile-arm64.apk` or
+  `dist/utility-profile-arm64.apk` to the phone, and install it by hand. The script builds both release APKs and both arm64
+  profile APKs, with `SHA256SUMS` and `SOURCE_REVISION`; no ADB installation is needed.
 - Note the phone's model and **Android version (API level)** in the table at the end: several items
   differ by API level.
 - Fill in the Result column: ✅ as expected, ❌ with what happened, n/a with why, or *not tested*.

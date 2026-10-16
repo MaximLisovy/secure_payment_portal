@@ -47,7 +47,7 @@ and smaller diffs, and verified the large rewrite through tests and device runs.
 These IDs isolate local executions; durable backend idempotency and reconciliation remain unimplemented, as described in the
 [production-payments appendix](appendix/payments-in-production.md).
 
-Current automated validation: **887 Dart tests**, **226 Kotlin/JVM tests**, clean formatting and Flutter analysis, and both
+Current automated validation: **888 Dart tests**, **226 Kotlin/JVM tests**, clean formatting and Flutter analysis, and both
 flavor debug builds. Both release binaries also passed cross-brand strings checks. The review fixes have not been rerun on a
 physical phone; the earlier phone run and its untested items remain in [Manual QA](../MANUAL_QA.md), and the new in-app frame
 statistics have no phone measurements yet. The [review appendix](appendix/review.md#two-review-findings-and-approved-fixes)

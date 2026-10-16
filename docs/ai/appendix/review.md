@@ -12,7 +12,7 @@ not proof, and historical device results do not validate the later review fixes.
 - ✅ **Dependency rule guardrails.** Source regexes inspect imports and fake identifiers in `test/architecture/layering_test.dart`.
   They do not parse Dart or prove architecture. Domain remains pure; simulation-only controls now live in data and are exposed
   to debug tooling through DI/public barrels, as requested in the later review.
-- ⚠️ **File size.** The current payment flow coordinator is 354 lines, above the 200–250-line smell guideline. Verdict timing
+- ⚠️ **File size.** The current payment flow coordinator is 367 lines, above the 200–250-line smell guideline. Verdict timing
   and reconciliation timers are separate helpers; the notifier still owns flow transitions. This is an acknowledged maintenance
   cost, not a claim that every file is small. The original sizes were 226 and 195 lines for the notifier and native service.
   - ❌ The notifier had reached 243 lines when it took the scan dwell. The timing moved to `VerdictHold`, tested alone.
@@ -131,7 +131,7 @@ that were not supplied. Batches 2–4 continued under that authorization; verdic
 
 | Item / finding | Implemented correction | Evidence and limits |
 |---|---|---|
-| 1. Transport failures looked like failed payments, enabling unsafe retries | Unknown start outcomes and unreadable/unscoped progress retain the attempt, stream and Cancel; immediate attempt-scoped native snapshots retry with capped backoff for 30 s; expiry shows guidance without payment retry | Repository classification table, source contract suites, JVM snapshot tests, late-terminal/cancel/replacement tests; both named surviving mutations are killed. In-memory snapshots are not durable backend history |
+| 1. Transport failures looked like failed payments, enabling unsafe retries | Unknown start outcomes and unreadable/unscoped progress retain the attempt, stream and Cancel; immediate attempt-scoped native snapshots retry with capped backoff for 30 s; expiry shows guidance without payment retry | Repository classification table, source contract suites, JVM snapshot tests, late-terminal/cancel/replacement tests; both named surviving mutations are killed. A preflight regression also proves Cancel during uncertain permission preparation prevents later start. In-memory snapshots are not durable backend history |
 | 2. Silent EventChannel activation left startup waiting indefinitely | Named 5 s first-event deadline enters an unavailable blocked state; Check again opens a new subscription | Tests include actual missing-plugin activation via FlutterError, deadline boundaries, disposal, first error and late replay; README iOS claim corrected |
 | 3. Invalid numeric fields and unexpected mapping exceptions escaped | WireReader validates numeric ranges and non-empty identities; repositories contain unexpected errors; both notifier subscriptions handle stream errors | completedAtMillis = 9223372036854775807 tested through parsing, stream mapping and snapshot recovery; invalid active events remain uncertain outcomes |
 | 4. Sensitive content appeared before window confirmation | SecureScreen withholds its child until protected, uses a neutral placeholder while pending, and shows a blocked message/protection retry on failure | Delayed/failed protection and existing lifecycle/navigation widget tests; no new physical-device run |
@@ -145,11 +145,11 @@ that were not supplied. Batches 2–4 continued under that authorization; verdic
 | 12. Codex's contribution and AI examples were inaccurate/noisy | Precise earlier-pass attribution and developer verification; shortened Insight sections; Prompt Log highlight 3 replaced with entry 25's refuted recording hypothesis | Historical decision preserved in working log, experiment caveats preserved, process noise removed |
 | 13. Delivered APKs did not match final source | Dedicated final build packages both releases and both arm64 profile APKs with SHA256SUMS and source revision | Final artifact hashes/revision and validation are recorded in working-log item 13; artifacts remain outside git |
 
-Validation for items 1–12: formatting, zero-issue analysis, all 887 current Dart tests, all 226 Kotlin JVM tests under JDK 21,
+Validation for items 1–12: formatting, zero-issue analysis, all 888 current Dart tests, all 226 Kotlin JVM tests under JDK 21,
 and both flavor debug builds. Release brand isolation was also checked on actual APKs. Each item has its own green
-Conventional Commit; per-item details and any corrections are in [working log entries 26–29](working_log.md).
+Conventional Commit, plus one focused preflight cancellation fix; per-item details and any corrections are in [working log entries 26–29](working_log.md).
 
 Remaining limits: no durable intent store, server idempotency or backend reconciliation; root heuristics are bypassable;
 recording visibility is API/OEM dependent; the new fixes and frame-statistics readout have no physical-phone rerun. The older
-phone and emulator results above are historical. The 354-line flow coordinator remains a maintenance deviation from the file-size
+phone and emulator results above are historical. The 367-line flow coordinator remains a maintenance deviation from the file-size
 guideline. A large passing suite and source regexes are evidence for the exercised cases, never proof that all defects are gone.

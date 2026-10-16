@@ -77,8 +77,10 @@ One Android flavor per brand, named after the brand id. `--flavor` is required: 
 flutter run --flavor retail                  # or utility; add --profile to keep the demo panel and run fast
 flutter build apk --debug --flavor retail
 flutter build apk --release --flavor utility
-tool/build_release_apks.sh                   # every brand's release APK into dist/, with SHA256SUMS
+tool/build_release_apks.sh                   # every brand: release + arm64 profile APKs in dist/, SHA256SUMS and SOURCE_REVISION
 ```
+
+The build script records the source HEAD in `dist/SOURCE_REVISION` and hashes all four APKs in `dist/SHA256SUMS`.
 
 APKs land in `build/app/outputs/flutter-apk/` as `app-<flavor>-<mode>.apk`. Both brands install side by side
 (`com.hypertenant.secure_payment_portal.retail` and `.utility`).
@@ -368,7 +370,7 @@ The artifact check is reproducible with `tool/check_release_brand_isolation.py`,
 ```bash
 dart format --set-exit-if-changed lib test integration_test test_driver
 flutter analyze                                  # zero issues
-flutter test                                     # 887 Dart tests
+flutter test                                     # 888 Dart tests
 (cd android && JAVA_HOME="<path to JDK 21>" ./gradlew testDebugUnitTest)   # 226 Kotlin JVM tests
 flutter build apk --debug --flavor retail && flutter build apk --debug --flavor utility
 ```

@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-# Builds the release APK of every brand in android/brands.json into dist/, with a SHA256SUMS
-# file. The APKs are signed with the debug keys (the repository holds no keystore): they are
-# for review, not for a store. dist/ is not committed.
+# Builds every brand's release APK and arm64 profile APK into dist/, with hashes
+# and the source revision. Existing debug signing is unchanged; artifacts are
+# for review/manual testing and dist/ is not committed.
 #
 #   tool/build_release_apks.sh
 #
-# Needs flutter (pointed at a JDK 21, see the README) and jq.
+# Needs flutter (pointed at JDK 21, see README) and jq.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 command -v jq > /dev/null || { echo "jq is required" >&2; exit 1; }
 
-# Only this script's own files are replaced: anything else in dist/ (a profile APK for a phone) stays.
+# Replace only this script's artifacts. Remove completion metadata before work,
+# so an interrupted build cannot leave an old checksum/revision as a success marker.
 mkdir -p dist
-rm -f dist/*-release.apk dist/SHA256SUMS
+rm -f dist/SHA256SUMS dist/SOURCE_REVISION
+artifacts=()
 for id in $(jq -r '.[].id' android/brands.json); do
   flutter build apk --release --flavor "$id"
   cp "build/app/outputs/flutter-apk/app-${id}-release.apk" "dist/${id}-release.apk"
+  artifacts+=("${id}-release.apk")
+  flutter build apk --profile --flavor "$id" --target-platform android-arm64
+  cp "build/app/outputs/flutter-apk/app-${id}-profile.apk" "dist/${id}-profile-arm64.apk"
+  artifacts+=("${id}-profile-arm64.apk")
 done
 
-(cd dist && shasum -a 256 -- *-release.apk > SHA256SUMS)
-echo
+(cd dist && shasum -a 256 -- "${artifacts[@]}" > SHA256SUMS)
+git rev-parse HEAD > dist/SOURCE_REVISION
 cat dist/SHA256SUMS
