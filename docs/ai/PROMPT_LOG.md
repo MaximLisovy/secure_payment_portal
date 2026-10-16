@@ -241,3 +241,18 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** commits `7978a72` (rebuild tracker helper), `0fd2c28` (maths and style), `0624a5c` (painters), `46ed8a9` (`ScanAnimation`), `4aba800` (the security card), `8938a25` (the verdict dwell), `8f4c2d3` (demo duration and performance overlay), `b63b703` (frame timing harness), `156bae4` (docs), then this entry. Emulator, profile mode, median of three 8 s runs: the scan costs 1.07 to 1.18 ms of UI thread per frame (floor 0.92 to 1.08, stock spinner 1.40), two garbage collections in 8 s (the floor two, the spinner six), 59 to 60 frames per second on a 60 Hz display. The phone checks are `M6-1` to `M6-11` in `docs/MANUAL_QA.md`.
 
 ---
+
+### 09. Restore the documentation validation baseline — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** fix the missing demo-script target found during independent review before changing payment contracts.
+- **Prompt (key part, verbatim):**
+  > давай тогда поправь то что нашел
+  > да, погнали
+- **Context given:** the approved review-fix plan, AGENTS.md, testing.md, the existing README and manual QA checklist.
+- **AI output (summary):** added docs/DEMO_SCRIPT.md with the recording setup, brand/native/simulated scenarios, and honest device-performance limits. Preserved the developer's uncommitted README and appendix drafts.
+- **Assumptions & risks flagged by the agent:** the script is a recording plan, not evidence that manual QA has been performed.
+- **Corrections made (AI suggestion → problem → correction):** README linked a demo script that did not exist, making the documentation test fail → added the actual script instead of weakening the test.
+- **Developer review:** approved the complete review-fix plan before implementation.
+- **Result:** 825 Dart tests pass; flutter analyze has zero issues; Dart formatting passes. Commit: docs: add the missing demo recording script.
+
+---
