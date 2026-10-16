@@ -28,7 +28,7 @@ android/app/src/test/kotlin/…    JVM tests for pure Kotlin logic (RootDetector
 | Data | Repository maps DTO → entity, and exceptions → the correct `Failure`. Platform data source uses `TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(...)`, covering success, `PlatformException`, `MissingPluginException` → `unknown`, and malformed payloads. |
 | Presentation | Each notifier through `ProviderContainer.test(overrides: [...])`, with the use-case (or repository) providers overridden by fakes or mocks. Record states with `container.listen(provider, (_, next) => states.add(next), fireImmediately: true)` and assert the sealed state sequence for success, failure and security-blocked flows. Key widgets: the correct section set per config, `SecureScreen` calling enable/disable on push/pop. |
 | Brands | One parametrised test loops over `BrandRegistry.all` and pumps the payment page for each brand. It asserts the page renders, the required `ThemeExtension`s are registered, and the declared sections appear. Brand #3 is covered automatically. |
-| Performance | A frame-pumping test that asserts no rebuilds of the page or a sibling widget during the scan animation (see the performance rules). |
+| Performance | A frame-pumping test that asserts no rebuilds (`rebuiltDuring`) and no repaint outside the scan's layer (repaint-boundary paint counters, a probe painter) during the scan animation (see the performance rules). Frame timing on a device is `integration_test/scan_performance_test.dart`, run by hand with `flutter drive --profile --no-dds`; it is not part of `flutter test`. |
 | Kotlin | `RootDetector` with fake checks/filesystem. `SecureWindowController` ref-counting. Progress throttling logic. |
 
 ## Rules

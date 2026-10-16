@@ -26,7 +26,7 @@ Backend: none. Payment APIs are simulated behind the same interfaces a real back
 | Native bridge | `MethodChannel` for commands, `EventChannel` for streams |
 | Kotlin async | `kotlinx.coroutines` scoped to a lifecycle — never `GlobalScope` |
 | Lints | `flutter_lints` + strict analyzer modes and extra rules, already configured in `analysis_options.yaml` |
-| Testing | `flutter_test`, `mocktail` (dev only), `fake_async` (dev only, for time-based tests of pure Dart), `ProviderContainer.test()` / `ProviderScope(overrides:)` |
+| Testing | `flutter_test`, `mocktail` (dev only), `fake_async` (dev only, for time-based tests of pure Dart), `integration_test` (Flutter SDK package, dev only: frame timing on a device, run by hand with `flutter drive`, not part of `flutter test`), `ProviderContainer.test()` / `ProviderScope(overrides:)` |
 
 Never add a package that is not in this table without asking first: name it, give a one-line reason, and offer an alternative that needs no package.
 
@@ -72,6 +72,7 @@ lib/
 android/app/src/main/kotlin/<package>/
   MainActivity.kt           # wiring only
   security/  payment/  bridge/
+integration_test/ test_driver/   # on-device frame timing of the security scan (flutter drive --profile)
 ```
 
 Allowed imports:

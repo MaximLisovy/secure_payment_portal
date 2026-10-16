@@ -10,16 +10,19 @@ Target: the Security Scanning animation runs at the display's refresh rate (60/1
 ## 1. Architecture of an animated painter
 
 ```
-SecurityScanIndicator (StatefulWidget, SingleTickerProviderStateMixin)
-└── RepaintBoundary                       ← isolates the layer
-    └── CustomPaint(
-          painter: SecurityScanPainter(   ← receives the Animation itself
-            animation: _controller,
-            style: ScanStyle.from(context.brandColors),   ← tokens, resolved in build
-          ),
-          willChange: true,               ← continuously animating: skip raster caching
-        )
+SecurityScanIndicator (stateless: AnimatedSwitcher scan ⇄ verdict icon, one box for all states)
+└── ScanAnimation (StatefulWidget, SingleTickerProviderStateMixin: owns the one ticker)
+    └── Stack
+        ├── RepaintBoundary ─ CustomPaint(ScanBackdropPainter, isComplex: true)   ← still layer
+        └── RepaintBoundary ─ CustomPaint(                                         ← moving layer
+              painter: SecurityScanPainter(
+                animation: _controller,   ← receives the Animation itself
+                style: ScanStyle.from(colors, motion),   ← tokens, resolved in didChangeDependencies
+              ),
+              willChange: true,           ← continuously animating: skip raster caching
+            )
 ```
+(`lib/core/design_system/scan/`. The painters are created again only when the brand's tokens change, never on a rebuild. Reduced motion parks the controller on a still pose and starts no ticker.)
 
 - The painter extends `CustomPainter` with `super(repaint: animation)`. Each tick calls `markNeedsPaint` only, with **no `build`, no layout**. Never call `setState` per frame, and never wrap large subtrees in `AnimatedBuilder` (if you do need one, pass the static part as `child`).
 - `shouldRepaint` compares only the static config (style/colors/params). The animation is handled by `repaint`.
@@ -69,3 +72,11 @@ SecurityScanIndicator (StatefulWidget, SingleTickerProviderStateMixin)
 - In debug, check `debugRepaintRainbowEnabled = true`: only the scan layer should change color. Turn on "Track widget rebuilds" and confirm no rebuilds per frame.
 - Add a widget test: pump the payment page, advance about 1 s of frames, and assert that a build counter on a sibling widget and on the page did **not** increase.
 - Write the measured numbers (avg/worst frame build and raster time per brand) into `docs/ai/AI_INSIGHT_REPORT.md` when you finalise.
+
+### How this repository proves it
+
+- **Zero rebuilds:** `rebuiltDuring` (`test/helpers/rebuild_tracker.dart`, over `debugOnRebuildDirtyWidget`) around 60 frames of the scan returns an empty list.
+- **Isolated repaints:** `RenderRepaintBoundary.debugAsymmetricPaintCount` of the moving layer rises once per frame, its `debugSymmetricPaintCount` and the still layer's and the page layer's counts do not move, and a probe `CustomPainter` next to the scan is not painted. (`debugOnProfilePaint` does not see a boundary repainting by itself; the boundary counters do.)
+- **No allocation, no expensive ops:** a recording canvas (`TestRecordingCanvas`) shows only palette colours and no `saveLayer`, clip, shadow or blur; geometry and the sweep shader are built once (counters). A leaky `paint()` would also show as hundreds of new-generation GCs in the frame timing run.
+- **Frame timing:** `integration_test/scan_performance_test.dart`, run with `flutter drive --profile --no-dds` (see its header). `--no-dds` is required: the test connects to the VM service itself.
+- **Mutation checks:** remove a `RepaintBoundary`, add a `setState` per tick, make `shouldRepaint` always true, rebuild the shader per frame: each must fail a test.
