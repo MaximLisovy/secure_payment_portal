@@ -81,8 +81,9 @@ class SecureWindowNotifier extends Notifier<SecureWindowState> {
           state = _enabled
               ? const SecureWindowProtected()
               : const SecureWindowIdle();
+          return;
         }
-        return;
+        continue;
       }
       var answered = false;
       final answer = wanted ? controller.enable() : controller.disable();

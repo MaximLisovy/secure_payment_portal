@@ -26,6 +26,23 @@ import '../helpers/gated_secure_window_controller.dart';
 
 void main() {
   group('SecureWindowNotifier', () {
+    test('replacement after a failed enable is still reconciled', () async {
+      final fake = FakeSecurityPlatformDataSource()
+        ..setScreenProtectionAvailable(available: false);
+      final (:container, :notifier) = _setup(fake);
+      await notifier.acquire();
+      fake.setScreenProtectionAvailable(available: true);
+      final releasing = notifier.release();
+      final acquiring = notifier.acquire();
+      await Future.wait([releasing, acquiring]);
+      expect(fake.secureWindowCount, 1);
+      expect(
+        container.read(secureWindowProvider),
+        const SecureWindowProtected(),
+      );
+      await notifier.release();
+    });
+
     test(
       'an acquire during disable waits and protects the new holder',
       () async {

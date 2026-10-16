@@ -284,3 +284,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** format and analyze pass; all 831 Dart tests pass. Commit: fix: protect domain entities from collection mutation.
 
 ---
+
+### 12. Reconcile replacement holders after an enable failure — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** cover a replacement screen arriving while a no-op release reconciliation is completing.
+- **Prompt (key part, verbatim):**
+  > да, погнали
+- **Context given:** the approved fix plan, secure-window ownership tests and follow-up self-review.
+- **AI output (summary):** reconciliation checks desired ownership again after its deferred no-op state update, and continues to enable if a new holder arrived. Added a failed-enable → overlapping release/acquire regression.
+- **Assumptions & risks flagged by the agent:** failed native operations still report typed failure; no newer Android API was introduced.
+- **Corrections made (AI suggestion → problem → correction):** the first serialized reconciliation could return after a holder changed during its no-op await → continue reconciliation until the current desired ownership is applied.
+- **Developer review:** covered by the approved review-fix plan.
+- **Result:** formatting, zero-issue analysis, all 844 Dart tests and both debug APKs pass. Commit: fix: reconcile replacement holders after protection failure.
+
+---
