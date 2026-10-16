@@ -55,6 +55,19 @@ void main() {
       expect(status, SecurityStatus.unknown);
     });
 
+    test('unknown confidence retains weak signals immutably', () {
+      final root =
+          SecurityStatusMapper.toEntity(
+                _dto(
+                  root: DetectionWire.unknown,
+                  signals: [RootReasonCodes.testKeys],
+                ),
+              ).root
+              as RootUnknown;
+      expect(root.signals, {RootSignal.testKeys});
+      expect(() => root.signals.clear(), throwsUnsupportedError);
+    });
+
     test('maps a detected recording', () {
       final status = SecurityStatusMapper.toEntity(
         _dto(recording: DetectionWire.detected),
@@ -91,15 +104,6 @@ void main() {
       expect(
         () => SecurityStatusMapper.toEntity(
           _dto(signals: [RootReasonCodes.suBinary]),
-        ),
-        _malformed,
-      );
-      expect(
-        () => SecurityStatusMapper.toEntity(
-          _dto(
-            root: DetectionWire.unknown,
-            signals: [RootReasonCodes.suBinary],
-          ),
         ),
         _malformed,
       );

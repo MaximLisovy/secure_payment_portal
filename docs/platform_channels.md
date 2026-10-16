@@ -60,7 +60,7 @@ Flat maps of primitives with explicit keys. Every payload carries `schemaVersion
 |---|---|---|
 | `schemaVersion` | int | `2` |
 | `root` | string | `detected`, `notDetected` or `unknown` |
-| `rootSignals` | list of string | reason codes that fired. **Non-empty exactly when `root` is `detected`.** |
+| `rootSignals` | list of string | observed reason codes, independent of confidence: required for `detected`, permitted for `unknown`, empty for `notDetected`. |
 | `screenRecording` | string | `detected` (a recording is in progress), `notDetected` or `unknown` |
 | `windowProtection` | string | `active` (the window is hidden from capture right now), `inactive` or `unknown`. Reported from the real window state, not from what the app asked for. |
 
@@ -69,14 +69,14 @@ Root reason codes: `su_binary`, `magisk_artifacts`, `root_manager_package`,
 `Build.TYPE` is `userdebug` or `eng`; the `ro.debuggable` / `ro.secure` properties are
 not used because an app cannot read them (see the device notes below).
 
-`root` is `unknown` only when **every** check was inconclusive (none could run, or
-there were none); a check that throws or times out is inconclusive and does not
-affect the others. One flaky optional check therefore never makes a device
-unverifiable on its own. A code the app does
-not know is treated as a strong signal, never dropped, so Kotlin may add checks
-without a Dart release. A payload that contradicts itself (detected without a
-signal, signals without detected) is rejected, and the app then treats the
-status as unknown.
+A fired strong probe gives `detected`. Otherwise, confidence requires every configured strong
+probe to be conclusive; an inconclusive strong probe (or no strong probes) gives `unknown`,
+retaining any weak signals. With confidence established, weak-only signals give `detected`
+and no signals give `notDetected`. Weak probes may be inconclusive without blocking.
+This is deliberately monotone: adding a signal or losing a conclusive result cannot make
+payment more permissive, including when a formerly fired strong probe becomes inconclusive.
+A code Dart does not know counts as strong. Detected without a signal, or notDetected with
+signals, is malformed; unknown with signals is valid and remains fail-closed by default.
 
 ### Screen recording event
 
@@ -397,8 +397,8 @@ mapping failures become typed failures for reads, an unknown start/snapshot outc
 or an unscoped uncertainty event for an active progress stream; they never fabricate
 a payment decline. Both notifier subscriptions handle stream errors explicitly.
 
-Root aggregation returns `notDetected` only when no signal fires and at least one
-strong probe completes cleanly. Clean build tags/type alone yield `unknown`.
+Root aggregation returns `notDetected` only when no signal fires and all configured
+strong probes complete cleanly. Incomplete strong confidence yields `unknown` even with weak signals.
 `File.exists` cannot distinguish absent from inaccessible; counting false as a
 clean file check favors availability and may miss hidden root artifacts. The UI
 therefore says “No root indicators found”, not that the device is verified.
@@ -433,10 +433,10 @@ unanswered, and bounded Dart command deadlines handle unavailable replies.
 
 - **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
   `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
-  when no signal fired and no strong check completed cleanly. Clean build tags/type alone are insufficient.
+  when strong-check confidence is incomplete and no strong signal fired. Weak signals cannot upgrade confidence.
   These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
-  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring a strong clean check
-  can also block legitimate devices when all strong probes are inconclusive.
+  so a false result is treated as clean for availability and may miss hidden artifacts. Requiring conclusive strong checks
+  can also block legitimate devices when a strong probe is inconclusive.
 - **Screen recording.** From API 35, the callback reports whether this app is visible in a recording, rather than whether
   any recorder is active. Below API 35 it is `unknown` (the policy allows it). This only partially meets the brief's
   “detect an active recorder” requirement; it cannot prove that no recorder is running.
@@ -461,7 +461,8 @@ Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `l
 | Device state | Decision |
 |---|---|
 | a strong root signal (su binary, Magisk, root manager) | blocked |
-| only weak root signals (test keys, debuggable build) | allowed |
+| only weak root signals, with all strong checks conclusive | allowed |
+| weak signals with incomplete strong confidence | blocked (unknown) |
 | root could not be verified | blocked (fail-closed) |
 | app reported visible in a recording (API 35+) | blocked; lifts when the recording ends |
 | screen recording state unknown (below Android 15) | allowed |

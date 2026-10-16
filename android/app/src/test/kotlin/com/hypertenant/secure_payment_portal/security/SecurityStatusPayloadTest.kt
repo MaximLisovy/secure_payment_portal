@@ -41,6 +41,15 @@ class SecurityStatusPayloadTest {
     }
 
     @Test
+    fun unknownConfidenceRetainsObservedWeakSignals() {
+        val payload = SecurityStatusPayload.status(
+            RootReport(Detection.UNKNOWN, listOf("test_keys")), Detection.UNKNOWN, WindowProtection.ACTIVE,
+        )
+        assertEquals("unknown", payload["root"])
+        assertEquals(listOf("test_keys"), payload["rootSignals"])
+    }
+
+    @Test
     fun aRecordingEventHasTheDocumentedShape() {
         assertEquals(
             mapOf("schemaVersion" to 2, "screenRecording" to "detected"),
@@ -60,8 +69,7 @@ class SecurityStatusPayloadTest {
         )
     }
 
-    // The contract: signals are present exactly when root is detected. Dart rejects a payload that
-    // breaks it, so the type must make it impossible to build one.
+    // Confidence is independent of signals; only clear/detected constrain their presence.
     @Test
     fun aReportThatBreaksTheSignalsRuleCannotBeBuilt() {
         assertThrows(IllegalArgumentException::class.java) {
@@ -70,8 +78,6 @@ class SecurityStatusPayloadTest {
         assertThrows(IllegalArgumentException::class.java) {
             RootReport(Detection.NOT_DETECTED, listOf("su_binary"))
         }
-        assertThrows(IllegalArgumentException::class.java) {
-            RootReport(Detection.UNKNOWN, listOf("su_binary"))
-        }
+
     }
 }

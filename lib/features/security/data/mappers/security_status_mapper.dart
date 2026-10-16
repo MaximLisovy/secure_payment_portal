@@ -67,8 +67,7 @@ abstract final class SecurityStatusMapper {
         _requireNoSignals(codes);
         return const RootClear();
       case Detection.unknown:
-        _requireNoSignals(codes);
-        return const RootUnknown();
+        return RootUnknown.withSignals(codes.map(rootSignalFromCode).toSet());
     }
   }
 

@@ -27,9 +27,12 @@ data class RootReport(
     val inconclusive: List<String> = emptyList(),
 ) {
     init {
-        // The wire contract: signals are present exactly when root is detected.
-        require((state == Detection.DETECTED) == signals.isNotEmpty()) {
-            "signals must be non-empty exactly when root is detected"
+        // Confidence and observed signals are independent: UNKNOWN may retain signals.
+        require(state != Detection.DETECTED || signals.isNotEmpty()) {
+            "detected root must name a signal"
+        }
+        require(state != Detection.NOT_DETECTED || signals.isEmpty()) {
+            "not-detected root cannot contain signals"
         }
     }
 }
@@ -37,13 +40,15 @@ data class RootReport(
 /**
  * Runs the checks together, off the main thread, and combines them.
  *
- * - any check fired → `DETECTED`, with the codes of those that did, in the order of [checks];
- * - otherwise, if at least one strong check ran to a clean result → `NOT_DETECTED`;
- * - otherwise (no check could run, or there are none) → `UNKNOWN`.
+ * - a strong check fired → `DETECTED`;
+ * - otherwise, any inconclusive strong check (or no strong checks) → `UNKNOWN`;
+ * - otherwise, weak signals fired → `DETECTED`, or no signals → `NOT_DETECTED`.
+ * Fired signals are retained independently of confidence, in the order of [checks].
  *
  * A check that throws, or does not finish within [perCheckTimeoutMillis], counts as inconclusive and
  * never takes the others down. A clean weak check (build tags/type) is insufficient:
- * when no strong check completes conclusively, an otherwise clean result is UNKNOWN.
+ * every configured strong check must be conclusive before a weak-only or clear verdict
+ * can be allowed. Losing a fired strong result must not make a blocked device allowed.
  * This may block a legitimate device whose strong probes are all unavailable.
  *
  * Probes run concurrently in a detector-owned IO scope, outside the awaiting scope.
@@ -69,12 +74,14 @@ class RootDetector(
         val outcomes =
             coroutineScope { checks.map { check -> async { runOne(check) } }.awaitAll() }
         val fired = checks.zip(outcomes).filter { (_, outcome) -> outcome == CheckOutcome.Fired }
-        val state =
-            when {
-                fired.isNotEmpty() -> Detection.DETECTED
-                checks.zip(outcomes).any { (check, outcome) -> check.isStrong && outcome == CheckOutcome.Clear } -> Detection.NOT_DETECTED
-                else -> Detection.UNKNOWN
-            }
+        val strong = checks.zip(outcomes).filter { (check, _) -> check.isStrong }
+        val conclusive = strong.isNotEmpty() && strong.none { (_, outcome) -> outcome == CheckOutcome.Inconclusive }
+        val state = when {
+            fired.any { (check, _) -> check.isStrong } -> Detection.DETECTED
+            !conclusive -> Detection.UNKNOWN
+            fired.isNotEmpty() -> Detection.DETECTED
+            else -> Detection.NOT_DETECTED
+        }
         val inconclusive =
             checks.zip(outcomes).filter { (_, outcome) -> outcome == CheckOutcome.Inconclusive }
         return RootReport(

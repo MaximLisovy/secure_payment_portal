@@ -29,7 +29,8 @@ final class SecurityStatusDto extends Equatable {
   /// A [DetectionWire] value.
   final String root;
 
-  /// Reason codes ([RootReasonCodes]); non-empty exactly when [root] is detected.
+  /// Observed reason codes ([RootReasonCodes]), independent of confidence.
+  /// Detected requires signals; unknown may retain them; notDetected has none.
   final List<String> rootSignals;
 
   /// A [DetectionWire] value.

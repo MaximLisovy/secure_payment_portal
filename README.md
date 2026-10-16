@@ -114,7 +114,7 @@ provides at-most-one reply on the main thread. Engine detach can abandon a call 
 command deadlines. Channel names, payloads and errors are mirrored and tested across languages.
 
 - **Root heuristics:** six concurrent probes check binaries, artifacts, packages, `which su`, test keys and build type.
-  A clean verdict needs a conclusive strong check; weak signals alone are allowed, while unverifiable root is blocked.
+  A clean verdict needs all strong checks conclusive; weak-only signals are allowed with that confidence. Unknown blocks.
   Awaiting probes has a deadline even when an OS call remains blocked.
 - **Recording visibility:** API 35+ reports whether this app is visible in a recording. Unknown recording state below API
   35 is allowed; positive visibility blocks confirmation. This cannot detect every active recorder.

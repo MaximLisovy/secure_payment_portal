@@ -9,7 +9,8 @@ import 'package:secure_payment_portal/features/security/domain/security_status.d
 /// can try again, and last a recording, which can end on its own.
 ///
 /// Defaults: strong root signals block, weak ones (test keys, debuggable
-/// builds, common on emulators) do not; an unverifiable root blocks
+/// builds, common on emulators) do not when strong-check confidence is complete;
+/// an unverifiable root retains its weak signals and blocks
 /// (fail-closed); a window that is not verifiably protected blocks, for the same
 /// reason; a detected recording blocks; an unverifiable recording does not
 /// (there is no API for it below Android 15, and the window is protected).

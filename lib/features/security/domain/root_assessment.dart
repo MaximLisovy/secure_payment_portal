@@ -6,8 +6,8 @@ sealed class RootAssessment extends Equatable {
   const RootAssessment();
 }
 
-/// At least one heuristic fired. [signals] says which, so the policy decides
-/// whether they are enough.
+/// A strong signal fired, or all strong checks were conclusive and weak signals
+/// fired. [signals] preserves observations independently of their policy weight.
 final class RootDetected extends RootAssessment {
   RootDetected(Set<RootSignal> signals) : signals = Set.unmodifiable(signals);
 
@@ -17,7 +17,8 @@ final class RootDetected extends RootAssessment {
   List<Object?> get props => [signals];
 }
 
-/// Every check ran and none fired.
+/// All configured strong checks completed cleanly and no signals fired.
+/// Weak checks may be inconclusive; this is heuristic confidence, not attestation.
 final class RootClear extends RootAssessment {
   const RootClear();
 
@@ -25,10 +26,16 @@ final class RootClear extends RootAssessment {
   List<Object?> get props => [];
 }
 
-/// The checks could not run or could not be trusted (a failed call, iOS).
+/// Strong-check confidence is incomplete (or the platform call failed).
+/// Observed weak signals do not upgrade this uncertainty to a permitted verdict.
 final class RootUnknown extends RootAssessment {
-  const RootUnknown();
+  const RootUnknown() : signals = const {};
+
+  RootUnknown.withSignals(Set<RootSignal> signals)
+    : signals = Set.unmodifiable(signals);
+
+  final Set<RootSignal> signals;
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [signals];
 }

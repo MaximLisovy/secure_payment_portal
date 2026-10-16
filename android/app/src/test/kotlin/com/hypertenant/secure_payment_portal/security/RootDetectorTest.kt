@@ -50,6 +50,40 @@ class RootDetectorTest {
             onCheckFailed = { code, error -> failures += "$code:${error.javaClass.simpleName}" },
         ).also { detectors += it }
 
+    @Test
+    fun allProbeCombinationsPreserveConfidenceAndMonotonicEligibility() = runTest {
+        val outcomes = listOf(CheckOutcome.Clear, CheckOutcome.Fired, CheckOutcome.Inconclusive)
+        val reports = (0 until 729).associateWith { encoded ->
+            var remaining = encoded
+            val checks = (0 until 6).map { index ->
+                val result = outcomes[remaining % 3]
+                remaining /= 3
+                FakeCheck("probe-$index", result).also { it.isStrong = index < 4 }
+            }
+            detector(*checks.toTypedArray()).detect()
+        }
+        fun allowed(report: RootReport) = report.state != Detection.UNKNOWN &&
+            report.signals.none { it.removePrefix("probe-").toInt() < 4 }
+        for ((encoded, report) in reports) {
+            for (index in 0 until 6) {
+                val place = Math.pow(3.0, index.toDouble()).toInt()
+                val outcome = encoded / place % 3
+                // Adding a signal, or losing either kind of conclusive result.
+                val changes = if (outcome == 2) listOf(1) else listOf(1, 2)
+                for (changed in changes) {
+                    val next = reports.getValue(encoded + (changed - outcome) * place)
+                    assertFalse("$encoded -> ${encoded + (changed - outcome) * place}",
+                        !allowed(report) && allowed(next))
+                }
+            }
+            if (report.state == Detection.DETECTED && report.signals.all {
+                it.removePrefix("probe-").toInt() >= 4
+            }) {
+                assertTrue((0 until 4).all { index -> encoded / Math.pow(3.0, index.toDouble()).toInt() % 3 != 2 })
+            }
+        }
+    }
+
     @Test(timeout = 5_000)
     fun aTrulyBlockingProbeDoesNotExtendTheAwaitDeadline() = runBlocking {
         val entered = CountDownLatch(1)
@@ -98,8 +132,8 @@ class RootDetectorTest {
     }
 
     @Test
-    fun oneConclusiveStrongCheckSufficesEvenWhenOthersCannotRun() = runTest {
-        assertEquals(Detection.NOT_DETECTED, detector(
+    fun oneConclusiveStrongCheckCannotHideAnotherInconclusiveStrongCheck() = runTest {
+        assertEquals(Detection.UNKNOWN, detector(
             FakeCheck("strong", CheckOutcome.Clear),
             FakeCheck("unavailable", CheckOutcome.Inconclusive),
             FakeCheck("weak", CheckOutcome.Clear).also { it.isStrong = false },
@@ -132,7 +166,7 @@ class RootDetectorTest {
     }
 
     @Test
-    fun oneInconclusiveCheckAmongCleanOnesDoesNotMakeItUnknown() = runTest {
+    fun oneInconclusiveStrongCheckAmongCleanOnesIsUnknown() = runTest {
         val report =
             detector(
                     FakeCheck("which", CheckOutcome.Inconclusive),
@@ -140,7 +174,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(Detection.NOT_DETECTED, report.state)
+        assertEquals(Detection.UNKNOWN, report.state)
     }
 
     @Test
@@ -205,7 +239,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList(), listOf("hangs")), report)
+        assertEquals(RootReport(Detection.UNKNOWN, emptyList(), listOf("hangs")), report)
         assertEquals(2_000L, testScheduler.currentTime)
     }
 
@@ -261,7 +295,7 @@ class RootDetectorTest {
                 )
                 .detect()
 
-        assertEquals(RootReport(Detection.NOT_DETECTED, emptyList(), listOf("inner")), report)
+        assertEquals(RootReport(Detection.UNKNOWN, emptyList(), listOf("inner")), report)
         assertEquals(listOf("inner:TimeoutCancellationException"), failures)
     }
 }
