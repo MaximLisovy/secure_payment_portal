@@ -28,7 +28,7 @@ env:
 jobs:
   brands:
     name: Read the brands
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.read.outputs.matrix }}
@@ -44,7 +44,7 @@ jobs:
 
   verify:
     name: Format, analyze, test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,7 +75,7 @@ jobs:
   build:
     name: Release APK (${{ matrix.brand }})
     needs: [brands, verify]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
