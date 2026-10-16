@@ -83,6 +83,8 @@ final class NativePaymentSimulator {
 
   bool get hasListener => _sink != null;
 
+  void endEvents() => _sink?.endOfStream();
+
   void sendRaw(Object? event) => _sink?.success(event);
 
   void sendError() => _sink?.error(code: 'BOOM', message: nativeCanary);

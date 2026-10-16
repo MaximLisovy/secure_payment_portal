@@ -470,3 +470,14 @@ Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `l
 
 Weak signals are common on emulators and developer builds, so they do not block on their own. Each of these choices is a
 constructor flag on the policy.
+
+### Accepted-attempt liveness
+
+While processing or awaiting cancellation, a five-second watchdog is renewed only by matching
+progress. Native progress normally advances every 400 ms; this allows transport jitter while
+bounding silence. Silence or stream completion enters checking status and reuses the immediate
+snapshot query and bounded backoff. The channel adapter forwards completion to existing listeners
+and opens a fresh native subscription for a later flow. A successful cancel reply without a
+terminal event also queries snapshots immediately: command success alone does not prove cancellation.
+Terminal events, disposal and replacement cancel the watchdog; reconciliation retains the same
+attempt and withholds retry until a matching terminal outcome is known.

@@ -12,6 +12,7 @@ import 'package:secure_payment_portal/features/payment/domain/payment_failures.d
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_repository.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_result.dart';
+import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_notifier.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_providers.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_reconciliation.dart';
@@ -60,6 +61,7 @@ class _Payments implements PaymentRepository {
   Completer<Result<void>>? preparation;
   Completer<Result<void>>? acceptance;
   Result<void> cancellation = Success.unit;
+  Completer<Result<void>>? cancellationAnswer;
   Result<void>? startAnswer;
   Result<PaymentProgress> snapshot = const Success(PaymentIdle());
   Completer<Result<PaymentProgress>>? snapshotAnswer;
@@ -79,7 +81,7 @@ class _Payments implements PaymentRepository {
   @override
   Future<Result<void>> cancelPayment({required String attemptId}) async {
     cancels.add(attemptId);
-    return cancellation;
+    return cancellationAnswer?.future ?? cancellation;
   }
 
   @override
@@ -126,6 +128,93 @@ ProviderContainer _container(
 }
 
 void main() {
+  for (final trigger in [
+    'processing silence',
+    'cancelling silence',
+    'native completion',
+    'cancel acknowledged',
+  ]) {
+    test(
+      '$trigger reconciles the accepted attempt and resolves its snapshot',
+      () {
+        fakeAsync((async) {
+          final payments = _Payments();
+          final container = _container(_Security(), payments);
+          final flow = container.read(paymentFlowProvider.notifier)
+            ..begin(sampleDetails);
+          async.flushMicrotasks();
+          unawaited(flow.confirm());
+          async.flushMicrotasks();
+          expect(flow.state, const PaymentFlowProcessing(percent: 0));
+          if (trigger == 'cancelling silence') {
+            payments.cancellationAnswer = Completer<Result<void>>();
+            unawaited(flow.cancel());
+            async.flushMicrotasks();
+            expect(
+              (flow.state as PaymentFlowProcessing).cancelRequested,
+              isTrue,
+            );
+          }
+          if (trigger == 'native completion') {
+            unawaited(payments.progress.close());
+          } else if (trigger == 'cancel acknowledged') {
+            unawaited(flow.cancel());
+          } else {
+            async.elapse(
+              paymentProgressSilenceDeadline - const Duration(milliseconds: 1),
+            );
+            expect(payments.snapshots, isEmpty);
+            async.elapse(const Duration(milliseconds: 1));
+          }
+          async.flushMicrotasks();
+          expect(flow.state, isA<PaymentFlowCheckingStatus>());
+          expect(payments.snapshots, ['attempt-1']);
+          payments.snapshot = const Success(
+            PaymentCancelled(paymentId: 'bill-1', attemptId: 'attempt-1'),
+          );
+          async.elapse(const Duration(milliseconds: 250));
+          expect(flow.state, const PaymentFlowCancelled());
+          payments.cancellationAnswer?.complete(Success.unit);
+          async.flushMicrotasks();
+          container.dispose();
+          async.flushMicrotasks();
+          expectNoPendingTimers(async);
+        });
+      },
+    );
+  }
+
+  test(
+    'matching progress renews the watchdog; stale progress cannot renew it',
+    () {
+      fakeAsync((async) {
+        final payments = _Payments();
+        final container = _container(_Security(), payments);
+        final flow = container.read(paymentFlowProvider.notifier)
+          ..begin(sampleDetails);
+        async.flushMicrotasks();
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 4));
+        payments.progress.add(
+          const PaymentInProgress('bill-1', 50, attemptId: 'attempt-1'),
+        );
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 4));
+        expect(flow.state, isA<PaymentFlowProcessing>());
+        payments.progress.add(
+          const PaymentInProgress('bill-1', 99, attemptId: 'stale'),
+        );
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+        expect(flow.state, isA<PaymentFlowCheckingStatus>());
+        container.dispose();
+        async.flushMicrotasks();
+        expectNoPendingTimers(async);
+      });
+    },
+  );
+
   test(
     'restart cannot overwrite a new attempt after its secure-window await',
     () {

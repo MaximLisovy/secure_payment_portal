@@ -64,6 +64,29 @@ void main() {
     completionTime: const Duration(milliseconds: 500),
   );
 
+  test(
+    'native completion reaches listeners and a later listener reopens',
+    () async {
+      final native = _service();
+      final source = _source();
+      var done = false;
+      source.watchProgress().listen((_) {}, onDone: () => done = true);
+      await pumpEventQueue();
+      native.endEvents();
+      await pumpEventQueue();
+      expect(done, isTrue);
+      // Flutter's mock owns one controller per installation; replace its closed
+      // controller to model the next native onListen sink.
+      final reopened = _service();
+      final seen = <PaymentProgressDto>[];
+      final subscription = source.watchProgress().listen(seen.add);
+      await pumpEventQueue();
+      expect(reopened.listens, 1);
+      expect(seen, [PaymentProgressDto.idle]);
+      await subscription.cancel();
+    },
+  );
+
   group('ChannelPaymentPlatformDataSource', () {
     group('startPayment and the notification permission', () {
       test('asks for the permission first, then starts', () {

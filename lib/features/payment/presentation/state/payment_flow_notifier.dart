@@ -18,6 +18,9 @@ import 'package:secure_payment_portal/features/security/security.dart';
 // leaving platforms with no plugin scanning indefinitely.
 const paymentStartupFirstEventDeadline = Duration(seconds: 5);
 
+// Native progress advances every 400 ms; 5 s allows transport jitter but bounds a stalled accepted attempt.
+const paymentProgressSilenceDeadline = Duration(seconds: 5);
+
 /// Owns one bill and one payment attempt at a time. Side effects live in methods.
 /// A changed bill or disposal invalidates confirmation before it can start work.
 /// Only matching attempt events may advance processing; an acceptance error is
@@ -32,6 +35,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
   Timer? _startupDeadline;
+  Timer? _progressWatchdog;
   int _confirmationGeneration = 0;
   PaymentConfirmationCancellation? _confirmationCancellation;
   String? _activeAttemptId;
@@ -102,6 +106,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
         // The progress stream usually got there first.
         if (state is PaymentFlowConfirming) {
           state = const PaymentFlowProcessing(percent: 0);
+          _watchProgress();
         }
       case Err<void>(:final failure):
         final current = state;
@@ -119,8 +124,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
           _checkPaymentStatus();
           return;
         }
-        _reconciliation.stop();
-        _activeAttemptId = null;
+        _finishAttempt();
         state = switch (failure) {
           SecurityBlockedFailure(:final reason) => PaymentFlowBlocked(reason),
           _ => PaymentFlowFailure(failure),
@@ -150,8 +154,10 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     if (!ref.mounted || _activeAttemptId != attemptId) return;
     if (result is Err<void>) {
       _setCancellation(requested: false, failure: result.failure);
-      _checkPaymentStatus();
     }
+    // A successful command is not a terminal outcome; query the native store
+    // if the stream has not already confirmed cancellation or completion.
+    _checkPaymentStatus();
   }
 
   void _setCancellation({required bool requested, Failure? failure}) {
@@ -276,6 +282,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
       case PaymentInProgress(:final percent):
         if (state is PaymentFlowCheckingStatus) return;
         final current = state;
+        _watchProgress();
         state = PaymentFlowProcessing(
           percent: percent,
           cancelRequested:
@@ -296,9 +303,18 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     }
   }
 
+  void _watchProgress() {
+    _progressWatchdog?.cancel();
+    _progressWatchdog = Timer(
+      paymentProgressSilenceDeadline,
+      _checkPaymentStatus,
+    );
+  }
+
   void _checkPaymentStatus() {
     final attemptId = _activeAttemptId;
     if (attemptId == null || state is PaymentFlowCheckingStatus) return;
+    _progressWatchdog?.cancel();
     final current = state;
     state = PaymentFlowCheckingStatus(
       cancelRequested:
@@ -321,6 +337,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _finishAttempt() {
+    _progressWatchdog?.cancel();
     _reconciliation.stop();
     _activeAttemptId = null;
   }
@@ -339,6 +356,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
           when paymentId == billId:
         _activeAttemptId = progress.attemptId;
         state = PaymentFlowProcessing(percent: percent);
+        _watchProgress();
       case PaymentSucceeded(:final result) when result.paymentId == billId:
         // Restore the receipt; repeating a demo bill is an explicit user action.
         state = PaymentFlowSuccess(result);
@@ -349,6 +367,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   }
 
   void _stopListening() {
+    _progressWatchdog?.cancel();
+    _progressWatchdog = null;
     _startupDeadline?.cancel();
     _startupDeadline = null;
     _awaitingFirstProgress = false;

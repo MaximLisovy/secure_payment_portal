@@ -41,11 +41,7 @@ final class ChannelPaymentPlatformDataSource
   }) : _methods = methods,
        _progressEvents = progressEvents,
        _logger = logger {
-    _progress = ReplayLatest<PaymentProgressDto>.empty(
-      onFirstListener: _openNative,
-      onLastCancel: _closeNative,
-      forgetOnLastCancel: true,
-    );
+    _progress = _newProgress();
   }
 
   final MethodChannel _methods;
@@ -55,7 +51,7 @@ final class ChannelPaymentPlatformDataSource
   /// How long a method call may take before it counts as unavailable.
   final Duration callTimeout;
 
-  late final ReplayLatest<PaymentProgressDto> _progress;
+  late ReplayLatest<PaymentProgressDto> _progress;
   StreamSubscription<Object?>? _native;
 
   @override
@@ -136,6 +132,21 @@ final class ChannelPaymentPlatformDataSource
     }
   }
 
+  ReplayLatest<PaymentProgressDto> _newProgress() => ReplayLatest.empty(
+    onFirstListener: _openNative,
+    onLastCancel: _closeNative,
+    forgetOnLastCancel: true,
+  );
+
+  void _onNativeDone() {
+    _closeNative();
+    final completed = _progress;
+    // Forward completion to existing listeners; a later flow gets a fresh
+    // native subscription rather than a stale replay from this closed group.
+    _progress = _newProgress();
+    unawaited(completed.close());
+  }
+
   void _openNative() {
     _native = _progressEvents.receiveBroadcastStream().listen(
       (event) {
@@ -150,6 +161,7 @@ final class ChannelPaymentPlatformDataSource
           );
         }
       },
+      onDone: _onNativeDone,
       onError: (Object error) {
         _logger.warning(
           'The payment progress events failed '
