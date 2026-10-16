@@ -1,17 +1,17 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_payment_portal/core/strings/app_strings.dart';
 import 'package:secure_payment_portal/features/security/presentation/secure_window_notifier.dart';
+import 'package:secure_payment_portal/features/security/presentation/secure_window_state.dart';
 
 /// Keeps the app window hidden from screenshots, the recents list and screen
 /// recording for as long as [child] is on screen.
 ///
-/// It protects from the first build until it is disposed, not until the route is
-/// covered. A page that is popped stays protected through its pop animation, and
-/// one that another route is pushed over stays protected while that route slides
-/// in, so there is no moment when a sensitive page is visible and unprotected.
-/// Protection that outlives its visibility costs nothing.
+/// The child is mounted only after the platform confirms window protection.
+/// Pending protection shows a neutral placeholder; failure shows a blocked
+/// message. Protection stays acquired until disposal, including route animations.
 class SecureScreen extends ConsumerStatefulWidget {
   const SecureScreen({required this.child, super.key});
 
@@ -38,5 +38,33 @@ class _SecureScreenState extends ConsumerState<SecureScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    final protection = ref.watch(secureWindowProvider);
+    if (protection is SecureWindowProtected) return widget.child;
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                protection is SecureWindowFailed
+                    ? AppStrings.message(
+                        'security.blocked.screen_protection_unavailable',
+                      )
+                    : AppStrings.protectingScreen,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (protection is SecureWindowFailed)
+              TextButton(
+                onPressed: _window.retry,
+                child: const Text(AppStrings.checkAgain),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

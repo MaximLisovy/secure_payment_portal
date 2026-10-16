@@ -7,8 +7,8 @@ import 'package:secure_payment_portal/features/security/security.dart';
 /// The payment confirmation screen. The host passes the title and any app bar
 /// actions: the feature does not know which brand it runs in.
 ///
-/// The whole screen is a [SecureScreen], so the window is protected from the
-/// first frame until the page is gone.
+/// [SecureScreen] withholds the screen until window protection is confirmed,
+/// and retains protection until the page is disposed, including transitions.
 class PaymentConfirmationPage extends ConsumerStatefulWidget {
   const PaymentConfirmationPage({
     required this.title,

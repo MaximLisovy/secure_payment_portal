@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
+import 'package:secure_payment_portal/core/strings/app_strings.dart';
 import 'package:secure_payment_portal/features/security/data/datasources/fake_security_platform_data_source.dart';
 import 'package:secure_payment_portal/features/security/di/security_data_source_providers.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
@@ -65,15 +66,20 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(gate.enables, 1);
-      await tester.pump();
+      expect(find.text('secure'), findsNothing);
+      expect(find.text(AppStrings.protectingScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.text('secure'), findsNothing);
       expect(container.read(secureWindowProvider), const SecureWindowPending());
 
       gate.answer.complete(Success.unit);
+      await tester.pump();
       await tester.pump();
       expect(
         container.read(secureWindowProvider),
         const SecureWindowProtected(),
       );
+      expect(find.text('secure'), findsOneWidget);
     });
 
     testWidgets('releases the window when it leaves the tree', (tester) async {
@@ -193,20 +199,33 @@ void main() {
           ..setScreenProtectionAvailable(available: false);
         await _pump(tester, _secureText, fake: fake);
         final container = ProviderScope.containerOf(
-          tester.element(find.text('secure')),
+          tester.element(find.byType(SecureScreen)),
         );
 
         expect(container.read(secureWindowProvider), isA<SecureWindowFailed>());
         expect(fake.secureWindowCount, 0);
+        expect(find.text('secure'), findsNothing);
+        expect(
+          find.text(
+            AppStrings.message(
+              'security.blocked.screen_protection_unavailable',
+            ),
+          ),
+          findsOneWidget,
+        );
 
         fake.setScreenProtectionAvailable(available: true);
-        await container.read(secureWindowProvider.notifier).retry();
+        await tester.tap(find.text(AppStrings.checkAgain));
+        await tester.pump();
+        await tester.pump();
 
         expect(
           container.read(secureWindowProvider),
           const SecureWindowProtected(),
         );
         expect(fake.secureWindowCount, 1);
+        await tester.pump();
+        expect(find.text('secure'), findsOneWidget);
       },
     );
   });

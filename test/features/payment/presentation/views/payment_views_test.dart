@@ -293,6 +293,9 @@ void main() {
         ],
       );
 
+      expect(find.text(AppStrings.protectingScreen), findsOneWidget);
+      await tester.pump();
+      await tester.pump();
       expect(find.text(AppStrings.detailsLoading), findsOneWidget);
       expect(_payButton(), findsNothing);
 

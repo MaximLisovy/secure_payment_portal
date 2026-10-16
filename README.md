@@ -207,7 +207,9 @@ call replies exactly once, on the main thread.
   only when every check was inconclusive.
 - **Screen recording.** From Android 15 (API 35) `WindowManager.addScreenRecordingCallback` reports it as a stream. Below
   35 the state is `unknown` (the policy allows it), never "not recording".
-- **Window protection.** `FLAG_SECURE` is reference counted, re-applied when the Activity is recreated, and reported back
+- **Window protection.** Sensitive content is mounted only after the platform confirms the secure window. A neutral
+  placeholder appears while waiting, and a blocked message with a protection recheck appears on failure. `FLAG_SECURE`
+  stays acquired through route transitions until disposal, is reference counted, re-applied on Activity recreation, and reported back
   from the window itself. It also hides the Recents thumbnail. It is real in every mode, simulated or not, so a
   screenshot, a screen recording or `adb screencap` of the payment page is black.
 - **Payment foreground service.** A `shortService` foreground service (declared alone, as the platform requires) runs the

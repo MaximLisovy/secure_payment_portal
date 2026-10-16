@@ -50,6 +50,7 @@ abstract final class AppStrings {
   static const summaryTotal = 'Total';
   static const billBreakdownTitle = 'Bill breakdown';
   static const detailsLoading = 'Loading your bill…';
+  static const protectingScreen = 'Preparing a protected screen…';
   static const securityChecking = 'Checking this device…';
   static const securityVerified = 'This device is verified';
   static const checkAgain = 'Check again';
