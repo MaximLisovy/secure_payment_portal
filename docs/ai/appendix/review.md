@@ -105,7 +105,7 @@ a test points to the test; one that rests on a search says what was searched.
 
 Everything that needs a person and a phone is in [Manual QA](../../MANUAL_QA.md). It was run once, on 2026-10-16, on a ZTE
 RedMagic 10 Pro (Android 16), with a profile build from before the last three code commits. It settled the recording callback
-under `FLAG_SECURE` (it did not fire, and the saved recording is black: `FLAG_SECURE` is verified against recording and the detection is defense in depth; why the callback stays silent is a hypothesis) and saw the live progress
+under `FLAG_SECURE` (it did not fire, and the saved recording is black: `FLAG_SECURE` is verified against recording and the detection is defense in depth; an emulator experiment showed that the stock recorder does trigger it even with `FLAG_SECURE`, so the silence is more likely that maker's recorder, not proven) and saw the live progress
 notification, Cancel and backgrounding during a payment work, with 120 FPS and no visible drops on the performance overlay. It
 did not cover the notification permission prompt, the shade in detail, the lock screen, swiping the app away, API levels other
 than 36, how fast Utility's 1.6 s scan feels, or frame-timing numbers (the harness was not run on the phone); each is marked

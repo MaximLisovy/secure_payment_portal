@@ -12,8 +12,8 @@ Update this file in the same change that alters the contract.
   exist. They were checked on a Pixel_9 emulator (API 36), as listed under
   [Verified on a device](#verified-on-a-device-security), and on a phone, as listed
   under [Verified on a phone](#verified-on-a-phone-2026-10-16). The one open check,
-  what the recording callback does while the window is secure, was settled on the
-  phone: **defense in depth** (below).
+  what the recording callback does while the window is secure, was settled by a
+  phone run and an emulator experiment: **defense in depth** (below).
 - **Payment (`…/payment`, `…/payment/progress`): v2, final.** The Kotlin
   foreground service (`PaymentProcessingService`, `PaymentServicePlugin`) and the
   Dart `ChannelPaymentPlatformDataSource` both exist, the Dart one passes the
@@ -247,7 +247,7 @@ read with `adb`; the app's own view comes from the debug log of `SecurityPlugin`
 | Source swap Real → Simulated → Real | `SECURE` stays present and the screenshot stays black in both modes: the window always goes through the real source, the simulation only replaces readings. (An earlier build, where the simulation owned a window of its own, left the window unprotected in Simulated mode; that was changed.) |
 | Simulated scenario "screen protection unavailable" | the page shows "Screen protection could not be turned on, so payment is paused" with "Check again", while `SECURE` stays present and the screenshot stays black |
 | `adb shell screenrecord` | **not detected**: the recording readout stayed `notDetected` for the whole recording. It is not a MediaProjection capture, which is what the API 35 callback reports |
-| Screen record quick-settings tile (MediaProjection) | not run on the emulator; run on the phone, see [below](#recording-callback-while-the-window-is-secure-defense-in-depth) |
+| Screen record quick-settings tile (MediaProjection), "Record this screen" | the recording block appears and clears, with `FLAG_SECURE` on and with it off: see the [experiment](#recording-callback-while-the-window-is-secure-defense-in-depth) |
 
 Notes from the device:
 
@@ -264,24 +264,38 @@ Notes from the device:
 ### Recording callback while the window is secure (defense in depth)
 
 Whether `addScreenRecordingCallback` still reports the app as visible in a recording
-when the window carries `FLAG_SECURE` was checked on a phone on 2026-10-16 (`M4-5`).
-On Android 16 (ZTE RedMagic 10 Pro, the phone's own screen recorder) the callback did
-not fire: nothing changed in the app and no recording block appeared. The finding is
-**defense in depth**.
+when the window carries `FLAG_SECURE` was checked on a phone on 2026-10-16 (`M4-5`) and
+then on an emulator. The finding is **defense in depth**: `FLAG_SECURE` is the primary
+control and is device-verified against recording; the recording block is an extra layer
+that works with the stock recorder and did not work with the one phone's own recorder.
 
-- **Why the callback stays silent, a hypothesis and not proven:** the saved recording
-  shows the app area black (`M4-4`), so the window was left out of the capture, and the
-  silent callback is consistent with that: the app is not "visible in the recording" and
-  the callback has nothing to report. This run cannot rule out another explanation, that
-  this maker's recorder is not reported to the callback at all; telling the two apart
-  would need a recording of a window without `FLAG_SECURE` that the callback does or does
-  not report, and none was made on the phone.
-- **What stays:** the detection, as an extra layer. `FLAG_SECURE` is the primary control.
-  The recording block is not to be relied on.
-- **Device-verified:** the saved screen recording was checked on the phone and the app area
-  is black (`M4-4`), so `FLAG_SECURE` keeps the page out of a recording. Not noted: the
-  panel's Screen recording readout during the recording.
-- **Scope:** one phone, one recorder, Android 16.
+- **On the phone** (ZTE RedMagic 10 Pro, Android 16, the phone's own screen recorder): the
+  callback did not fire. Nothing changed in the app and no recording block appeared. The saved
+  screen recording was checked and the app area is black (`M4-4`), so `FLAG_SECURE` keeps the
+  page out of a recording. Not noted: the panel's Screen recording readout during the recording.
+- **On the emulator, the stock recorder** (Pixel_9, API 36 `google_apis_playstore`, the
+  shade's **Screen record** tile, "Record this screen", driven with `uiautomator`; the debug
+  Retail build of commit `d2e181c`, headless emulator):
+
+  | Build | Window | Recording block shown | Screenshot during the recording | Saved recording (first frame, one run) |
+  |---|---|---|---|---|
+  | the normal build | `SECURE` (read from `dumpsys window`) | 4 of 4 runs | black | the app area is black |
+  | the same build with `FLAG_SECURE` never set | no flag | 3 of 3 runs | the page | the page is visible |
+
+  The second build was a throwaway, made in a detached worktree outside the repository (the
+  app still believed the window was secure, so the page stayed in its normal state) and deleted
+  afterwards; it was never committed. In every run the block appeared about 6 s after tapping
+  "Record screen" (the recorder's countdown included) and cleared within about 5 s of
+  "Stop recording" (an upper bound: it includes the polling).
+- **What it means.** A secure window does **not** silence the callback on the stock recorder,
+  so the first hypothesis (a secure window is excluded from the callback, hence the silence on
+  the phone) is **not supported**. The explanation that fits is that the phone maker's recorder
+  is not reported to the callback at all. That is **not proven**: it would take a recording of a
+  window without `FLAG_SECURE` on the phone, and none was made; the maker's recorder is closed.
+- **What stays:** the detection, as an extra layer that cannot be relied on across makers.
+  `FLAG_SECURE` is the primary control.
+- **Scope:** one phone and one maker's recorder; on the emulator one stock recorder, the entire
+  screen mode only ("Record one app" was not tried), Android 16 (API 36) on both.
 
 ## Verified on a device (payment)
 
@@ -327,7 +341,7 @@ phone was observed by a person, not driven with `adb`; items marked *not tested*
 |---|---|
 | Root check | the device was verified, Pay was enabled and payments went through |
 | `FLAG_SECURE` | screenshots are blocked by the system; the app is blacked out in Recents |
-| Screen recording (the phone's own recorder) | no recording block appeared: **defense in depth**, see [above](#recording-callback-while-the-window-is-secure-defense-in-depth) |
+| Screen recording (the phone's own recorder) | no recording block appeared: **defense in depth**, see [above](#recording-callback-while-the-window-is-secure-defense-in-depth); the stock recorder on the emulator does trigger the block |
 | Saved screen recording | the app area is black: `FLAG_SECURE` is device-verified against recording |
 | Live progress notification | seen |
 | Cancel | works; which path (the notification's or the app's) was not recorded each time |
