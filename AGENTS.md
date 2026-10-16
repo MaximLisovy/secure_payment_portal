@@ -73,7 +73,10 @@ lib/
 android/app/src/main/kotlin/<package>/
   MainActivity.kt           # wiring only
   security/  payment/  bridge/
+android/brands.json              # the brands: id, display name, application id suffix; Gradle makes the flavors from it
 integration_test/ test_driver/   # on-device frame timing of the security scan (flutter drive --profile)
+tool/                            # make_launcher_icons.py (legacy icon PNGs), build_release_apks.sh (APKs into dist/)
+.github/workflows/ci.yml         # format, analyze, tests, then a release APK per brand
 ```
 
 Allowed imports:

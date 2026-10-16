@@ -109,6 +109,9 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 - Guard every API above minSdk with `Build.VERSION.SDK_INT` + `@RequiresApi`, and write the API level in a comment next to the call.
 - No deprecated APIs where a replacement exists: `ServiceCompat.stopForeground`, `PendingIntent.FLAG_IMMUTABLE`, `NotificationCompat`, `ContextCompat`.
 - Release builds must work with R8. Don't rely on reflection.
+- The **Gradle wrapper is committed** (`gradlew`, `gradlew.bat`, `gradle/wrapper/`), pinned to Gradle 8.14 with the distribution's SHA-256, because Flutter git-ignores it and a fresh clone (or CI) would have no `./gradlew`. Regenerate it with `gradle wrapper --gradle-version <v> --gradle-distribution-sha256-sum <sum>`; never copy Flutter's template jar, which identifies itself as Gradle 2.10. The official jar's checksum is published at `services.gradle.org/distributions/gradle-<v>-wrapper.jar.sha256`.
+- **Android Lint** (`./gradlew :app:lintRetailDebug`, and `lintRetailRelease` after a `flutter build apk --release`, which rewrites the plugin registrant that raw Gradle compiles) reports no error. Its two version notes (Gradle 8.14, core-ktx 1.18) are pinned on purpose. A suppression carries its reason next to it.
+- Backups are off on every version: `allowBackup="false"` and Android 12 data extraction rules that exclude every domain; the manifest test checks both, and the rules file is a declared input of the unit tests.
 - Never branch on flavor in Kotlin. Brand-specific values (notification color, app name) come from `resValue`, flavor `res/` or Dart arguments.
 
 ## 6. Dart side of the bridge

@@ -113,11 +113,12 @@ ThemeExtensions (tokens) + Riverpod overrides (config, built on `InheritedWidget
 - A `ThemeExtension` without a real `lerp` (`return this`).
 - Brand-specific widgets living in `brands/`. Brands are config; widgets live in features or `core/design_system`.
 
-## 6. Scaling and later work
+## 6. Scaling: what the final milestone delivered
 
-Planned for the final milestone. **Do not implement any of it earlier.** Until then the checklist in §4 applies unchanged.
+1. **Brands manifest.** `android/brands.json` (`id`, `displayName`, `applicationIdSuffix`); Gradle creates the product flavors from it in a loop (§3).
+2. **Manifest and registry stay in sync.** `test/brands/brands_manifest_test.dart` checks that the manifest and `BrandRegistry` list the same ids and display names, and that every suffix is `.<id>`.
+3. **CI.** `.github/workflows/ci.yml`: format, analyze, Dart and Kotlin tests, then a release APK per brand. The brand list is read from `android/brands.json` with `jq`, so a new brand is built without editing the workflow. Flutter 3.41.9, Temurin 21, every action pinned to a full commit SHA with its tag in a comment.
+4. **Per-flavor launcher icons** in `android/app/src/<id>/res/` (§3), their colours tied to the tokens by a test.
+5. **Proof that §4 holds.** A scratch third brand (one config file, one registry line, one manifest entry, one icon folder) passed all 844 tests and built an APK with no change under `lib/features` or `lib/core`. Two tests that were stricter than the rule (an exact brand list, a distinct bill per brand) were relaxed so that they do not need an edit when a brand is added.
 
-1. **Brands manifest.** One `android/brands.json` with `id`, `displayName` and `applicationIdSuffix` per brand. Gradle reads it and creates the `productFlavors` in a loop, so adding a brand no longer touches Gradle code. Step 3 of the §4 checklist then becomes one manifest entry.
-2. **Manifest and registry stay in sync.** A test checks that `android/brands.json` and `BrandRegistry` list the same ids and display names. It closes the duplication of the display name between Gradle and `BrandConfig`.
-3. **CI.** A GitHub Actions matrix builds and tests every flavor. The flavor list comes from the same manifest, and the JDK comes from `setup-java` (21, see the README).
-4. **Per-flavor launcher icons** in `android/app/src/<id>/res/mipmap-*`.
+Not planned: a JSON token pipeline or a monorepo (see the scaling path in `docs/ai/appendix/`).
