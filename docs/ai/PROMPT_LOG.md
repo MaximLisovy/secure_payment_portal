@@ -378,3 +378,16 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** signed profile APK, 27,252,703 bytes, SHA-256 3f77cfe64e0326764c2f774d20982816ab24e377dde08c50af08947789bec327. Build and documentation-link checks pass; prior source validation remains applicable because source code is unchanged. APKs remain untracked. Commit: docs: record manual-install profile APK.
 
 ---
+
+### 18. Reassess the architecture after follow-up fixes — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** assess the current architecture from the perspective of a senior test-task reviewer.
+- **Prompt (key part, verbatim):**
+  > а как бы ты сейчас оценил архитектуру?
+- **Context given:** current composition root, brand and section configuration, domain use case and security policy, Riverpod flow, native worker/store/service, architecture tests and previous validation results.
+- **AI output (summary):** subjective assessment of 8.5/10 for the assignment. Strengths are the dependency boundaries, configuration-driven branding, domain security policy, attempt isolation and testable native lifecycle. Discussion points are the bill ID living in brand screen configuration, the implicit cancellation contract of ConfirmPayment.isCurrent, and the need for device integration coverage of the Dart/native lifecycle scenarios in addition to unit tests.
+- **Assumptions & risks flagged by the agent:** the assessment concerns the assignment's scope, not a production payment backend. Prior 844 Dart and 220 JVM test results remain historical evidence for unchanged source; the full suite was not rerun for this code-reading assessment. The user's reported 120 Hz behavior is encouraging but is not a captured frame-timing report.
+- **Developer review:** pending; the developer requested the assessment.
+- **Result:** no application changes. Recorded the architecture assessment and checked documentation links. Commit: docs: record follow-up architecture assessment.
+
+---
