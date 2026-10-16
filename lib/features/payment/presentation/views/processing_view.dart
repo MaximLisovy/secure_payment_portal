@@ -55,45 +55,55 @@ class _ProcessingViewState extends ConsumerState<ProcessingView> {
   Widget build(BuildContext context) {
     final density = context.brandDensity;
     final text = Theme.of(context).textTheme;
+    // A scroll view that fills the screen and centers its content: nothing is
+    // cut off by a large text scale or a short window, and the layout is
+    // unchanged when it all fits.
     return ContentWidth(
-      child: Padding(
-        padding: EdgeInsets.all(density.spaceLg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              header: true,
-              child: Text(
-                AppStrings.processingTitle,
-                textAlign: TextAlign.center,
-                style: text.titleLarge,
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: EdgeInsets.all(density.spaceLg),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      AppStrings.processingTitle,
+                      textAlign: TextAlign.center,
+                      style: text.titleLarge,
+                    ),
+                  ),
+                  SizedBox(height: density.spaceLg),
+                  _ProgressReadout(percent: _percent),
+                  SizedBox(height: density.spaceXl),
+                  _CancelButton(cancelRequested: _cancelRequested),
+                  ValueListenableBuilder<Failure?>(
+                    valueListenable: _cancellationFailure,
+                    builder: (context, failure, _) => failure == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: EdgeInsets.only(top: density.spaceMd),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                AppStrings.cancellationFailed,
+                                style: text.bodyMedium?.copyWith(
+                                  color: context.brandColors.danger,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: density.spaceLg),
-            _ProgressReadout(percent: _percent),
-            SizedBox(height: density.spaceXl),
-            _CancelButton(cancelRequested: _cancelRequested),
-            ValueListenableBuilder<Failure?>(
-              valueListenable: _cancellationFailure,
-              builder: (context, failure, _) => failure == null
-                  ? const SizedBox.shrink()
-                  : Padding(
-                      padding: EdgeInsets.only(top: density.spaceMd),
-                      child: Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          AppStrings.cancellationFailed,
-                          style: text.bodyMedium?.copyWith(
-                            color: context.brandColors.danger,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
