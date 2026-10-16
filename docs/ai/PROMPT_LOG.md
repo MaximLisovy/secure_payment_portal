@@ -323,3 +323,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 844 Dart tests, 220 JVM tests, clean format/analyze, Android Lint without errors, retail and utility debug APKs. Release validation is blocked as described above. Commit: fix: isolate payment attempts across Flutter and Android.
 
 ---
+
+### 14. Complete the handoff documentation — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** finish the incomplete AI Insight Report, preserve the developer's README/appendix work, and distinguish automated validation from pending device checks.
+- **Prompt (key part, verbatim):**
+  > да, погнали
+- **Context given:** approved review-fix plan; existing milestone history, README draft, appendix drafts, manual QA and actual follow-up tool output.
+- **AI output (summary):** completed the three report sections on multi-tenancy, AI assistance and the corrected cross-attempt design; integrated the existing appendix drafts, updated the sequence diagram, and added schema-v2 manual regression scenarios. Preserved earlier emulator measurements and labeled them as historical rather than claiming a new phone run.
+- **Assumptions & risks flagged by the agent:** no quantified development-time saving is invented; no 120 Hz or physical-device validation is claimed. Current debug APKs build, but release validation remains blocked by the stale generated integration_test registration and the approval rejection described in entry 13. A saved stale PendingIntent needs an instrumented device trigger; the JVM action test is the current evidence.
+- **Corrections made (AI suggestion → problem → correction):** three report headings were still template comments despite a nearly finished project → filled them from actual implementation/history and review evidence; an old checklist that claimed every failure was visible is now explicitly historical and includes the follow-up defects and corrections.
+- **Developer review:** covered by the approved review-fix plan; existing README and appendix content was retained and completed.
+- **Result:** 844 Dart tests and 220 JVM tests pass, format/analyze clean, Android Lint has no errors, both debug APKs build. Documentation links and anchors pass after the final report edits. Six focused commits, with no push or history rewrite. Commit: docs: complete the review report and validation notes.
+
+---

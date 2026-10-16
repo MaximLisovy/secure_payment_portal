@@ -103,3 +103,15 @@ Frame timing result (M6-6), paste the table here:
 | Phone model | Android version / API level | Build | Date |
 |---|---|---|---|
 | | | | |
+
+## Review-fix regression checks (schema v2)
+
+These scenarios have automated coverage and still need a device run. Invoking a saved stale PendingIntent requires an instrumented trigger; the JVM cancellation-action regression is the current evidence for that case.
+
+| Steps | Expected | Result |
+|---|---|---|
+| Enable reduced motion, cancel and immediately retry the same bill repeatedly. | Distinct attempts; no hang, old receipt or premature completion; one worker and notification. | |
+| Invoke an old notification Cancel action while a replacement attempt runs. | The replacement continues; its own Cancel action works. | |
+| On a fresh install leave the notification prompt open and start a recording before answering. | Security is read after preparation; a detected recording blocks native start. Callback behavior under FLAG_SECURE remains the separate M4 check. | |
+| Change brand or leave the page during permission preparation or the final security read. | The obsolete confirmation never starts processing. Already accepted work follows the documented service lifecycle. | |
+| Attempt cancellation while the bridge is unavailable, then restore it. | A visible error accompanies continuing progress; retry cancels the matching attempt. | |
