@@ -14,10 +14,15 @@ Update this file in the same change that alters the contract.
   one manual check is done and written down: what the recording callback does
   while the window is secure (**pending manual verification**, below). It becomes
   final then, in a small docs commit.
-- **Payment (`…/payment`, `…/payment/progress`): draft v1.** The Dart constants, the
-  DTO parsing and the contract suite exist and run against the fake. The Kotlin
-  foreground service is written in the payment milestone and must match this
-  document.
+- **Payment (`…/payment`, `…/payment/progress`): draft v1, implemented.** The Kotlin
+  foreground service (`PaymentProcessingService`, `PaymentServicePlugin`) and the
+  Dart `ChannelPaymentPlatformDataSource` both exist, the Dart one passes the
+  payment contract suite unchanged, and what `adb` could check on a Pixel_9
+  emulator (API 36) is listed under
+  [Verified on a device (payment)](#verified-on-a-device-payment). It stays
+  **draft** until the items that need a person (the permission prompt, the shade,
+  the lock screen, other API levels) are run on a physical phone from
+  [`docs/MANUAL_QA.md`](MANUAL_QA.md): **pending manual verification**.
 
 `bridge/Channels.kt` mirrors `lib/core/platform/channel_contract.dart` for both
 halves; a Dart test (`test/core/platform/channel_contract_sync_test.dart`) fails if
@@ -121,8 +126,46 @@ implementations must agree.
 - **`startPayment` returns on acceptance**, not on completion. Progress follows
   on the event channel.
 - **`INVALID_ARGS`** for an amount that is not positive.
+- **A start is a claim.** `startPayment` first claims the payment in a process-wide
+  store with one atomic step, then asks the system to start the service; two starts
+  that race cannot both get through. If the system refuses the service
+  (`START_NOT_ALLOWED`, typically because the app is not in the foreground), the
+  claim is given back, so the next try is not refused as `ALREADY_RUNNING` for a
+  payment that never ran. A service that is started for a payment that is no longer
+  the running one (a duplicate, or one cancelled before the service arrived) does
+  nothing.
 - **Cancel is idempotent.** With nothing running it is a no-op; otherwise the
   state becomes `cancelled`.
+- **Cancel is one call, wherever it comes from.** From the app (`cancelPayment`) and
+  from the notification's Cancel action it is the same store transition. The
+  notification action is an immutable `PendingIntent.getBroadcast` to a **non-exported**
+  receiver, so it does not depend on the service being alive and is not a service
+  start; the service sees the payment leave `running` and winds down within one step.
+  Of a cancel and a finish that race, the first wins.
+- **The service.** A foreground service of type `shortService`, declared alone (the
+  system ignores that type if it is combined with another): a payment is short,
+  user-initiated and must finish. It has a 3 minute limit (API 34+), after which
+  `onTimeout` (both overloads on Android 15) fails the payment as
+  `processing_failed` and stops. `START_NOT_STICKY`: a payment never restarts by
+  itself. It goes foreground first thing in `onStartCommand`, and on destroy fails
+  only the payment it ran itself.
+- **The notification** is generic (no amount, no merchant), private on the lock
+  screen, on a low-importance channel, throttled to two updates a second with the
+  latest value always posted. A finished payment leaves "Payment complete" or
+  "Payment failed" on screen, dismissible and removed when tapped; only a cancel
+  removes the notification.
+- **Notification permission** (API 33+) is requested through `requestNotificationPermission`,
+  by the Dart data source before every `startPayment`, with no timeout on the prompt.
+  **Denial never stops a payment**: the service runs, nothing is shown, and Dart still
+  receives the progress.
+- **What survives what.** The state lives in memory in the process. The service and
+  the state survive the app being backgrounded and the task being swiped away (the
+  engine is destroyed, the process is not): a new engine is replayed the current state.
+  A **killed process** (force-stop, out of memory) loses an in-flight payment: nothing
+  restarts, and the app comes back with nothing running, so the payment is neither
+  confirmed nor failed. That is acceptable only because the simulation moves no money
+  and has no server; a real payment needs an idempotency key and reconciliation on
+  launch (see `docs/ai/AI_INSIGHT_REPORT.md`, "Payments in production").
 - **Secure window is reference counted.** The flag is set on the first enable
   and cleared when every enable has been balanced by a disable. A failed enable
   changes nothing.
@@ -224,3 +267,36 @@ below is claimed. The finding will be written here as one of:
 - **defense in depth**: the callback never fires for a secure window; the block is
   then redundant with `FLAG_SECURE`, which already blacks the recording out. The
   detection is kept regardless.
+
+## Verified on a device (payment)
+
+Pixel_9 emulator, API 36 (`google_apis_playstore`, arm64, `user` build), retail
+debug build and a release (R8) build, 2026-10-16. Everything below was driven and
+read with `adb` (`dumpsys notification`, `dumpsys activity services`, screenshots of
+the shade, taps by coordinates); what needs a person is in `docs/MANUAL_QA.md`.
+
+| Check | Result |
+|---|---|
+| Service type | `dumpsys activity services`: `isForeground=true`, `types=0x00000800` (`shortService`), `isShortFgs=true`, `timeout=+2m57s`, `stopIfKilled=true` (not sticky). The same on the release build |
+| Notification record | channel `payment_progress`, importance 2 (low), `category=progress`, `vis=PRIVATE`, flags `ONGOING_EVENT\|ONLY_ALERT_ONCE\|FOREGROUND_SERVICE`, a content intent (`startActivity`), one action "Cancel" whose `PendingIntent` is a **broadcast** |
+| Live progress | the notification goes 0, 5, 10, 15, 25, 30 ... 100 at about one update every 0.5 s while the processor ticks every 0.4 s: the throttle coalesces, never more than two a second, and the last value is posted. Then "Payment complete" |
+| Permission prompt | the first payment shows "Allow Retail Shop to send you notifications?" **before** the service starts |
+| Permission denied | the payment still runs (foreground service, receipt, native transaction id) and **no notification** is posted |
+| Final notification | after a success: "Payment complete", flags `ONLY_ALERT_ONCE\|AUTO_CANCEL` (not ongoing, dismissible, removed when tapped). Posted **after** `stopForeground(DETACH)`: posting it before left no `AUTO_CANCEL`, because the system keeps the foreground notification non-cancellable |
+| Shade | the card sits in the **Silent** section, shows "Processing your payment", a progress bar and, expanded, a **Cancel** action |
+| Cancel from the notification | tapping it removes the notification and stops the service within 0.4 s, and the app shows "Payment cancelled" |
+| Cancel from the app | the same result |
+| Backgrounded mid-payment | Home with the payment at 50%: the service stays foreground, the notification keeps updating, and the app shows the receipt on return |
+| Task swiped away mid-payment | the process keeps its pid, the service carries on (55% to 75% with no app), and the reopened app (a new engine) shows the receipt |
+| Process death | `am force-stop` mid-payment: notification and service gone; the relaunched app starts from a fresh review screen (the interrupted payment is neither confirmed nor failed, as documented); a new payment then runs and completes |
+| Release build (R8) | a payment runs on a non-debuggable release build: foreground `shortService`, no crash; the manifest components are kept by name |
+| No SIMULATED badge | with both sources real, the badge is not shown |
+
+Not reproducible by hand, covered by JVM tests only: `ForegroundServiceStartNotAllowedException`
+(it needs a start from the background), the 3 minute `onTimeout`, and the "Payment failed"
+notification (the native simulation always succeeds).
+
+**Pending manual verification** (`docs/MANUAL_QA.md`, M5): the permission prompt and the shade as a
+person sees them, the lock screen, the notification on a physical phone's skin, other API levels (the
+type is masked to nothing below API 34 by `ServiceCompat`, which was read from its bytecode, not run),
+battery saver and Doze.

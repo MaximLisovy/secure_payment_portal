@@ -20,7 +20,8 @@ flutter test                                  # Dart: domain, data, presentation
 ```
 
 The Kotlin tests need no device or emulator: the root checks, the reference-counted secure window, the recording
-monitor and the channel handlers run behind small ports. The logic is brand-agnostic and both flavors compile the same
+monitor, the payment store and session, the notification throttle, a guard over the manifest and the channel handlers
+run behind small ports. The logic is brand-agnostic and both flavors compile the same
 sources, so `testDebugUnitTest` runs it once. What no automated test covers is Dart talking to the real Kotlin plugin;
 that is checked on a device (see `docs/platform_channels.md`).
 
@@ -103,13 +104,21 @@ A mode switch or a changed device restarts the payment flow so it takes effect a
 app bar for as long as any source is simulated, **in every build mode**: a simulated build must not pass for a real one.
 
 Real is the default as soon as a source has a real implementation, and a release build cannot leave it. Device
-security has one (the Kotlin `SecurityPlugin`); payment processing does not yet (the foreground service is the next
-milestone), so a build still runs with simulated payments and says so with the badge. In Real mode the panel shows a
-read-only **Device reports** block: the root signals that fired, whether a recording is detected, whether the window is
-protected.
+security has one (the Kotlin `SecurityPlugin`) and so does payment processing (the Kotlin foreground service), so a
+default build runs on real sources and shows **no badge**; the badge appears only once something is switched to
+Simulated. In Real mode the panel shows a read-only **Device reports** block: the root signals that fired, whether a
+recording is detected, whether the window is protected.
+
+**Real payment processing** is a foreground service of type `shortService` with a progress notification (generic text,
+private on the lock screen, a Cancel action). On Android 13 and above the first payment asks for the notification
+permission; denying it never stops a payment, it only means no notification. The native processing always succeeds
+(20 steps of 400 ms); declined and failing payments are Simulated scenarios. The payment state lives in the process:
+it survives the app being backgrounded or swiped away, not the process being killed (see
+`docs/platform_channels.md` and the idempotency note in `docs/ai/AI_INSIGHT_REPORT.md`).
 
 The simulation replaces the security **readings** only (root, recording, the scenarios), never the window: `FLAG_SECURE`
 is applied through the real source in every mode, so the payment screen is black in a screenshot, a screen recording and
 the recents list on every Android build, simulated or not. The simulation can still *report* a scenario, for example
 "Screen protection available" switched off shows the "screen protection unavailable" block without removing any
-protection. (A consequence: a screen recording of the payment page is black. Use a camera, or capture a different screen.)
+protection. (A consequence: a screen recording made inside Android shows the payment page black; record the emulator
+window from macOS instead, see "Manual QA and the demo video".)

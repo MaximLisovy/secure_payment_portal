@@ -84,22 +84,23 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 
 ### 4.4 Foreground Service (payment processing simulation)
 - Manifest: `<service android:name=".payment.PaymentProcessingService" android:exported="false" android:foregroundServiceType="…"/>`, `FOREGROUND_SERVICE`, the matching `FOREGROUND_SERVICE_<TYPE>` permission (API 34+) and `POST_NOTIFICATIONS`.
-- Pick the type deliberately and justify it in KDoc. `shortService` fits a short, must-finish payment: no extra type permission, about a 3 minute limit, and you must handle `onTimeout`. `dataSync` is the alternative, with its own permission and Android 15 daily limits. Don't use `specialUse` without a reason.
-- Start: `ContextCompat.startForegroundService` **only in response to a user action while the app is visible** (Android 12+ background-start restrictions). Catch `ForegroundServiceStartNotAllowedException` and map it to a channel error. Then call `ServiceCompat.startForeground(this, id, notification, type)` promptly in `onStartCommand`, passing the type only on API levels where it is defined.
+- Pick the type deliberately and justify it in KDoc. `shortService` fits a short, must-finish payment: no extra type permission, about a 3 minute limit, and you must handle `onTimeout` (API 34 `onTimeout(int)`; on API 35 both overloads are called, so make it idempotent). **Declare it alone**: the system ignores `shortService` when it is combined with another type, so there is no `dataSync` fallback to add. `dataSync` is the alternative, with its own permission and Android 15 daily limits. Don't use `specialUse` without a reason.
+- Start: `ContextCompat.startForegroundService` **only in response to a user action while the app is visible** (Android 12+ background-start restrictions). Catch `ForegroundServiceStartNotAllowedException` and map it to a channel error. Then call `ServiceCompat.startForeground(this, id, notification, type)` promptly in `onStartCommand` and keep it to that: the compat call passes the type through on API 34+ and masks it to `0xFF` on 29 to 33 (read from its bytecode), so no `SDK_INT` branch of ours is needed. Claim the payment in the store **before** starting the service and give the claim back if the start is refused, so a refused start does not leave the store saying "running".
 - Notification:
   - Channel created once (API 26+), importance LOW.
   - `NotificationCompat` with `setOngoing(true)`, `setOnlyAlertOnce(true)`, `setProgress(max, current, indeterminate)` and `CATEGORY_PROGRESS`.
   - `setForegroundServiceBehavior(FOREGROUND_SERVICE_IMMEDIATE)`.
   - A content `PendingIntent` with `FLAG_IMMUTABLE`.
   - **Throttle** updates to at most about 2 per second; the system rate-limits them anyway.
-- `POST_NOTIFICATIONS` (API 33+) is requested before starting, through the bridge. If it is denied, processing still works and Dart still receives progress.
+  - **The Cancel action is a `PendingIntent.getBroadcast` (`FLAG_IMMUTABLE`) to a non-exported `BroadcastReceiver`** that calls `store.cancelIfRunning()`. It does not depend on the service being alive and is not a service start, so no background-start restriction applies. Keep the manifest guard test in step when a component is added.
+- `POST_NOTIFICATIONS` (API 33+) is requested before starting, through its own bridge method (`requestNotificationPermission`, called by the Dart data source before `startPayment`, with no timeout on the prompt). If it is denied, processing still works and Dart still receives progress.
 - Lifecycle:
   - Return `START_NOT_STICKY`: a payment must never silently restart.
   - Ignore or reject a duplicate start while a payment is running (idempotent).
   - Work runs in a service-owned coroutine scope that is cancelled in `onDestroy`.
-  - On finish, publish the terminal state, then call `ServiceCompat.stopForeground(this, STOP_FOREGROUND_REMOVE)` (or `DETACH` to leave a final "Payment complete" notification) and `stopSelf(startId)`.
-  - Support cancel.
-- Service → Dart: the service publishes to `PaymentProgressStore` (`StateFlow`). `PaymentServicePlugin` collects it while the EventChannel is listened to. The service never references `FlutterEngine` or `Activity`.
+  - On finish, publish the terminal state, then call `ServiceCompat.stopForeground(this, STOP_FOREGROUND_REMOVE)` and `stopSelf(startId)`. To leave a final "Payment complete" notification, **detach first, then post it**: while it is still the foreground notification the system keeps it non-cancellable and drops its `AUTO_CANCEL` flag (seen on a device), so posting it before `DETACH` gives a notification that cannot be tapped away.
+  - Support cancel. Of a cancel and a finish that race, the first wins; the service fails only the payment it ran, never "whatever is running".
+- Service → Dart: the service publishes to `PaymentProgressStore` (`StateFlow`), the process-wide coordination point: the plugin claims in it, the service runs against it, a cancel from the app or the notification writes to it, and every transition is one atomic step. `PaymentServicePlugin` collects it while the EventChannel is listened to. The service never references `FlutterEngine` or `Activity`.
 
 ## 5. Gradle and compliance
 

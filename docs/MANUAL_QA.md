@@ -44,6 +44,32 @@ the emulator window from outside the guest, so the payment screen shows.
 | M4-8 | Panel, **Device reports**. | Root: **Not detected** on an unrooted phone (or the signals that fired, on a rooted one). Window protection: **Active**. | |
 | M4-9 | Panel: switch **Device security** to *Simulated*, then back to *Real*. | The screen stays black in a screenshot attempt (M4-6) in both modes. Real shows the Device reports block again. | |
 
+## M5: payment foreground service
+
+What `adb` could check on the emulator (service type, notification record, live progress, cancel, background,
+swipe-away, force-stop, a release build) is in `docs/platform_channels.md`, "Verified on a device (payment)". These
+items need a person, or a phone that is not an emulator. Use the application id `com.hypertenant.secure_payment_portal.retail`
+(`.utility` for the other flavor). For the permission items start from a state where the notification permission has
+not been answered: uninstall and reinstall, or Settings > Apps > Retail Shop > Permissions > Notifications.
+
+| # | Steps | Expected | Result |
+|---|---|---|---|
+| M5-1 | **Android 13+, fresh install.** Get to the review page and tap **Pay**. | The system asks **"Allow Retail Shop to send you notifications?"** *before* the payment starts. Choose **Allow**. The payment then runs and ends on the receipt. A "Processing your payment" notification appears while it runs. | |
+| M5-2 | **Permission denied.** Start from a fresh install, tap **Pay**, choose **Don't allow**. Then pay once more. | The payment still runs to the receipt, and **no notification** appears. *Write down whether the system asks again on the second payment* (Android stops asking after two denials). | |
+| M5-3 | **Look of the notification.** Allow the permission. Tap **Pay** and pull the shade down at once. Expand the card. | It sits in the **Silent** section (no sound, no vibration, no heads-up banner). It reads "Processing your payment" with the app's small icon (a clean white glyph, **not** a grey square), a **progress bar that moves** about twice a second without flicker, and a **Cancel** button when expanded. Utility flavor: the app name is "Utility Pay". | |
+| M5-4 | **Cancel from the shade.** Start a payment, pull the shade down, expand the card, tap **Cancel**. | The notification disappears at once, and the app (reopen it) shows **"Payment cancelled"** with Try again. On Android 13+ the shade's active-apps list (the "N apps are active" row) no longer lists the app. | |
+| M5-5 | **Lock screen.** Start a payment, press the power button, then wake the screen **without unlocking**. | The notification shows **nothing about the payment**: either the system's "Sensitive notification content hidden" placeholder or generic text only. **No amount, no merchant.** *Write down which.* | |
+| M5-6 | **Final notification.** Start a payment, press Home, wait about 10 seconds. | A **"Payment complete"** notification is left in the shade (not ongoing). Swipe it away: it goes. Repeat and **tap** it instead: the app opens on the receipt and the notification is removed. | |
+| M5-7 | **Backgrounded.** Start a payment, press Home, wait for it to finish, open the app from the launcher. | The receipt is shown. There is **one** payment, not two. | |
+| M5-8 | **Swiped away.** Start a payment, open Recents, swipe the app away, watch the shade for a few seconds, open the app again. | The notification keeps updating after the swipe, and the app reopens on the receipt (or on the review page if the phone killed the process: *write down which*). | |
+| M5-9 | **Notifications switched off.** Settings > Apps > Retail Shop > Notifications: off. Pay. | The payment completes, no notification, no crash. | |
+| M5-10 | **Battery saver.** Turn battery saver on and pay with the screen on; then pay again and lock the screen straight away. | Both payments complete (about 8 seconds on the screen-on one). *Write down the time of the locked one.* | |
+| M5-11 | **Stop from the active-apps list** (Android 13+). Start a payment, pull the shade, tap the "N apps are active" row, and **Stop** the app. Reopen it. | The notification is gone and the app starts from a clean review page. The interrupted payment is neither confirmed nor failed (documented behaviour for a killed process). | |
+| M5-12 | **API levels** (only if more than one phone is at hand). Below Android 13: no permission prompt, the notification appears at once. Below 14 and 10: the payment works, no crash (the service type is masked by `ServiceCompat`). | As described. *Fill in the Devices table for each phone.* | |
+
+Covered by JVM tests only, not reproducible by hand: the refusal to start the service from the background
+(`ForegroundServiceStartNotAllowedException`), the 3 minute `onTimeout`, and the "Payment failed" notification.
+
 ## Devices
 
 | Phone model | Android version / API level | Build | Date |
