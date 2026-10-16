@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:secure_payment_portal/core/async/cancellation.dart';
 import 'package:secure_payment_portal/core/error/result.dart';
 import 'package:secure_payment_portal/features/payment/di/payment_providers.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_details.dart';
 import 'package:secure_payment_portal/features/payment/domain/payment_progress.dart';
+import 'package:secure_payment_portal/features/payment/presentation/state/payment_confirmation_cancellation.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/scan_dwell_provider.dart';
 import 'package:secure_payment_portal/features/payment/presentation/state/verdict_hold.dart';
@@ -25,7 +25,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
   StreamSubscription<SecurityStatus>? _statusSubscription;
   bool _awaitingFirstProgress = false;
   int _confirmationGeneration = 0;
-  CancellationSource? _confirmationCancellation;
+  PaymentConfirmationCancellation? _confirmationCancellation;
   String? _activeAttemptId;
 
   /// Bumped to drop a device check that is still waiting for the secure window.
@@ -36,6 +36,8 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
 
   @override
   PaymentFlowState build() {
+    // Invalidate confirmation immediately, before replacement details arrive.
+    ref.watch(paymentIdProvider);
     ref.onDispose(_stopListening);
     return const PaymentFlowIdle();
   }
@@ -60,7 +62,10 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
     if (details == null || state is! PaymentFlowReady) return;
     final generation = ++_confirmationGeneration;
     _confirmationCancellation?.cancel();
-    final cancellation = CancellationSource();
+    final cancellation = PaymentConfirmationCancellation(
+      details.id,
+      () => ref.read(paymentIdProvider),
+    );
     _confirmationCancellation = cancellation;
     final attemptId = ref.read(paymentAttemptIdFactoryProvider)();
     _activeAttemptId = attemptId;
@@ -233,7 +238,7 @@ class PaymentFlowNotifier extends Notifier<PaymentFlowState> {
         _activeAttemptId = progress.attemptId;
         state = PaymentFlowProcessing(percent: percent);
       case PaymentSucceeded(:final result) when result.paymentId == billId:
-        // Already paid: show the receipt, never let the bill be paid twice.
+        // Restore the receipt; repeating a demo bill is an explicit user action.
         state = PaymentFlowSuccess(result);
       default:
         // Idle, or a result that belongs to something else: start fresh.

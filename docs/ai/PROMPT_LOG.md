@@ -417,3 +417,17 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** 854 Dart tests pass; formatting and Flutter analysis are clean. Commit: refactor: clarify confirmation cancellation and demo replay.
 
 ---
+
+### 21. Cancel obsolete confirmation before replacement details load — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** close the gap between a host request changing and the new bill's asynchronous arrival.
+- **Prompt (key part, verbatim):**
+  > давай
+- **Context given:** approved lifecycle coverage; the new independent bill-ID input and confirmation cancellation contract.
+- **AI output (summary):** a stricter fakeAsync regression reproduced a stale native start (starts contained attempt-1) when only the request ID changed before the new details arrived. The flow now watches its request input, and its presentation-owned cancellation signal also checks that the original request still matches the host input. Domain only sees CancellationSignal. The latter check closes the interval before Riverpod rebuilds dependents.
+- **Assumptions & risks flagged by the agent:** dependency invalidation alone is scheduled and did not close the race; the failing regression proved that. Native work already accepted remains governed by its attempt-scoped service lifecycle.
+- **Corrections made (AI suggestion → problem → correction):** waiting for begin(newDetails) or a provider rebuild → old confirmation could start during replacement loading → bind cancellation to the current input ID as well as disposal, and test before new details exist.
+- **Developer review:** necessary correctness fix within the approved request-separation and integration work.
+- **Result:** 855 Dart tests pass; analysis and formatting are clean. Commit: fix: invalidate confirmation when the host request changes.
+
+---

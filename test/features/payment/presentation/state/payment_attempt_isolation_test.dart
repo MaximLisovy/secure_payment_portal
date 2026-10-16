@@ -15,6 +15,7 @@ import 'package:secure_payment_portal/features/payment/presentation/state/paymen
 import 'package:secure_payment_portal/features/payment/presentation/state/payment_flow_state.dart';
 import 'package:secure_payment_portal/features/security/security.dart';
 
+import '../../../../helpers/fake_async_helpers.dart';
 import '../../helpers/payment_fixtures.dart';
 
 const _clean = SecurityStatus(
@@ -22,6 +23,14 @@ const _clean = SecurityStatus(
   screenRecording: Detection.notDetected,
   windowProtection: WindowProtection.active,
 );
+
+final _requestIdProvider = NotifierProvider<_RequestId, String>(_RequestId.new);
+
+class _RequestId extends Notifier<String> {
+  @override
+  String build() => 'bill-1';
+  void select(String id) => state = id;
+}
 
 class _Security implements SecurityStatusRepository {
   SecurityStatus status = _clean;
@@ -73,6 +82,7 @@ ProviderContainer _container(_Security security, _Payments payments) {
   var sequence = 0;
   final container = ProviderContainer.test(
     overrides: [
+      paymentIdProvider.overrideWith((ref) => ref.watch(_requestIdProvider)),
       securityStatusRepositoryProvider.overrideWithValue(security),
       paymentRepositoryProvider.overrideWithValue(payments),
       paymentAttemptIdFactoryProvider.overrideWithValue(
@@ -85,6 +95,31 @@ ProviderContainer _container(_Security security, _Payments payments) {
 }
 
 void main() {
+  test(
+    'a changed request invalidates confirmation before new details arrive',
+    () {
+      fakeAsync((async) {
+        final security = _Security()
+          ..answer = Completer<Result<SecurityStatus>>();
+        final payments = _Payments();
+        final container = _container(security, payments);
+        final flow = container.read(paymentFlowProvider.notifier)
+          ..begin(sampleDetails);
+        async.flushMicrotasks();
+        unawaited(flow.confirm());
+        async.flushMicrotasks();
+        container
+            .read(_requestIdProvider.notifier)
+            .select('still-loading-order');
+        async.flushMicrotasks();
+        security.answer?.complete(const Success(_clean));
+        async.flushMicrotasks();
+        expect(payments.starts, isEmpty);
+        async.elapse(Duration.zero);
+        expectNoPendingTimers(async);
+      });
+    },
+  );
   test('permission preparation finishes before a fresh security read', () {
     fakeAsync((async) {
       final security = _Security();
