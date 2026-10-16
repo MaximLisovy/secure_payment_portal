@@ -73,7 +73,9 @@ before the verdict: 2.4 s on Retail, 1.6 s on Utility.
 
 ## Evidence and limits
 
-The exact validation results are in the [AI Insight Report](ai/AI_INSIGHT_REPORT.md), and the checks that need a physical phone
-(the notification as it looks on real hardware, the lock screen, Android versions other than 36, whether the recording callback
-fires under `FLAG_SECURE`, 90 and 120 Hz frame timing) are in [Manual QA](MANUAL_QA.md). An emulator recording does not prove
-120 Hz performance on a phone.
+The exact validation results are in the [AI Insight Report](ai/AI_INSIGHT_REPORT.md). The one run on a physical phone
+(2026-10-16, ZTE RedMagic 10 Pro, Android 16) and what it did not cover (the notification permission prompt, the lock screen,
+Android versions other than 36, frame-timing numbers) are in [Manual QA](MANUAL_QA.md). On that phone the screen recording
+callback did not fire under `FLAG_SECURE`, so the recording block is defense in depth and `FLAG_SECURE` is the control. An
+emulator recording does not prove 120 Hz performance on a phone; the phone showed 120 FPS on the performance overlay, an
+observation and not a measurement.

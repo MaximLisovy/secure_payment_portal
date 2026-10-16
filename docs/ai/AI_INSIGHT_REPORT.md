@@ -14,7 +14,7 @@ The [working log](appendix/working_log.md) records milestone prompts, approved p
 
 How the work was run: `AGENTS.md` and five topic rule files were written first and re-read before each task; every milestone began with a plan-only turn (files, layers, risks, numbered questions) that the developer approved, usually with changes, before any code; and the work landed as small commits, each passing formatting, analysis and the whole test suite, with both flavor builds as the gate for a milestone. The agents ran their own checks as well: they broke new code on purpose to see a test fail, drove the emulator through `adb` (notifications, services, recents, window flags), and ran the CI steps in a clean clone, which found that a fresh checkout had no `./gradlew`. The first eight milestones' log entries record 58 corrections, and the checks that need a person and a phone are collected in [Manual QA](../MANUAL_QA.md) rather than guessed. I also used a separate AI assistant (Claude, in a chat) as an architecture reviewer: I brought each plan and report there, compared alternatives — the official Flutter architecture guide against strict Clean Architecture, the white-label approaches in use today — and sent my decisions back to the coding agent; when its quota ran out, OpenAI Codex reviewed the code independently (see §3).
 
-The benefit is concrete but not timed: shared fake/native contract suites, layering tests, automatic per-brand checks and focused JVM tests reduce repeated manual setup. No exact time-saving percentage is claimed. Independent review exposed gaps in the original passing suite, especially retries of the same bill and asynchronous preparation. Follow-up changes added regressions and full analysis/build checks in focused commits. The physical-device checks remain separate and explicitly pending.
+The benefit is concrete but not timed: shared fake/native contract suites, layering tests, automatic per-brand checks and focused JVM tests reduce repeated manual setup. No exact time-saving percentage is claimed. Independent review exposed gaps in the original passing suite, especially retries of the same bill and asynchronous preparation. Follow-up changes added regressions and full analysis/build checks in focused commits. One run on a physical phone (ZTE RedMagic 10 Pro, Android 16, 2026-10-16) covered the main device checks; what it did not cover is marked *not tested* in Manual QA.
 
 ## 3. A sub-optimal AI solution and how I corrected it
 
@@ -52,8 +52,8 @@ recovery; the [production-payments appendix](appendix/payments-in-production.md)
 
 Current validation: **855 Dart tests**, **220 Kotlin/JVM tests**, clean formatting and Flutter analysis, and Android Lint with no
 errors. After explicit permission to let Flutter regenerate plugin registration, the ordinary release build commands resolved an
-earlier stale integration-test registration failure without manual edits to generated files. The remaining device-only checks are
-in [Manual QA](../MANUAL_QA.md).
+earlier stale integration-test registration failure without manual edits to generated files. The one phone run (ZTE RedMagic 10 Pro,
+Android 16) and the checks it did not cover are in [Manual QA](../MANUAL_QA.md).
 
 ## Appendices
 

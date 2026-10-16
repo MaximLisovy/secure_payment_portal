@@ -88,4 +88,5 @@ Milestone 6, [working log entry 08](appendix/working_log.md#08-the-security-scan
   than report only the half of the measurement that looked good, the AI added two references to the harness, Material's
   spinner and a layer that draws one dot, which showed the same raster numbers: that is the emulator's swap path, not the
   drawing. The scan costs 1.07 to 1.18 ms of UI thread per frame (the one-dot floor 0.92 to 1.08, the spinner 1.40). Nothing
-  is claimed for 90 or 120 Hz until the phone run.
+  is claimed for 90 or 120 Hz. On the phone the performance overlay showed 120 FPS with no visible drops, but the harness was
+  not run there; Utility's 1.6 s speed was not checked.

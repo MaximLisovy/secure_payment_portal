@@ -257,7 +257,9 @@ without a seam).
 ### Performance
 
 Measured by `integration_test/scan_performance_test.dart` (`flutter drive --profile --no-dds`), per brand, median of three
-8 s runs, on a **Pixel_9 emulator** (profile build, 60 Hz). A phone run is pending in [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
+8 s runs, on a **Pixel_9 emulator** (profile build, 60 Hz). On a ZTE RedMagic 10 Pro (Android 16) the performance overlay
+showed 120 FPS with no visible drops: an observation, not a measurement, because the harness was not run on the phone, so
+there are no phone numbers ([docs/MANUAL_QA.md](docs/MANUAL_QA.md)).
 
 | Variant | UI thread, avg (ms) | New-gen GCs in 8 s | Frames per second |
 |---|---|---|---|
@@ -337,6 +339,8 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
   The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [the security scan](#the-security-scan)) is a
   third device test, also outside CI.
 - **On a phone.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
+  It was run once, on 2026-10-16, on a ZTE RedMagic 10 Pro (Android 16), with its results and the items *not tested* in the
+  same file.
   [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) is the shot list for the demo video, which is recorded from the emulator window
   with macOS screen capture, because `FLAG_SECURE` blacks out any capture made inside Android.
 
@@ -348,15 +352,19 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 - **Release APKs are debug-signed** (see [Release signing](#release-signing)).
 - **Root detection is heuristic** and can be bypassed (renamed packages, hiding tools); Play Integrity is out of scope.
 - **Screen recording detection needs Android 15.** Below it the state is `unknown` and allowed. Whether the callback fires
-  for a window that is itself `FLAG_SECURE` is unverified (`M4-5` in the manual checklist).
+  for a window that is itself `FLAG_SECURE` did not happen on a ZTE RedMagic 10 Pro (Android 16, the phone's own recorder):
+  no recording block appeared, so the detection is **defense in depth** and `FLAG_SECURE` is the primary control. The likely
+  reason, that a secure window is left out of the capture, is a hypothesis (`M4-5`, [details](docs/platform_channels.md)).
 - **Payments are simulated.** The native processing always succeeds; declines and failures are simulated scenarios. A killed
   process loses an in-flight payment (the state is in memory, the service is not sticky): a real backend would need an
   idempotency key and reconciliation, described in [the appendix](docs/ai/appendix/payments-in-production.md).
   `shortService` stops after about three minutes, fine for this simulation and not for a long real call.
 - **The verdict dwell is a product cost:** Pay is enabled 1.6 to 2.4 s after the check starts, on every visit.
-- **Frame timing was measured on an emulator.** Nothing is claimed for 90 or 120 Hz or a real GPU until the phone run.
-- **Manual QA is pending.** The wire contract is marked draft until the checklist in `docs/MANUAL_QA.md` has been run on a
-  physical phone; anything that depends on it says so.
+- **Frame timing was measured on an emulator.** On the phone the app showed 120 FPS on the performance overlay with no visible
+  drops, which is an observation; the harness was not run there. No numbers are claimed for 90 or 120 Hz or a real GPU.
+- **The phone run was one run on one phone, on a build from before the last three code commits.** The wire contract is
+  final. The notification permission prompt, the lock screen, swiping the app away, other Android versions, battery saver and
+  Utility's 1.6 s scan speed were not tested; each is marked *not tested* in `docs/MANUAL_QA.md`.
 - **Money and dates are not locale-aware.** Amounts are integer minor units in a `Money` value object, never `double`, and
   format as `$1,234.50`; receipts show UTC time. Neither uses `intl`, so grouping, symbol position and date order are fixed.
 - **Light theme only** (tokens are brightness-agnostic, so a dark set can be added).

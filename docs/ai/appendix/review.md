@@ -69,7 +69,7 @@ a test points to the test; one that rests on a search says what was searched.
   `paint()`; the tests are listed in [Appendix A](performance.md). The one other `setState` (the result view) runs once per
   result, and the demo panel's runs on a tap.
 - ✅ **Rebuild scope is minimal**: `select`, small `Consumer` leaves, `MediaQuery.*Of`, `const`.
-- ⚠️ **Measured on an emulator only.** Nothing is claimed for 90 or 120 Hz; the phone run is `M6-6`.
+- ⚠️ **Measured on an emulator only.** On a phone the performance overlay showed 120 FPS with no visible drops, an observation; the harness (`M6-6`) was not run there, so no numbers are claimed for 90 or 120 Hz.
 
 ## Tests and tooling
 
@@ -103,10 +103,13 @@ a test points to the test; one that rests on a search says what was searched.
 
 ## What stays open
 
-Everything that needs a person and a phone is in [Manual QA](../../MANUAL_QA.md) and has not been run: the notification
-prompt and shade, the lock screen, API levels other than 36, how fast the scan feels (is Utility's 1.6 s too quick?), frame
-timing on a 90 or 120 Hz screen, and whether the screen-recording callback fires under `FLAG_SECURE`. The wire contract stays
-marked draft until then. The CI workflow has been validated but has not yet run on GitHub.
+Everything that needs a person and a phone is in [Manual QA](../../MANUAL_QA.md). It was run once, on 2026-10-16, on a ZTE
+RedMagic 10 Pro (Android 16), with a profile build from before the last three code commits. It settled the recording callback
+under `FLAG_SECURE` (it did not fire: defense in depth, the likely reason is a hypothesis) and saw the live progress
+notification, Cancel and backgrounding during a payment work, with 120 FPS and no visible drops on the performance overlay. It
+did not cover the notification permission prompt, the shade in detail, the lock screen, swiping the app away, API levels other
+than 36, how fast Utility's 1.6 s scan feels, or frame-timing numbers (the harness was not run on the phone); each is marked
+*not tested*. The wire contract is final. The CI workflow has run on GitHub and is green.
 
 ## Independent review and follow-up corrections
 
