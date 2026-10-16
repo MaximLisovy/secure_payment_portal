@@ -74,8 +74,8 @@ android/app/src/main/kotlin/<package>/
   MainActivity.kt           # wiring only
   security/  payment/  bridge/
 android/brands.json              # the brands: id, display name, application id suffix; Gradle makes the flavors from it
-integration_test/ test_driver/   # on-device frame timing of the security scan (flutter drive --profile)
-tool/                            # make_launcher_icons.py (legacy icon PNGs), build_release_apks.sh (APKs into dist/)
+integration_test/ test_driver/   # on-device tests (flutter drive): frame timing of the scan, the payment flow over the real plugin; not in CI
+tool/                            # make_launcher_icons.py (legacy icon PNGs), build_release_apks.sh (APKs into dist/), test_payment_lifecycle.py (emulator lifecycle checks)
 .github/workflows/ci.yml         # format, analyze, tests, then a release APK per brand
 ```
 

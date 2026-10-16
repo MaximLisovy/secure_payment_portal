@@ -5,8 +5,8 @@ name: CI
 # flavors from, so a new brand is built here without editing this file.
 #
 # The release APKs are signed with the debug keys (the repository holds no keystore): they are
-# for review, not for a store. The frame timing test (integration_test/) needs a device and is
-# not run here.
+# for review, not for a store. The device suites (integration_test/, tool/test_payment_lifecycle.py)
+# need an emulator or a phone and are not run here.
 
 on:
   push:

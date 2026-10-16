@@ -50,3 +50,10 @@ flutter test                      # all Dart tests
 flutter test --coverage           # optional coverage report
 cd android && ./gradlew :app:testRetailDebugUnitTest   # Kotlin JVM tests (after flavors exist)
 ```
+
+**Device suites** (an emulator, never CI): `integration_test/payment_flow_test.dart` with `test_driver/payment_integration.dart`
+(the payment flow over the real plugin and service, every brand), `tool/test_payment_lifecycle.py` (background and engine
+replacement mid-payment), and `integration_test/scan_performance_test.dart` (frame timing). Commands are in the README. A device
+suite loops over `BrandRegistry.standard.all` or `android/brands.json`, so a new brand is covered with no edit; a script that
+drives a device waits for a condition with a bounded timeout and retries a flaky tool call (`uiautomator dump`), and has no fixed
+sleeps.

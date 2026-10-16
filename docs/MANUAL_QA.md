@@ -18,9 +18,29 @@ result, and a place for the outcome.
   `flutter run --profile --flavor retail -d <device id>`
   (the native debug log needs a debuggable build; a profile build is not one, so use `--debug` when an
   item says to read `adb logcat`).
+- Without a cable (a phone whose ADB installation needs an account), build a standalone profile APK, copy it to the phone and
+  install it by hand: `flutter build apk --profile --flavor retail --target-platform android-arm64` (the file is
+  `build/app/outputs/flutter-apk/app-retail-profile.apk`; `tool/build_release_apks.sh` keeps whatever else is in `dist/`).
 - Note the phone's model and **Android version (API level)** in the table at the end: several items
   differ by API level.
 - Fill in the Result column: ✅ as expected, ❌ with what happened, or n/a with why.
+
+## Run the automated device suites first
+
+Two suites drive the real app on an **emulator** and need no person; they are not part of CI (it has no device) and they do
+not replace the phone: they cannot judge how a notification looks, the lock screen, another OEM's behavior or another API
+level. Run them before the phone so that a regression is not mistaken for a device difference:
+
+```bash
+python3 tool/test_payment_lifecycle.py --device emulator-5554        # background and engine replacement mid-payment, each brand
+PAYMENT_TEST_DEVICE=emulator-5554 PAYMENT_TEST_FLAVOR=retail \
+  flutter drive --debug --no-dds --flavor retail -d emulator-5554 \
+  --driver=test_driver/payment_integration.dart --target=integration_test/payment_flow_test.dart
+```
+
+They cover, on an emulator, the *software* half of `M5-7` (backgrounded) and `M5-8` (swiped away: the Activity and engine are
+replaced while the process lives): the service keeps running and the receipt appears once. `M5-8` on the phone still checks
+what the person sees, and a process killed by the system is a different case that no suite here covers.
 
 ## Recording the demo video
 

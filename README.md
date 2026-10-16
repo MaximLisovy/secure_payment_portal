@@ -314,7 +314,26 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 - **CI** (`.github/workflows/ci.yml`) runs the format check, analysis and both test suites on every push to `main` and every
   pull request, then builds a release APK per brand (the list comes from `android/brands.json`) and uploads it as an
   artifact. Flutter 3.41.9, Temurin 21, every action pinned to a commit SHA.
-- **On a device.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
+- **Device suites (an emulator, not in CI).** Two suites drive the real app on a device, and neither runs in CI because CI has
+  no device. Each takes a minute or two and needs an emulator (they reset app data and grant the notification
+  permission with `adb`, and refuse a physical phone):
+  - `integration_test/payment_flow_test.dart` runs the payment flow through the real Kotlin plugin and foreground service, for
+    every registered brand: a cancelled and retried payment completes only the new attempt, and a payment whose request
+    changes while the final security read is pending never starts.
+    ```bash
+    PAYMENT_TEST_DEVICE=emulator-5554 PAYMENT_TEST_FLAVOR=retail \
+      flutter drive --debug --no-dds --flavor retail -d emulator-5554 \
+      --driver=test_driver/payment_integration.dart --target=integration_test/payment_flow_test.dart
+    ```
+  - `tool/test_payment_lifecycle.py` pays, then sends the app to the background, and then replaces its Activity and Flutter
+    engine mid-payment, and checks that the service carries on and the receipt appears once. One command runs every brand
+    (`--flavor retail` for one):
+    ```bash
+    python3 tool/test_payment_lifecycle.py --device emulator-5554
+    ```
+  The frame timing of the scan (`integration_test/scan_performance_test.dart`, see [the security scan](#the-security-scan)) is a
+  third device test, also outside CI.
+- **On a phone.** What an emulator cannot show is a checklist for one run on a phone: [docs/MANUAL_QA.md](docs/MANUAL_QA.md).
   [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) is the shot list for the demo video, which is recorded from the emulator window
   with macOS screen capture, because `FLAG_SECURE` blacks out any capture made inside Android.
 
