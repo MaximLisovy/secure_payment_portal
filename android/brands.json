@@ -1,0 +1,4 @@
+[
+  { "id": "retail", "displayName": "Retail Shop", "applicationIdSuffix": ".retail" },
+  { "id": "utility", "displayName": "Utility Pay", "applicationIdSuffix": ".utility" }
+]

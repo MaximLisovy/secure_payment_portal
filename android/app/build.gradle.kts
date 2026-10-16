@@ -1,8 +1,35 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// The brands this app ships, one entry per Android flavor: android/brands.json. The flavor name is
+// the brand id in Dart (`appFlavor`), so every id must also be registered in
+// lib/app/brand/brand_registry.dart; test/brands/brands_manifest_test.dart keeps the two in step.
+// Adding a brand adds an entry there, not code here.
+val brands: List<Map<String, String>> =
+    @Suppress("UNCHECKED_CAST")
+    (JsonSlurper().parse(rootProject.file("brands.json")) as List<Map<String, String>>)
+
+check(brands.isNotEmpty()) { "android/brands.json lists no brand." }
+brands.forEach { brand ->
+    val id = brand["id"]
+    check(id != null && Regex("[a-z][a-z0-9]*").matches(id)) {
+        "android/brands.json: \"id\" must be lowercase letters and digits, starting with a letter: $brand"
+    }
+    check(brand["applicationIdSuffix"] == ".$id") {
+        "android/brands.json: the applicationIdSuffix of \"$id\" must be \".$id\": $brand"
+    }
+    check(!brand["displayName"].isNullOrBlank()) {
+        "android/brands.json: \"$id\" needs a displayName: $brand"
+    }
+}
+check(brands.map { it.getValue("id") }.toSet().size == brands.size) {
+    "android/brands.json lists a brand id twice."
 }
 
 android {
@@ -35,19 +62,15 @@ android {
         versionName = flutter.versionName
     }
 
-    // The flavor name is the brand id in Dart (`appFlavor`), so it must match the
-    // id registered in lib/app/brand/brand_registry.dart. Native code stays brand-agnostic.
+    // One flavor per entry of brands.json. Native code stays brand-agnostic.
     flavorDimensions += "brand"
     productFlavors {
-        create("retail") {
-            dimension = "brand"
-            applicationIdSuffix = ".retail"
-            resValue("string", "app_name", "Retail Shop")
-        }
-        create("utility") {
-            dimension = "brand"
-            applicationIdSuffix = ".utility"
-            resValue("string", "app_name", "Utility Pay")
+        brands.forEach { brand ->
+            create(brand.getValue("id")) {
+                dimension = "brand"
+                applicationIdSuffix = brand.getValue("applicationIdSuffix")
+                resValue("string", "app_name", brand.getValue("displayName"))
+            }
         }
     }
 
@@ -78,13 +101,14 @@ flutter {
     source = "../.."
 }
 
-// The native logic is brand-agnostic and both flavors compile the same sources, so one flavor's
-// unit tests cover it. This name keeps the Definition of Done command free of a brand:
-//   JAVA_HOME=<JDK 17-21> ./gradlew testDebugUnitTest
+// The native logic is brand-agnostic and every flavor compiles the same sources, so the unit tests of
+// the first brand cover it. This name keeps the Definition of Done command free of a brand:
+//   JAVA_HOME=<JDK 21> ./gradlew testDebugUnitTest
 tasks.register("testDebugUnitTest") {
     group = "verification"
     description = "Runs the JVM unit tests (flavor-independent)."
-    dependsOn("testRetailDebugUnitTest")
+    val first = brands.first().getValue("id").replaceFirstChar { it.uppercase() }
+    dependsOn("test${first}DebugUnitTest")
 }
 
 dependencies {
