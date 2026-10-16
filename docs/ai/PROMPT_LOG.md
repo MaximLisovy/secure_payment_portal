@@ -365,3 +365,16 @@ part is written by me — that is where I show how I audited and refined the out
 - **Result:** retail release APK: 45,345,302 bytes; utility release APK: 45,342,654 bytes, both under build/app/outputs/flutter-apk/. Release Android Lint: zero errors and the same two existing pinned-version warnings. Documentation links and anchors pass. The earlier 844 Dart tests, 220 JVM tests, format/analyze and debug-build checks remain the evidence for unchanged source code. Commit: docs: record successful release validation.
 
 ---
+
+### 17. Package a profile APK for manual phone installation — 2026-10-16
+- **Tool / model:** OpenAI Codex, GPT-6
+- **Goal:** provide a standalone APK after the phone's ADB installation setting required a manufacturer account.
+- **Prompt (key part, verbatim):**
+  > может просто собрать билд и я его на телефоне установлю?
+- **Context given:** the phone is Android arm64; profile mode preserves the demo panel and brand switcher; existing APK signing and packaging rules.
+- **AI output (summary):** built Retail with flutter build apk --profile --flavor retail --target-platform android-arm64 and copied it to the ignored dist/retail-profile-arm64.apk. Verified the APK signature with apksigner and inspected its manifest and ABI with aapt: package com.hypertenant.secure_payment_portal.retail, minSdk 24, targetSdk 36, arm64-v8a only, no testOnly attribute. No source, signing configuration or dependency changes were needed.
+- **Assumptions & risks flagged by the agent:** profile was selected to retain manual QA controls. The user still needs to transfer the APK and approve installation through the phone's system UI; this build does not establish physical-device validation or guarantee that manufacturer restrictions will allow manual installation.
+- **Developer review:** requested a standalone build for installation on the phone.
+- **Result:** signed profile APK, 27,252,703 bytes, SHA-256 3f77cfe64e0326764c2f774d20982816ab24e377dde08c50af08947789bec327. Build and documentation-link checks pass; prior source validation remains applicable because source code is unchanged. APKs remain untracked. Commit: docs: record manual-install profile APK.
+
+---
