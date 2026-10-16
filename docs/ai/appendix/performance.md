@@ -1,4 +1,4 @@
-# Appendix A: Performance evidence and the scan dwell
+# Appendix A: Performance evidence
 
 Part of the [AI Insight Report](../AI_INSIGHT_REPORT.md). Numbers are from a Pixel_9 **emulator** (60 Hz). On a phone (ZTE RedMagic 10 Pro, Android 16) the performance overlay showed 120 FPS with no visible drops; the harness was not run there, so there are no phone numbers ([Manual QA](../../MANUAL_QA.md)).
 
@@ -43,7 +43,9 @@ What the numbers say, and what they do not:
 - **Observed on a phone, not measured.** 120 FPS on the performance overlay, no visible drops, on a ZTE RedMagic 10 Pro (`M6-7`, qualitative). **Not claimed:** any frame-timing number for 90 or 120 Hz or a real GPU (the harness, `M6-6`, was not run on the phone), and anything about thermal behaviour or a low-power mode (`M6-9`, `M6-10`, not tested).
 
 
-**Design note: the verdict waits for a revolution.** A real device check takes a fraction of a second, so a scan that ran only for the check would be a flash that nobody sees, least of all in a release build with no demo panel. The payment flow therefore holds its verdict until the end of the current revolution of the sweep: `max(actual check time, one period)`, rounded up to the end of the revolution the check finished in. The wait is the brand's own period (four times `motion.slow`, held between 1.6 s and 3 s), so there is no number to configure and no brand check; the cost is that Pay is enabled 1.6 to 2.4 s after the check starts, and a check that takes 2.5 s on a 2.4 s period is shown at 4.8 s. A short, visible check is also a common way to make a security step feel real. Three limits keep it honest: it is not applied for a user who reduced motion (nothing sweeps), not to the second check made when Pay is pressed (the payment is not delayed), and not in tests. The hold lives in the flow's notifier as a timer, not in the animation: Pay and the card read the same state, so they can never disagree, and the tests need no real clock. The animation and the timer start within a frame of each other, and the sweep keeps turning through the fade, so the revolution completes on screen.
+**Unchanged verdict timing.** The flow reveals the verdict at the end of a scan revolution: at least one period,
+aligned to the current revolution, with the existing reduced-motion and final-confirmation exceptions. VerdictHold was not
+changed by the review fixes. The decision and its trade-offs remain in [working log entry 08](working_log.md#08-the-security-scanning-animation-milestone-6--2026-10-16).
 
 
 ## Phone frame statistics

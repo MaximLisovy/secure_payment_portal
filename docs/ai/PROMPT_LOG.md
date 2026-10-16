@@ -61,33 +61,27 @@ Milestone 5, [working log entry 07](appendix/working_log.md#07-payment-foregroun
   slow `uiautomator` dump, and was proved so. The milestone ended with 636 Dart and 207 Kotlin tests, an R8 release build, and
   the checks that need a person recorded as `M5-1` to `M5-12`.
 
-## 3. A product rule from me, and an honest measurement
+## 3. An emulator experiment refuted the recording hypothesis
 
-Milestone 6, [working log entry 08](appendix/working_log.md#08-the-security-scanning-animation-milestone-6--2026-10-16).
+[Working log entry 25](appendix/working_log.md#25-the-saved-recording-and-an-emulator-experiment-on-the-recording-callback--2026-10-16).
 
-- **Context.** The security card's spinner was replaced by a `CustomPainter` radar, styled from each brand's tokens, rebuilding
-  nothing, and measured on a device.
+- **Context.** The phone's saved recording showed a black app area, but no recording block had appeared. The proposed
+  explanation was that FLAG_SECURE excluded the window from capture and therefore silenced the visibility callback.
+  That was a hypothesis; the phone maker's recorder could also behave differently from Android's stock recorder.
 - **My prompt (key part, verbatim).**
-  > Q3 changed: the verdict waits until the sweep completes at least one full revolution — max(actual check time, one period),
-  > aligned to the end of the current revolution. No arbitrary config number: the dwell is derived from the brand's period.
-  > Rationale: the real check takes 0.1–0.5 s, and graders running a release APK (no demo panel) would otherwise never see the
-  > animation.
+  > M4-4 is tested: I checked the saved screen recording on the phone — the app area is black. Update M4-4, the M4-5 finding
+  > and platform_channels.md: FLAG_SECURE is device-verified against recording; the silent callback is consistent with the
+  > window being excluded from the capture. Keep your OEM-recorder caveat until the emulator experiment settles it.
   >
-  > Q5 adjusted: keep the period derived (slow × 4), but clamp it to [1.6 s, 3 s]. 0.96 s for Utility will likely look
-  > frantic. Confirm in the rendered PNGs and adjust the clamp if needed.
-- **What the AI proposed.** A scan shown only while the check runs, with no minimum time and a period of four times the
-  brand's `slow` duration, unclamped (0.96 s for Utility). Its first raster measurements then looked like a failure: about 40 %
-  of frames over budget.
-- **My review and decision.** I changed the plan in two places. The real device check takes 0.1–0.5 s, so the animation would
-  only flash, and a reviewer installing the release APK — which has no demo panel — would never see it. Instead of an
-  arbitrary delay, the verdict waits until the sweep completes one full revolution, derived from the brand's own period; a
-  short, visible security check is also a common trust-building pattern in payment apps. I clamped the period to 1.6–3 s,
-  because 0.96 s would look frantic for the "professional" brand, and asked for a profile-mode spike before building the
-  measurement harness. Whether 1.6 s feels right is a subjective tuning point; the phone run confirmed the scan is smooth at
-  120 Hz but did not judge its speed, so I left the clamp as is.
-- **Outcome.** The hold is a timer in the payment flow, off for reduced motion, so Pay and the card never disagree. Rather
-  than report only the half of the measurement that looked good, the AI added two references to the harness, Material's
-  spinner and a layer that draws one dot, which showed the same raster numbers: that is the emulator's swap path, not the
-  drawing. The scan costs 1.07 to 1.18 ms of UI thread per frame (the one-dot floor 0.92 to 1.08, the spinner 1.40). Nothing
-  is claimed for 90 or 120 Hz. On the phone the performance overlay showed 120 FPS with no visible drops, but the harness was
-  not run there; Utility's 1.6 s speed was not checked.
+  > If you can, run the emulator experiment from my previous message (stock Screen record tile via uiautomator, with
+  > FLAG_SECURE on, then off in a throwaway build that is never committed) and update the finding with the result.
+- **What the AI had written.** The documents repeated the window-exclusion explanation as likely while marking it as a
+  hypothesis. The saved-recording result established capture protection, but it did not explain the silent callback.
+- **My review and decision.** I asked for the stock recorder comparison with the flag on and off, using a throwaway build
+  that must never be committed. I kept the OEM-recorder caveat rather than accepting the hypothesis as established.
+- **Outcome.** On a Pixel_9 API 36 emulator, the recording block appeared in all four flag-on runs and all three flag-off
+  runs, and cleared after recording stopped. Screenshots and the sampled saved-video frame were black with the flag on and
+  visible with it off. This refuted the claim that FLAG_SECURE necessarily silences the callback. The documents were
+  corrected: an OEM-recorder difference fits the phone observation but remains unproven; only the stock “Record this screen”
+  mode was tested. No throwaway code was committed. The lesson is to test the causal explanation separately from the
+  observed result and revise the explanation when the experiment contradicts it.

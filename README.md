@@ -47,7 +47,10 @@ What is in it:
   enforced by tests ([architecture](#architecture)).
 - **Backend: none.** Payment APIs are simulated behind the interfaces a real backend would use.
 
-Written with AI coding agents (Claude Code, and OpenAI Codex as an independent reviewer), under written rules, with every milestone planned and approved first:
+Claude Code implemented the initial milestones. OpenAI Codex reviewed the code, found defects and, with my approval,
+implemented the fixes in an earlier pass: **13 commits, about 2,300 lines, including the attempt-id rewrite**. I reviewed
+its plan and the smaller diffs, and verified the large change through tests and device runs. Later review-fix batches are
+recorded separately in the working log:
 [AI Insight Report](docs/ai/AI_INSIGHT_REPORT.md), [Prompt Log](docs/ai/PROMPT_LOG.md) (three highlights) and the
 [working log](docs/ai/appendix/working_log.md) (everything).
 
@@ -303,8 +306,7 @@ without a seam).
 - **No rebuilds, one repaint layer.** A still backdrop and the moving part sit in two `RepaintBoundary`s; the moving painter
   listens to the animation itself. `paint()` allocates nothing, and the ticker exists only while the scan is on screen.
   With reduced motion the scan shows a still pose and nothing animates.
-- **The verdict waits for the sweep to go all the way round.** A real device check takes a fraction of a second, which
-  would make the scan a flash that a release build never really shows. The flow therefore holds the verdict until the end
+- **The verdict waits for the sweep to go all the way round.** The flow holds the verdict until the end
   of a revolution: `max(how long the check took, one period)`, rounded up to the end of the revolution it finished in. Pay
   is enabled 2.4 s after the check starts on Retail and 1.6 s on Utility, on any device that answers quickly. The wait is
   the brand's own period, so there is no number to configure. It is not applied with reduced motion (nothing sweeps), not
@@ -428,7 +430,7 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 - **The verdict dwell is a product cost:** Pay is enabled 1.6 to 2.4 s after the check starts, on every visit.
 - **Frame timing was measured on an emulator.** On the phone the app showed 120 FPS on the performance overlay with no visible
   drops, which is an observation; the harness was not run there. No numbers are claimed for 90 or 120 Hz or a real GPU.
-- **The phone run was one run on one phone, on a build from before the last three code commits.** The wire contract is
+- **The phone run was one run on one phone, before these review fixes and three earlier code commits.** The wire contract is
   final. The notification permission prompt, the lock screen, swiping the app away, other Android versions, battery saver and
   Utility's 1.6 s scan speed were not tested; each is marked *not tested* in `docs/MANUAL_QA.md`.
 - **Money and dates are not locale-aware.** Amounts are integer minor units in a `Money` value object, never `double`, and

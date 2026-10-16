@@ -1,16 +1,20 @@
 # Appendix D: Final review against the checklist
 
 Part of the [AI Insight Report](../AI_INSIGHT_REPORT.md). The checklist is [`.agents/rules/review-checklist.md`](../../../.agents/rules/review-checklist.md),
-run over the whole repository at the end of the last milestone, by the agent that wrote most of it. A claim that rests on
-a test points to the test; one that rests on a search says what was searched.
+originally run at the end of an earlier milestone by the agent that wrote most of it. The initial checklist below is historical;
+the [two-review findings](#two-review-findings-and-approved-fixes) supersede its outdated claims. A source regex is a guardrail,
+not proof, and historical device results do not validate the later review fixes.
 
 ✅ checked, as it should be. ⚠️ a deviation that stays, and why. ❌ found and fixed in this pass.
 
 ## Architecture
 
-- ✅ **Dependency rule.** Domain is pure Dart, presentation and the app never import a data layer, a feature reaches another
-  only through its barrel, fakes stay inside their seams: `test/architecture/layering_test.dart`.
-- ✅ **Single reason to change, small files.** Production files remain small; payment flow timing and native worker coordination are extracted and tested separately. The original sizes were `payment_flow_notifier.dart` 226 and `PaymentProcessingService.kt` 195 lines before the review fixes.
+- ✅ **Dependency rule guardrails.** Source regexes inspect imports and fake identifiers in `test/architecture/layering_test.dart`.
+  They do not parse Dart or prove architecture. Domain remains pure; simulation-only controls now live in data and are exposed
+  to debug tooling through DI/public barrels, as requested in the later review.
+- ⚠️ **File size.** The current payment flow coordinator is 354 lines, above the 200–250-line smell guideline. Verdict timing
+  and reconciliation timers are separate helpers; the notifier still owns flow transitions. This is an acknowledged maintenance
+  cost, not a claim that every file is small. The original sizes were 226 and 195 lines for the notifier and native service.
   - ❌ The notifier had reached 243 lines when it took the scan dwell. The timing moved to `VerdictHold`, tested alone.
 - ✅ **Open/Closed.** Payment sections go through `PaymentSectionRegistry` (a new section is a spec, a widget and one
   `.adding`), brands through the manifest and the registry. A scratch third brand needed nothing under `lib/features` or
@@ -48,8 +52,9 @@ a test points to the test; one that rests on a search says what was searched.
 
 ## Android native
 
-- ✅ **Every channel call replies once, on main**, and no blocking work runs on main (`SafeResult` and the handlers' tests,
-  including a concurrent-reply test). Coroutine scopes are cancelled in `onDestroy`/`detach`.
+- ✅ **Reply safety.** SafeResult submits at most one reply on main; it cannot guarantee that a handler replies. A cancelled
+  call may receive none. Coroutine scopes are cancelled on destroy/detach, and blocking root probes are abandoned outside the
+  waiting scope. Handler and concurrent-reply tests exercise these paths.
 - ✅ **API-level guards.** Three `SDK_INT` guards and two `@RequiresApi`, each with the API level in a comment. Android Lint:
   no error. ❌ It flagged the API 34 foreground-type constant (documented suppression: `ServiceCompat` masks it below 34),
   an obsolete `drawable-v21` folder (merged) and backup settings (below). Two version notes remain on purpose (Gradle 8.14,
@@ -111,8 +116,40 @@ did not cover the notification permission prompt, the shade in detail, the lock 
 than 36, how fast Utility's 1.6 s scan feels, or frame-timing numbers (the harness was not run on the phone); each is marked
 *not tested*. The wire contract is final. The CI workflow has run on GitHub and is green.
 
-## Independent review and follow-up corrections
+## Earlier Codex review and approved implementation
 
-The initial checklist above records the earlier milestone's checks. Independent review subsequently reproduced cross-attempt corruption, stale Flutter confirmation, unrelated progress hiding a command rejection, a security snapshot taken before a permission prompt, overlapping window acquisitions and writable domain collections. The fixes and regressions are described in AI Insight Report section 3 and [working log](working_log.md) entries 09 onward. Existing device/profile results are historical; schema v2 and worker coordination have automated validation, with new device scenarios still pending in Manual QA.
+Codex reviewed the code, found defects and, with the developer's approval, implemented the earlier fixes (13 commits,
+about 2,300 lines, including the attempt-id rewrite). The developer reviewed the plan and smaller diffs and verified the
+large change through tests and device runs. Entries 09–21 in the [working log](working_log.md) record that pass.
 
-Follow-up automated validation: 855 Dart tests and 220 Kotlin/JVM tests pass; formatting and Flutter analysis are clean, and Android Lint reports no errors. Current schema-v2 debug and release APKs were rebuilt for both brands. After the developer explicitly authorized Flutter to regenerate plugin registration, ordinary release build commands resolved the earlier stale integration_test registration failure without manual generated-file edits. The initial approval rejection and successful follow-up are recorded in [working log](working_log.md) entries 13 and 16. No physical-device or high-refresh-rate rerun is claimed.
+## Two-review findings and approved fixes
+
+Two subsequent independent reviews ranked payment correctness first. The developer consolidated their findings into the
+13 items below and approved the batch 1 plan, adding active snapshot reconciliation, an explicit classification table and
+named deadlines. The table records the supplied findings without inventing reviewer scores, quotes or separate reports
+that were not supplied. Batches 2–4 continued under that authorization; verdict-hold logic was not changed.
+
+| Item / finding | Implemented correction | Evidence and limits |
+|---|---|---|
+| 1. Transport failures looked like failed payments, enabling unsafe retries | Unknown start outcomes and unreadable/unscoped progress retain the attempt, stream and Cancel; immediate attempt-scoped native snapshots retry with capped backoff for 30 s; expiry shows guidance without payment retry | Repository classification table, source contract suites, JVM snapshot tests, late-terminal/cancel/replacement tests; both named surviving mutations are killed. In-memory snapshots are not durable backend history |
+| 2. Silent EventChannel activation left startup waiting indefinitely | Named 5 s first-event deadline enters an unavailable blocked state; Check again opens a new subscription | Tests include actual missing-plugin activation via FlutterError, deadline boundaries, disposal, first error and late replay; README iOS claim corrected |
+| 3. Invalid numeric fields and unexpected mapping exceptions escaped | WireReader validates numeric ranges and non-empty identities; repositories contain unexpected errors; both notifier subscriptions handle stream errors | completedAtMillis = 9223372036854775807 tested through parsing, stream mapping and snapshot recovery; invalid active events remain uncertain outcomes |
+| 4. Sensitive content appeared before window confirmation | SecureScreen withholds its child until protected, uses a neutral placeholder while pending, and shows a blocked message/protection retry on failure | Delayed/failed protection and existing lifecycle/navigation widget tests; no new physical-device run |
+| 5. Weak clean checks could yield a clean root verdict | Every probe declares strength; NOT_DETECTED requires a conclusive strong clean check when no signal fires; copy says “No root indicators found” | JVM aggregation cases; File.exists absent/inaccessible ambiguity and availability trade-off documented |
+| 6. Structured cancellation could wait for blocking root probes | Detector-owned IO workers run outside the awaiting scope; waits time out without joining late calls; detector scope closes on detach | Real CountDownLatch-blocked IO-thread JVM test plus cancellation/concurrency cases; OS calls may outlive the wait |
+| 7. Both tenants and demo catalogs shipped in each release | Const kReleaseMode/appFlavor filtering; brand-owned registrations/demo seeds; generic feature catalog injected through root DI | strings on all three AOT architectures per release APK and ASCII/UTF-16 scans of every decompressed entry; own-marker positive controls. Future assets/imports still need the same artifact check |
+| 8. No in-app phone frame-timing numbers | Debug/profile SchedulerBinding collector with rolling 600-frame count, reported display Hz, p50/p90/p99/worst build/raster ms and Reset | Percentile/eviction/reset/publication/callback lifecycle tests; phone table and ADB-free QA steps. New phone numbers remain unmeasured; display Hz is not measured FPS |
+| 9. Simulation controls/test hooks/permission data/promo/singleton inconsistencies | Controls moved to data and exposed through DI; test-only hooks annotated; permission reply is void; promo no longer asserts an arbitrary bill discount; singleton exception documented | Analysis, architecture guardrails, native permission result cases and full suites. Tenant fixtures/stale ownership comment were already resolved in item 7 |
+| 10. Reply, architecture and recorder claims were too strong | At-most-one reply distinguished from liveness; regex checks described as guardrails; API 35 callback described as app recording visibility | Implementation and official Android API contract checked; active-recorder detection brief only partially met |
+| 11. README setup/platform/release guidance was stale | Compact quickstart, registration-owned bill setup, API table, release install link/steps, truthful iOS and profile-demo guidance | Documentation link test and full validation; release link supplied by developer, no upload performed |
+| 12. Codex's contribution and AI examples were inaccurate/noisy | Precise earlier-pass attribution and developer verification; shortened Insight sections; Prompt Log highlight 3 replaced with entry 25's refuted recording hypothesis | Historical decision preserved in working log, experiment caveats preserved, process noise removed |
+| 13. Delivered APKs did not match final source | Dedicated final build packages both releases and both arm64 profile APKs with SHA256SUMS and source revision | Final artifact hashes/revision and validation are recorded in working-log item 13; artifacts remain outside git |
+
+Validation for items 1–12: formatting, zero-issue analysis, all 887 current Dart tests, all 226 Kotlin JVM tests under JDK 21,
+and both flavor debug builds. Release brand isolation was also checked on actual APKs. Each item has its own green
+Conventional Commit; per-item details and any corrections are in [working log entries 26–29](working_log.md).
+
+Remaining limits: no durable intent store, server idempotency or backend reconciliation; root heuristics are bypassable;
+recording visibility is API/OEM dependent; the new fixes and frame-statistics readout have no physical-phone rerun. The older
+phone and emulator results above are historical. The 354-line flow coordinator remains a maintenance deviation from the file-size
+guideline. A large passing suite and source regexes are evidence for the exercised cases, never proof that all defects are gone.

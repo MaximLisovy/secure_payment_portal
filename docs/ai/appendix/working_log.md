@@ -5,9 +5,10 @@ produced, what it flagged, the corrections that were needed and the developer's 
 show how the work was steered are in the [Prompt Log](../PROMPT_LOG.md), and the main findings are in the
 [AI Insight Report](../AI_INSIGHT_REPORT.md).
 
-Entries 01 to 08, 22 and 23 were written by Claude Code (`claude-sonnet-5-5`). Entries 09 to 21 were written by a second agent
-(OpenAI Codex), which the developer ran deliberately as an independent reviewer when the first agent's quota ran out: it found
-the defects the first agent's tests had not, proposed the fixes, and the developer approved each plan after reviewing it.
+Entries 01 to 08 and 22 to 25 were written by Claude Code (`claude-sonnet-5-5`). OpenAI Codex wrote entries 09 to 21 and 26 onward.
+In the earlier pass, Codex reviewed the code, found defects and, with the developer's approval, implemented the fixes
+(13 commits, about 2,300 lines, including the attempt-id rewrite). The developer reviewed its plan and smaller diffs and verified
+the large change through tests and device runs. Entries 26 onward record the later fixes requested by two reviews.
 
 **Developer decision (recorded by the agent)** is what the developer said, approved or changed during the work, as the agent
 recorded it. Where the agent was not sure it had recorded something correctly it wrote `[confirm]`; the developer answered every one,
@@ -607,3 +608,6 @@ and the answers are in the entries.
 
 - **Item 11:** `docs: update quickstart brand setup and Android requirements`. README begins with clone/cd/pub-get and both flavor run commands, links the user-specified v1.0.0 release with install steps, separates normal release behavior from profile demo scenarios, and lists API minimums per native feature (app 24, channels 26, permission 33, shortService rules 34, recording visibility 35). Add-brand instructions now use BrandRegistration/demoBills and const release filtering, also reflected in the branding rule. The flow diagram includes startup unavailability, active status checking and expired unresolved guidance. The incomplete iOS simulation advice was removed in item 2; no unverified workaround is offered. SDK minSdk 24 was checked in the installed FlutterExtension; no signing or native code changed.
 - **Item 11 validation:** format, analysis, all 887 Dart tests (including relative documentation links/anchors), all 226 Kotlin JVM tests under JDK 21, and both debug flavor builds pass. Self-review checked run commands, registration ownership, release/profile distinction, API minimums and fail-closed iOS wording. The release URL is the developer-specified link; no publication or upload was performed.
+
+- **Item 12:** `docs: correct AI attribution and record both review findings`. README and Insight Report describe the earlier Codex pass as code review followed by approved implementation (13 commits, about 2,300 lines, including the attempt-id rewrite), with the developer's review and test/device verification. Insight §2 is four short sentences, its second §3 example is three, and plugin-regeneration permission/process noise is removed. Prompt Log highlight 3 now records entry 25's refuted recording hypothesis, experimental controls/results and the remaining OEM caveat; historical dwell decisions remain in this working log. Performance docs describe only unchanged timing behavior and point here for the decision history. The review appendix adds all consolidated findings from both reviews, fixes, validation and remaining limits. Production-payment notes distinguish implemented in-memory reconciliation from unimplemented durable backend recovery.
+- **Item 12 validation:** format, analysis, all 887 Dart tests (including documentation links/anchors), all 226 Kotlin JVM tests under JDK 21, and both debug flavor builds pass. Self-review checked the exact attribution requested, three-sentence execution-identity example, four-sentence §2, removal of process noise, entry-25 prompt/result fidelity, review findings coverage and historical versus current validation limits. No new phone run or measurement is claimed.
