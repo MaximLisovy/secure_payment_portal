@@ -34,7 +34,7 @@ Map<String, int> _colours(String id) {
   ).readAsStringSync();
   return {
     for (final match in RegExp(
-      r'<color name="(\w+)">#([0-9A-Fa-f]{6})</color>',
+      r'<color name="(\w+)"[^>]*>#([0-9A-Fa-f]{6})</color>',
     ).allMatches(xml))
       match.group(1)!: 0xFF000000 | int.parse(match.group(2)!, radix: 16),
   };

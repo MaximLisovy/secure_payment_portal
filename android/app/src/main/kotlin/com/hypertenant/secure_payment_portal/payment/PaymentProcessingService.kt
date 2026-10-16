@@ -138,7 +138,15 @@ class PaymentProcessingService : Service() {
         stopSelf(startId)
     }
 
-    /** Foreground with the starting notification. False if the system refuses. */
+    /**
+     * Foreground with the starting notification. False if the system refuses.
+     *
+     * `FOREGROUND_SERVICE_TYPE_SHORT_SERVICE` is an API 34 constant, inlined as `0x800`. That is safe
+     * here: `ServiceCompat.startForeground` passes the type to the platform from API 34 and masks it
+     * to nothing on 29 to 33, where types are not enforced (read from its bytecode, and a payment ran
+     * on API 36 with `types=0x800`), so nothing on an older device ever sees the value.
+     */
+    @SuppressLint("InlinedApi")
     private fun goForeground(): Boolean =
         try {
             ServiceCompat.startForeground(

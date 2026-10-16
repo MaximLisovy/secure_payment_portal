@@ -111,6 +111,23 @@ class ManifestGuardTest {
         assertEquals(false, hasIntentFilter(receiver))
     }
 
+    // The app keeps nothing worth backing up; switching it off keeps it that way if a cache is added.
+    @Test
+    fun theAppDoesNotAllowBackup() {
+        val application = manifest.elements("application").single()
+
+        assertEquals("false", manifest.androidAttr(application, "allowBackup"))
+        // Android 12+ reads its own rules, and they must exclude every domain from both paths.
+        assertEquals("@xml/data_extraction_rules", manifest.androidAttr(application, "dataExtractionRules"))
+        val rules = File("src/main/res/xml/data_extraction_rules.xml").readText()
+        for (path in listOf("cloud-backup", "device-transfer")) {
+            val section = rules.substringAfter("<$path>").substringBefore("</$path>")
+            for (domain in listOf("root", "file", "database", "sharedpref", "external")) {
+                assertEquals("$path leaves $domain in", true, section.contains("<exclude domain=\"$domain\" />"))
+            }
+        }
+    }
+
     @Test
     fun nothingButTheLauncherActivityIsExported() {
         val exported =

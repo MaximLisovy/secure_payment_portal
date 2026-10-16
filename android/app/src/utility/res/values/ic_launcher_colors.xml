@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Launcher icon colours. A test keeps them equal to the brand tokens in lib/brands/utility:
-     background = brandPrimary, glyph = onBrandPrimary, accent = brandAccent. -->
-<resources>
+     background = brandPrimary, glyph = onBrandPrimary, accent = brandAccent. The bolt is a single
+     colour, so the accent is not drawn; it is kept so that every brand's icon colours mirror its tokens. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
     <color name="ic_launcher_background">#0B2A4A</color>
     <color name="ic_launcher_glyph">#FFFFFF</color>
-    <color name="ic_launcher_accent">#475569</color>
+    <color name="ic_launcher_accent" tools:ignore="UnusedResources">#475569</color>
 </resources>
