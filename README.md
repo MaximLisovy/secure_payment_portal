@@ -199,8 +199,9 @@ nothing changed under `lib/features` or `lib/core`.
 
 ## Native Android features
 
-All Kotlin lives behind small ports (so it is unit-tested on the JVM) and `MainActivity` only wires plugins. Every channel
-call replies exactly once, on the main thread.
+Kotlin logic uses small ports for JVM tests, and `MainActivity` only wires plugins. `SafeResult` guarantees at most one
+reply and sends it on the main thread; handlers supply the reply. Engine-detach cancellation may leave an abandoned call
+unanswered, and bounded Dart command deadlines handle unavailable replies.
 
 - **Root detection.** Six independent checks run concurrently: `su` binary, Magisk artifacts, root-manager packages,
   `which su`, test-keys and a debuggable build. The result is tri-state (`detected`, `notDetected`, `unknown`); `unknown`
@@ -208,8 +209,10 @@ call replies exactly once, on the main thread.
   These are heuristics, not device attestation: `File.exists` cannot distinguish an absent path from an inaccessible one,
   so a false result is treated as clean for availability and may miss hidden artifacts. Requiring a strong clean check
   can also block legitimate devices when all strong probes are inconclusive.
-- **Screen recording.** From Android 15 (API 35) `WindowManager.addScreenRecordingCallback` reports it as a stream. Below
-  35 the state is `unknown` (the policy allows it), never "not recording".
+- **Screen recording.** From API 35, the callback reports whether this app is visible in a recording, rather than whether
+  any recorder is active. Below API 35 it is `unknown` (the policy allows it). This only partially meets the brief's
+  “detect an active recorder” requirement; it cannot prove that no recorder is running.
+  See [Android's callback contract](https://developer.android.com/reference/android/view/WindowManager#addScreenRecordingCallback(java.util.concurrent.Executor,java.util.function.Consumer)).
 - **Window protection.** Sensitive content is mounted only after the platform confirms the secure window. A neutral
   placeholder appears while waiting, and a blocked message with a protection recheck appears on failure. `FLAG_SECURE`
   stays acquired through route transitions until disposal, is reference counted, re-applied on Activity recreation, and reported back
@@ -232,7 +235,7 @@ Whether a payment may be confirmed is decided by `SecurityPolicy` (pure Dart, `l
 | a strong root signal (su binary, Magisk, root manager) | blocked |
 | only weak root signals (test keys, debuggable build) | allowed |
 | root could not be verified | blocked (fail-closed) |
-| screen recording in progress | blocked; lifts when the recording ends |
+| app reported visible in a recording (API 35+) | blocked; lifts when the recording ends |
 | screen recording state unknown (below Android 15) | allowed |
 | the window could not be protected | blocked, recoverable ("Check again") |
 
@@ -320,7 +323,7 @@ flutter build apk --debug --flavor retail && flutter build apk --debug --flavor 
 
 - **Dart.** Domain and policy; data sources against the same contract suites as their fakes (the channel sources run
   unchanged against a Dart stand-in for the native side); notifiers through `ProviderContainer`; widgets; every registered
-  brand; the layering rules; the documentation links.
+  brand; regex layering guardrails (not architectural proof); the documentation links.
 - **Kotlin.** The ports, root checks, reply-once and threading, the secure window count, the payment store, session,
   notification throttle and handlers, and a guard over the manifest (permissions, one exported component, a
   `shortService`-only service, backups off).

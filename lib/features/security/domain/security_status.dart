@@ -27,7 +27,8 @@ final class SecurityStatus extends Equatable {
 
   final RootAssessment root;
 
-  /// `detected` means a screen recording is in progress.
+  /// `detected` means this app is reported visible in a recording (API 35+).
+  /// `notDetected` does not prove that no recorder is active.
   final Detection screenRecording;
 
   final WindowProtection windowProtection;

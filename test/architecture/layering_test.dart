@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 // Reads the source of `lib/` to hold the rules of AGENTS.md section 3 that the
-// analyzer cannot. They are checked on imports and identifiers, so they are
-// cheap and exact; they do not parse Dart.
+// analyzer cannot. Regexes inspect imports and identifiers without parsing Dart:
+// these are inexpensive guardrails, not proof of architectural correctness.
 
 const _package = 'package:secure_payment_portal/';
 

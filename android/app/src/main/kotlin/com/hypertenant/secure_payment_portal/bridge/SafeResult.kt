@@ -5,12 +5,13 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Wraps a [MethodChannel.Result] so it is answered **exactly once**, and **on the main thread**.
+ * Wraps a [MethodChannel.Result] so it is answered **at most once**, and **on the main thread**.
  *
  * Flutter throws "Reply already submitted" on a second reply, and replies must not come from a
  * background thread. A coroutine that finishes after its caller gave up, or a handler with two exit
- * paths, can break either rule; this wrapper makes both impossible instead of relying on every call
- * site getting it right. A second reply is ignored and logged, never thrown.
+ * paths, can submit duplicate replies; the wrapper suppresses duplicates and dispatches the
+ * accepted reply to main. It cannot force a handler to reply: cancellation or an unhandled path
+ * may produce no reply. A second reply is ignored and logged, never thrown.
  */
 class SafeResult(
     private val delegate: MethodChannel.Result,

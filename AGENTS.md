@@ -130,7 +130,7 @@ Allowed imports:
 ## 4. Golden rules per area (details in `.agents/rules/`)
 
 1. **Multi-tenant:** no `if/else`, `switch` or ternary on brand, flavor or app id anywhere outside `lib/app/brand/brand_registry.dart`. Visual differences are tokens (`ThemeExtension`). Structural differences, like Promo Banner vs Bill Breakdown, are config-declared sections rendered through a registry.
-2. **Native:** `MainActivity` only wires handlers. Every channel call replies **exactly once**, **on the main thread**, after any blocking work has run off it. Kotlin and Dart share channel names and error codes as mirrored constants.
+2. **Native:** `MainActivity` only wires handlers. Live channel handlers must reply on the main thread after blocking work has run off it. `SafeResult` guarantees **at most one** reply, not reply liveness; engine-detach cancellation may abandon a call. Kotlin and Dart share channel names and error codes as mirrored constants.
 3. **Performance:** an animation drives the painter through `CustomPainter(repaint: animation)` inside a `RepaintBoundary`. Never use `setState` per frame, and never allocate in `paint()` when that can be avoided.
 
 ## 5. How you work (agent workflow)

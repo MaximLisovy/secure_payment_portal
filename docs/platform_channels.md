@@ -182,10 +182,10 @@ implementations must agree.
   while the flag is set and `inactive` otherwise. The app blocks payment unless
   it is `active` (fail-closed), so a device that cannot protect its window never
   pays.
-- **Threading.** Replies and event emissions happen on the platform main thread,
-  exactly once per call; blocking work runs off it. The root checks run on
-  `Dispatchers.IO`, concurrently, each capped at 2 s; everything that touches the
-  `Window` stays on main.
+- **Threading.** Replies and events are emitted on the platform main thread.
+  SafeResult guarantees at most one reply, not liveness; a cancelled handler may
+  submit none. Root probes run concurrently on IO with awaits bounded at 2 s;
+  blocking calls may outlive the wait. Window operations stay on main.
 - **Listeners are released.** Register system callbacks in `onListen`, unregister
   them in `onCancel`, and tolerate `onListen` being called again.
 - **One native listener.** The Android `EventChannel` keeps a single active sink: a
@@ -409,3 +409,9 @@ abandoned without joining it, so it cannot extend the channel reply's wait.
 Late results do not change the returned report. Engine detach cancels the probe
 scope. A non-cooperative OS call may still occupy its IO thread until it returns:
 this deadline bounds waiting, not that call's physical lifetime.
+
+The API 35+ recording callback reports this app's visibility in a recording, not
+whether any recorder is active. `notDetected` is not a global recorder absence
+verdict, and below API 35 the result is `unknown`. This partially meets the brief's
+active-recorder detection requirement; FLAG_SECURE remains the primary control.
+See the [Android API contract](https://developer.android.com/reference/android/view/WindowManager#addScreenRecordingCallback(java.util.concurrent.Executor,java.util.function.Consumer)).

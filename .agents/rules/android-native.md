@@ -40,7 +40,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 ## 2. Channel contract (both sides)
 
 - Channel names are stable and brand-agnostic: `com.hypertenant.secure_payment_portal/<module>`. Don't derive them from `applicationId`, which changes per flavor.
-- Use `MethodChannel` for commands and queries, and `EventChannel` for streams (screen-recording state, payment progress). Don't poll from Dart.
+- Use `MethodChannel` for commands and queries, and `EventChannel` for streams (screen-recording state, payment progress). Normal updates use streams; bounded snapshot backoff is allowed only to reconcile an uncertain payment outcome.
 - Every method name, argument key and error code exists **once** on each side: `bridge/Channels.kt` and `lib/core/platform/`. When you change the contract, update both files and the table in `docs/platform_channels.md` in the same change.
 - Payloads are flat maps of primitives with explicit keys and versionable shape. The Dart data source parses them into DTOs with validation. Raw maps never reach the domain layer.
 - Unknown method → `result.notImplemented()`. Bad arguments → `result.error(INVALID_ARGS, …)`. Never crash the engine.
@@ -48,7 +48,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 ## 3. Threading and reply safety (critical)
 
 - Handlers are invoked on the **platform main thread**. Don't block it: file system checks, `Runtime.exec` and package queries run in `withContext(Dispatchers.IO)`.
-- Reply (`success`, `error`, `notImplemented`) and `EventSink` emissions happen on the **main thread**, **exactly once** per call. Wrap `Result` in `SafeResult`, which posts to `Dispatchers.Main.immediate` and ignores or logs a second reply instead of throwing "Reply already submitted".
+- Replies and `EventSink` emissions happen on the **main thread**. `SafeResult` guarantees **at most one** method reply and dispatches it to main; it suppresses/logs duplicates but cannot force a handler to reply. Live handler paths must supply a reply; engine-detach cancellation can abandon one. Dart bounds unavailable command replies with deadlines.
 - Coroutines run in a scope owned by the plugin or service: `CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)`, cancelled in `onDetachedFromEngine` or `onDestroy`. Never use `GlobalScope` or `runBlocking` on the main thread.
 - `EventChannel.StreamHandler`: register system callbacks in `onListen` and unregister them in `onCancel`. Null out the sink. Tolerate `onListen` being called again after `onCancel`.
 - The embedding keeps **one active sink per EventChannel**: `onListen` swaps in the new sink and calls `onCancel(null)` on the old one, and `onCancel` cancels whichever sink is active (or fails with "No active stream to cancel"). Dart must therefore hold one native subscription for any number of Dart listeners (see section 6).
@@ -70,7 +70,7 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 - Document honestly in KDoc: client-side root checks are heuristics that tools like Magisk DenyList/Zygisk can bypass. Production would add server-verified **Play Integrity API**. Don't present heuristics as tamper-proof.
 
 ### 4.2 Screen recording / capture detection
-- **API 35+:** `WindowManager.addScreenRecordingCallback(executor, consumer)` on the **Activity's** `WindowManager`, with `<uses-permission android:name="android.permission.DETECT_SCREEN_RECORDING" android:minSdkVersion="35"/>` (a normal permission, granted at install). Map `SCREEN_RECORDING_STATE_VISIBLE` / `NOT_VISIBLE`. Use the main executor, so every callback is on main. Remove the callback when listening stops or the Activity detaches, and register again on the new Activity.
+- **API 35+:** `WindowManager.addScreenRecordingCallback(executor, consumer)` on the **Activity's** `WindowManager`, with `<uses-permission android:name="android.permission.DETECT_SCREEN_RECORDING" android:minSdkVersion="35"/>` (a normal permission, granted at install). Map `SCREEN_RECORDING_STATE_VISIBLE` / `NOT_VISIBLE`: this reports app visibility in a recording, not the existence of any active recorder. It partially meets the brief and cannot enumerate or rule out recorders. Use the main executor, so every callback is on main. Remove the callback when listening stops or the Activity detaches, and register again on the new Activity.
 - **Below API 35: always `unknown`**, never `notRecording`. No `DisplayManager` heuristic (it would also flag casting and mirroring) and no API 34 screenshot callback (`registerScreenCaptureCallback` detects *screenshots*, not recordings, and the contract has no field for it).
 - Only a MediaProjection capture is seen by the callback: `adb shell screenrecord` is not (checked on API 36).
 - Stream changes over the EventChannel and also expose a one-shot `getSecurityStatus` query.
@@ -123,14 +123,14 @@ android/app/src/main/kotlin/com/hypertenant/secure_payment_portal/
 - Riverpod 3 filters `StreamProvider` events with `==`. Make event entities `Equatable`, so that dropping identical consecutive states is intended rather than accidental.
 - Channel providers (`MethodChannel`/`EventChannel` instances) are plain `Provider`s, so tests can override them.
 - **Say what you swallow.** A channel source takes a `Logger` and warns wherever it turns a platform problem into something quieter: an error reply, a timeout, a malformed or error event, a failed permission request that does not stop the payment. It logs the **method and the error code** (or the type name), never the message, the arguments or a payload: a native message can carry anything. `MissingPluginException` (no native side) is expected and is not logged. The tests plant a card number in every native message and assert it never reaches a log (`nativeCanary`).
-- Give method calls a **timeout** and turn it into an explicit failure (`UNAVAILABLE`): a call that is never answered must not leave the app waiting for ever, and "no answer" is as good a reason to refuse a payment as an error.
+- Give method calls a **timeout** and turn it into an explicit failure (`UNAVAILABLE`): a call that is never answered must not leave the app waiting for ever, and before start it blocks; after a possibly accepted start it means an unknown outcome and reconciliation, never a confirmed payment failure.
 - Share **one native EventChannel subscription** between all Dart listeners (`ReplayLatest.empty(onFirstListener, onLastCancel, forgetOnLastCancel: true)`): open for the first, close after the last, replay the latest to each, never a value from before the reopen. The stream carries no errors: a malformed or error event is `unknown`.
 - Flutter's `EventChannel` swallows a failed `listen` (for example `MissingPluginException`) and reports it through `FlutterError`, so with no native side the stream is silent, not erroring.
 - Test the channel source against the same contract suite as the fake, with a Dart stand-in for the native side on the mock binary messenger (`test/features/security/helpers/native_security_simulator.dart`).
 
 ## 7. Self-check before finishing native work
 
-- [ ] Every channel call replies exactly once, on main; no blocking work on main.
+- [ ] Live handler paths reply on main; SafeResult guarantees at most one submission, not liveness. No blocking work on main.
 - [ ] Callbacks, scopes and sinks are released on detach, cancel or destroy; no Activity leaks across config changes.
 - [ ] Every API > 24 is guarded and annotated; permissions are declared with the correct API scope.
 - [ ] The FGS type is declared, the permission added, the start is user-initiated, the stop path is correct, and the timeout is handled.

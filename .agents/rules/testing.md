@@ -5,7 +5,7 @@ description: "Testing rules. Apply when writing, changing or running tests (Dart
 
 # Testing
 
-Tests prove the architecture. Each layer is testable in isolation because it depends on interfaces. If something is hard to test, treat that as a design smell and fix the design, not the test.
+Tests exercise architecture boundaries; the source regex checks are guardrails, not a proof of architecture. Each layer is testable in isolation because it depends on interfaces. If something is hard to test, treat that as a design smell and fix the design, not the test.
 
 ## Layout
 
